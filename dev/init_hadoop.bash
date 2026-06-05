@@ -124,7 +124,7 @@ EOF
       HBASE-21639 mitigation: HBase 2.6.5 default asyncfs WAL provider hits a
       ProtobufDecoder reflection incompatibility on Hadoop 3.3.6 causing HMaster
       to abort. Switching to the older synchronous "filesystem" writer bypasses
-      the reflection path. Surfaced in Phase 4c sanity check; closes NEW-F9.
+      the reflection path. Surfaced during singlecluster sanity checks.
     -->
     <property>
         <name>hbase.wal.provider</name>

@@ -1,11 +1,11 @@
--- PTT-1135 Phase 5 [5.6]: PG 12 (WHPG 7) changed extra_float_digits default
+-- PG 12 (WHPG 7) changed extra_float_digits default
 -- 1 → 3. Pin display rounding so the test is version-agnostic. Same fix as
 -- HBaseSmokeTest.sql; see commentary there.
 SET extra_float_digits = 0;
 
 -- Create Hbase tables hbase_table and pxflookup
 \!{{ HBASE_CMD }} shell {{ SCRIPT create_pxflookup.rb }} >/dev/null 2>&1
--- PTT-1135 Phase 5 [5.6]: HBase 2.x shell silenced put() output that 1.x emitted.
+-- HBase 2.x shell silenced put() output that 1.x emitted.
 \!{{ HBASE_CMD }} shell {{ SCRIPT gen_small_data.rb }} >/dev/null 2>&1
 
 -- FDW test

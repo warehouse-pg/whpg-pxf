@@ -24,7 +24,7 @@ display "Installing pxf-hbase jar onto singlecluster HBase RegionServer classpat
 # remember to do the cp manually after every PXF rebuild.
 #
 # Build artifact lives at $PXF_HOME/share/ (NOT $PXF_HOME/lib/, despite the
-# pre-PTT-1135 README copy-paste suggestion — the install task in
+# an earlier README copy-paste suggestion — the install task in
 # pxf-hbase/build.gradle drops here: `from('pxf-hbase/build/libs') { into 'share' }`).
 HBASE_LIB="${GPHD_ROOT:-/singlecluster}/hbase/lib"
 hbase_jar=""

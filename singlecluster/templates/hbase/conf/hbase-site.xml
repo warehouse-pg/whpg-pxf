@@ -57,7 +57,7 @@
 	  provider to the older synchronous "filesystem" writer bypasses
 	  the reflection path entirely. This is the upstream-recommended
 	  mitigation for our specific Hadoop / HBase version combo; flagged
-	  during PTT-1135 Phase 4c sanity. Verified that HMaster boots
+	  during singlecluster sanity checks. Verified that HMaster boots
 	  cleanly and `hbase shell create/put/scan/drop` succeed with this
 	  setting.
 	-->

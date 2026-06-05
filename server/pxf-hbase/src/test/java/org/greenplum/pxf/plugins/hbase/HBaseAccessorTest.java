@@ -111,7 +111,7 @@ public class HBaseAccessorTest {
     }
 
     /*
-     * NEW-4 (PTT-1135): hbase.read.rpc.timeout config-propagation smoke test.
+     * hbase.read.rpc.timeout config-propagation smoke test.
      *
      * HBase 2.5 renamed the old hbase.rpc.timeout knob to a pair of more
      * specific keys: hbase.read.rpc.timeout / hbase.write.rpc.timeout
@@ -143,7 +143,7 @@ public class HBaseAccessorTest {
     }
 
     /*
-     * NEW-7 (PTT-1135): post-Connection.close() lifecycle test.
+     * post-Connection.close() lifecycle test.
      *
      * HBASE-21684 (HBase 2.3) changed StoppedRpcClientException to extend
      * DoNotRetryIOException so a closed connection no longer triggers a

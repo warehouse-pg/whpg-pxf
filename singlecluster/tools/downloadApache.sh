@@ -3,8 +3,8 @@
 # downloadApache.sh — populate singlecluster/tars/ with vanilla Apache
 # component tarballs for the singlecluster build pipeline.
 #
-# Replaces the legacy downloadCDH.sh + compressHDP.sh flow (retired in
-# PTT-1135 Phase 4a — see implementation-plan.md §4a.1).
+# Replaces the legacy downloadCDH.sh + compressHDP.sh flow (CDH/HDP support
+# was retired).
 #
 # Component versions are sourced at runtime from server/gradle.properties
 # (the canonical source-of-truth pin for the whole tree). Bump a version

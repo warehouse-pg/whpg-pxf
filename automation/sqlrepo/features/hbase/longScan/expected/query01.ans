@@ -1,4 +1,4 @@
--- @description query01 for PXF HBase long-scan test (NEW-3 / PTT-1135)
+-- @description query01 for PXF HBase long-scan test
 -- Asserts that scanning ~10K rows from a single region returns the full
 -- row count without surfacing the HBase-2.x server-side scan RPC time-limit
 -- error as a client failure (HBASE-16981 family). 10k chosen over 100k

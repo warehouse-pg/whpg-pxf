@@ -55,7 +55,7 @@ dependencies {
     // Hadoop 3 also depends on commons-configuration2 (formerly v1) for some
     // Configuration internals. Added preemptively to forestall a second-tier
     // failure once hadoop-shaded-guava unblocks the StringInterner cascade —
-    // same two-deps-needed pattern pxf-api exposed in Phase 5 [5.9].
+    // same two-deps-needed pattern pxf-api exposed.
     testRuntimeOnly("org.apache.commons:commons-configuration2:2.8.0")
 }
 

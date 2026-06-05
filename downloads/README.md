@@ -1,18 +1,20 @@
 Downloads Directory
 ============
 
-Place GPDB RPM (for Centos / RedHat) or GPDB DEB (for Ubuntu) packages in this directory.
-They will be available to development Docker scripts that will install GPDB from these artifacts
-inside the docker container.
+> **Note:** This staging directory was used by the deprecated Docker-based
+> dev flow (`dev/start.bash`, also deprecated). See the root
+> [README.md](../README.md#local-development-setup) for the native-host
+> development flow.
+
+Place GPDB RPM (for RPM-based platforms) or GPDB DEB (for Ubuntu) packages in this directory.
 
 PLEASE DO NOT check these artifacts into this Git repository !!!
 
-For example, one of the following artifacts should be used for GPDB 6.6:
+For example, one of the following artifacts could be used for Greenplum 7:
 
 ```
-greenplum-db-6.6.0-rhel6-x86_64.rpm
-greenplum-db-6.6.0-rhel7-x86_64.rpm
-greenplum-db-6.6.0-ubuntu18.04-amd64.deb
+greenplum-db-7.x.y-el8-x86_64.rpm
+greenplum-db-7.x.y-el9-x86_64.rpm
 ```
 
-You should use only the artifact for the operating system that corresponds to the Docker image you want to use.
+You should use only the artifact for the operating system that corresponds to your target platform.

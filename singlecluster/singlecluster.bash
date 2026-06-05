@@ -7,8 +7,7 @@
 # tarball) into the singlecluster/ source tree and shells out to `make`.
 #
 # Args: <HADOOP_VERSION> <HADOOP_DISTRO>
-#   HADOOP_DISTRO is the *only* value the script branches on. Per
-#   PTT-1135 Phase 4a (implementation-plan.md §4a.3), only "Apache"
+#   HADOOP_DISTRO is the *only* value the script branches on. Only "Apache"
 #   is accepted; the retired CDH and HDP build paths reject explicitly
 #   so any leftover CI consumer fails fast with a clear message.
 #   HADOOP_VERSION is stylistic — preserved as a positional arg so that
@@ -28,11 +27,11 @@ set -exo pipefail
 _main() {
   if [[ $# -ne 2 ]]; then
     >&2 echo "ERROR: usage: singlecluster.bash <HADOOP_VERSION> <HADOOP_DISTRO>"
-    >&2 echo "       (HADOOP_DISTRO must be 'Apache' per PTT-1135 Phase 4a)"
+    >&2 echo "       (HADOOP_DISTRO must be 'Apache'; CDH/HDP support was retired)"
     exit 1
   fi
   if [[ "${2}" != "Apache" ]]; then
-    >&2 echo "ERROR: HADOOP_DISTRO must be Apache (CDH/HDP retired in PTT-1135 Phase 4a)"
+    >&2 echo "ERROR: HADOOP_DISTRO must be Apache (CDH/HDP support was retired)"
     exit 1
   fi
 

@@ -587,7 +587,7 @@ public class HBaseTest extends BaseFeature {
     }
 
     /**
-     * NEW-3 (PTT-1135): Long-scan smoke test. Replacement coverage for the
+     * Long-scan smoke test. Replacement coverage for the
      * server-side scan-RPC time-limit machinery introduced in HBase 2.0
      * (HBASE-16981 family). A single region with ~100K rows forces one
      * sustained scan rather than many short ones, exercising the heartbeat /
@@ -627,7 +627,7 @@ public class HBaseTest extends BaseFeature {
     }
 
     /**
-     * NEW-1 (PTT-1135): Replacement for the removed
+     * Replacement for the removed
      * {@code HBaseAdmin.checkHBaseAvailable} pre-flight health check. When
      * HBase is unreachable, the query must fail fast with a clear error
      * surfaced to GPDB rather than hang or return partial results.
@@ -684,9 +684,9 @@ public class HBaseTest extends BaseFeature {
             // duplicate region locations in the meta table, leaving the
             // cluster nominally "up" (HMaster reachable) but functionally
             // broken for ALL subsequent tests. Defensively kill any
-            // survivors before invoking start. Documented in
-            // local-execution-playbook.md §9 + §11 as the manual recovery
-            // path; here we make it part of the test's cleanup contract.
+            // survivors before invoking start. This is the manual recovery
+            // path documented in the dev docs; here we make it part of the
+            // test's cleanup contract.
             try {
                 Runtime.getRuntime().exec(new String[]{
                         "/bin/sh", "-c",

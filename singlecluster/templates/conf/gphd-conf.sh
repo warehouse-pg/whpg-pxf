@@ -30,7 +30,7 @@ export START_YARN_HISTORY_SERVER=false
 export START_HIVEMETASTORE=true
 
 # Don't automatically start PXF service. The in-tree bin/{init,start,stop}-pxf.sh
-# scripts are dormant by design in PTT-1135 (Phase 4 — the tcServer-based PXF
+# scripts are dormant by design (the tcServer-based PXF
 # launcher they wrap is retired). PXF runs as a separate Spring Boot service
 # now; start it via $PXF_HOME/bin/pxf cluster start after install.
 export START_PXF=false
