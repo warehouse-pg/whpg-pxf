@@ -253,7 +253,7 @@ public class HBaseAccessor extends BasePlugin implements Accessor {
     private void createScanner() throws Exception {
         scanDetails = new Scan();
         // Return only one version (latest)
-        scanDetails.setMaxVersions(1);
+        scanDetails.readVersions(1);
 
         addColumns();
         addFilters();
@@ -268,8 +268,8 @@ public class HBaseAccessor extends BasePlugin implements Accessor {
             return false;
         }
 
-        scanDetails.setStartRow(split.startKey());
-        scanDetails.setStopRow(split.endKey());
+        scanDetails.withStartRow(split.startKey());
+        scanDetails.withStopRow(split.endKey());
 
         currentScanner = table.getScanner(scanDetails);
         return true;

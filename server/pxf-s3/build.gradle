@@ -12,6 +12,14 @@ dependencies {
     api(project(':pxf-api'))
 
     /*******************************
+     * Compile Only Dependencies
+     *******************************/
+
+    // Provides org.apache.hadoop.classification.InterfaceAudience referenced by
+    // annotations on Hadoop 3.x's S3ClientFactory / DefaultS3ClientFactory.
+    compileOnly("org.apache.hadoop:hadoop-annotations")              { transitive = false }
+
+    /*******************************
      * Implementation Dependencies
      *******************************/
 

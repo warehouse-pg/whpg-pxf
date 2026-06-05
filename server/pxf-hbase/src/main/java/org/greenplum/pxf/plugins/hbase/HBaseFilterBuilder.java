@@ -19,10 +19,10 @@ package org.greenplum.pxf.plugins.hbase;
  * under the License.
  */
 
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.ByteArrayComparable;
-import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.NullComparator;
@@ -69,14 +69,14 @@ import static org.greenplum.pxf.api.io.DataType.TEXT;
  */
 public class HBaseFilterBuilder implements TreeVisitor {
 
-    private static final Map<Operator, CompareFilter.CompareOp> OPERATORS_MAP =
-            Collections.unmodifiableMap(new HashMap<Operator, CompareFilter.CompareOp>() {{
-                put(Operator.LESS_THAN, CompareFilter.CompareOp.LESS); // "<"
-                put(Operator.GREATER_THAN, CompareFilter.CompareOp.GREATER); // ">"
-                put(Operator.LESS_THAN_OR_EQUAL, CompareFilter.CompareOp.LESS_OR_EQUAL); // "<="
-                put(Operator.GREATER_THAN_OR_EQUAL, CompareFilter.CompareOp.GREATER_OR_EQUAL); // ">="
-                put(Operator.EQUALS, CompareFilter.CompareOp.EQUAL); // "="
-                put(Operator.NOT_EQUALS, CompareFilter.CompareOp.NOT_EQUAL); // "!="
+    private static final Map<Operator, CompareOperator> OPERATORS_MAP =
+            Collections.unmodifiableMap(new HashMap<Operator, CompareOperator>() {{
+                put(Operator.LESS_THAN, CompareOperator.LESS); // "<"
+                put(Operator.GREATER_THAN, CompareOperator.GREATER); // ">"
+                put(Operator.LESS_THAN_OR_EQUAL, CompareOperator.LESS_OR_EQUAL); // "<="
+                put(Operator.GREATER_THAN_OR_EQUAL, CompareOperator.GREATER_OR_EQUAL); // ">="
+                put(Operator.EQUALS, CompareOperator.EQUAL); // "="
+                put(Operator.NOT_EQUALS, CompareOperator.NOT_EQUAL); // "!="
             }});
     private static final Map<Operator, FilterList.Operator> LOGICAL_OPERATORS_MAP =
             Collections.unmodifiableMap(new HashMap<Operator, FilterList.Operator>() {{
@@ -256,9 +256,9 @@ public class HBaseFilterBuilder implements TreeVisitor {
      * @return the filter for the given operator
      */
     private Filter processNullOperator(HBaseColumnDescriptor hBaseColumn, Operator operator) {
-        CompareFilter.CompareOp compareOperation = (operator == Operator.IS_NULL) ?
-                CompareFilter.CompareOp.EQUAL :
-                CompareFilter.CompareOp.NOT_EQUAL;
+        CompareOperator compareOperation = (operator == Operator.IS_NULL) ?
+                CompareOperator.EQUAL :
+                CompareOperator.NOT_EQUAL;
         return new SingleColumnValueFilter(
                 hBaseColumn.columnFamilyBytes(),
                 hBaseColumn.qualifierBytes(),

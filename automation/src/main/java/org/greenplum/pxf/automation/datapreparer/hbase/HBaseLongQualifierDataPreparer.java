@@ -46,7 +46,7 @@ public class HBaseLongQualifierDataPreparer implements IDataPreparer {
 	}
 
 	private void addValue(Put row, byte[] cf, String ql, byte[] value) {
-		row.add(cf, ql.getBytes(), value);
+		row.addColumn(cf, ql.getBytes(), value);
 	}
 
 	private void addValue(Put row, byte[] cf, String ql, String value) throws java.io.UnsupportedEncodingException {

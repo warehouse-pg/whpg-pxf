@@ -15,6 +15,7 @@ dependencies {
 
     compileOnly("com.google.code.findbugs:annotations")
     compileOnly("org.apache.hbase:hbase-annotations")
+    compileOnly("org.apache.yetus:audience-annotations:0.13.0")
 
     /*******************************
      * Implementation Dependencies
@@ -26,11 +27,12 @@ dependencies {
     implementation("org.apache.hbase:hbase-client")                  { transitive = false }
     implementation("org.apache.hbase:hbase-common")                  { transitive = false }
     implementation("org.apache.hbase:hbase-protocol")                { transitive = false }
-    implementation("org.apache.htrace:htrace-core")                  { transitive = false }
+    implementation("org.apache.hbase:hbase-protocol-shaded")         { transitive = false }
+    implementation("org.apache.hbase.thirdparty:hbase-shaded-protobuf:4.1.13") { transitive = false }
+    implementation("org.apache.hbase.thirdparty:hbase-unsafe:4.1.13") { transitive = false }
     implementation("org.apache.zookeeper:zookeeper")                 { transitive = false }
     implementation("io.netty:netty-common")                          { transitive = false }
     implementation("io.netty:netty-transport")                       { transitive = false }
-    implementation("com.yammer.metrics:metrics-core")                { transitive = false }
 
     implementation("org.springframework.boot:spring-boot-starter-log4j2")
 
@@ -40,6 +42,7 @@ dependencies {
 
     testCompileOnly("com.google.code.findbugs:annotations")
     testCompileOnly("org.apache.hbase:hbase-annotations")
+    testCompileOnly("org.apache.yetus:audience-annotations:0.13.0")
     testImplementation("com.esotericsoftware:minlog")
     testImplementation("com.esotericsoftware:reflectasm")
     testImplementation('org.springframework.boot:spring-boot-starter-test')

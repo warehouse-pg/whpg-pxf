@@ -150,8 +150,8 @@ public class HBaseAccessorTest {
      * Verify Scan object was used but didn't do much
      */
     private void verifyScannerDidNothing() throws Exception {
-        // setMaxVersions was called with 1
-        verify(scanDetails).setMaxVersions(1);
+        // readVersions was called with 1
+        verify(scanDetails).readVersions(1);
         // addColumn was not called
         verify(scanDetails, never()).addColumn(any(byte[].class), any(byte[].class));
         // addFilter was not called
