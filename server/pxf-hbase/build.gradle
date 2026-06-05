@@ -30,7 +30,36 @@ dependencies {
     implementation("org.apache.hbase:hbase-protocol-shaded")         { transitive = false }
     implementation("org.apache.hbase.thirdparty:hbase-shaded-protobuf:4.1.13") { transitive = false }
     implementation("org.apache.hbase.thirdparty:hbase-unsafe:4.1.13") { transitive = false }
+    // HBase 2.6.x internals (cache, collections, gson) live under
+    // org.apache.hbase.thirdparty.com.google.common.* in this artifact.
+    // Without it, HBase code throws NoClassDefFoundError: CacheLoader at runtime
+    // on any read path. Surfaced Phase 5 [5.1] sanity 2026-05-27 (iter 5).
+    // Same finding-shape as hbase-unsafe and hadoop-shaded-guava.
+    implementation("org.apache.hbase.thirdparty:hbase-shaded-miscellaneous:4.1.13") { transitive = false }
+    // HBase 2.5+ added OpenTelemetry client-side tracing (HBASE-26125 family).
+    // HBase client code references io.opentelemetry.api.trace.Span via invokedynamic;
+    // without this dep, any HBase operation throws BootstrapMethodError:
+    // NoClassDefFoundError: io/opentelemetry/api/trace/Span. Version pinned to
+    // match hbase-client-2.6.5.pom (1.49.0). Surfaced Phase 5 [5.1] sanity iter 6.
+    implementation("io.opentelemetry:opentelemetry-api:1.49.0") { transitive = false }
+    implementation("io.opentelemetry:opentelemetry-context:1.49.0") { transitive = false }
+    implementation("io.opentelemetry.semconv:opentelemetry-semconv:1.25.0-alpha") { transitive = false }
+    // HBase 2.x uses its shaded Netty for the async RPC client (referenced even
+    // when using the sync API; ConnectionImplementation:346 reflectively loads
+    // o.a.h.thirdparty.io.netty.channel.EventLoopGroup). Surfaced Phase 5 [5.1]
+    // sanity iter 8 — UndeclaredThrowableException wrapping ClassNotFoundException.
+    implementation("org.apache.hbase.thirdparty:hbase-shaded-netty:4.1.13") { transitive = false }
     implementation("org.apache.zookeeper:zookeeper")                 { transitive = false }
+    // ZK 3.6+ split wire-protocol serialization classes (Record, OutputArchive,
+    // etc.) into a separate zookeeper-jute artifact. Without it on the runtime
+    // classpath, HBase 2.x ReadOnlyZKClient can establish a TCP socket but
+    // cannot complete LIST/GET ops → 10s timeouts. Surfaced Phase 5 [5.1]
+    // sanity iter 10. Critical for HBase 2.x + ZK 3.8.x.
+    implementation("org.apache.zookeeper:zookeeper-jute")            { transitive = false }
+    // HBase 2.x uses Dropwizard Metrics (com.codahale.metrics) for client-side
+    // instrumentation. Phase 1 removed the old Yammer metrics; Dropwizard
+    // equivalent wasn't added. Surfaced Phase 5 [5.1] sanity iter 11.
+    implementation("io.dropwizard.metrics:metrics-core:3.2.6")        { transitive = false }
     implementation("io.netty:netty-common")                          { transitive = false }
     implementation("io.netty:netty-transport")                       { transitive = false }
 
@@ -46,6 +75,12 @@ dependencies {
     testImplementation("com.esotericsoftware:minlog")
     testImplementation("com.esotericsoftware:reflectasm")
     testImplementation('org.springframework.boot:spring-boot-starter-test')
+    // NEW-4 unit test (PTT-1135) actually invokes HBaseConfiguration.create(),
+    // which loads core-default.xml and instantiates StringInterner from
+    // hadoop-shaded-guava. Same root cause as the runtime classpath hole
+    // fixed in pxf-hdfs/build.gradle during Phase 5 [5.1] iter 5; needed
+    // here only for tests because runtime depends on the fat-jar.
+    testImplementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0")
 }
 
 test {

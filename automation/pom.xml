@@ -382,6 +382,21 @@
             <version>${hdp.hbase.version}</version>
         </dependency>
 
+        <!--
+          HBase 2.x split ImportTsv (and other mapreduce-based tooling) out of
+          hbase-server into a separate hbase-mapreduce artifact. Required by
+          components/hbase/HBase.java:27,303 (ImportTsv.main invocation).
+          Phase 2b missed this because the javac workaround had a manually-
+          assembled classpath that happened to include the jar. Surfaced
+          during Phase 5 [5.1] sanity attempt 2026-05-27 after F4 unblocked
+          real mvn compile.
+        -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-mapreduce</artifactId>
+            <version>${hdp.hbase.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-exec</artifactId>

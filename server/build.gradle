@@ -99,6 +99,9 @@ configure(javaProjects) {
             dependency("org.apache.commons:commons-compress:1.20")
 
             dependency("org.apache.zookeeper:zookeeper:${zookeeperVersion}")
+            // ZK 3.6+ split wire-protocol serialization classes into zookeeper-jute.
+            // Without this on runtime classpath, ZK client times out at wire layer.
+            dependency("org.apache.zookeeper:zookeeper-jute:${zookeeperVersion}")
             dependency("org.codehaus.woodstox:stax2-api:3.1.4")
             dependency("org.datanucleus:datanucleus-api-jdo:4.2.4")
             dependency("org.datanucleus:datanucleus-core:4.1.17")

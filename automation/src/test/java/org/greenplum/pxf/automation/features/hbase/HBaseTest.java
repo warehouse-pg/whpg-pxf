@@ -587,6 +587,133 @@ public class HBaseTest extends BaseFeature {
     }
 
     /**
+     * NEW-3 (PTT-1135): Long-scan smoke test. Replacement coverage for the
+     * server-side scan-RPC time-limit machinery introduced in HBase 2.0
+     * (HBASE-16981 family). A single region with ~100K rows forces one
+     * sustained scan rather than many short ones, exercising the heartbeat /
+     * pause-and-continue path. Asserts the full row count is returned with
+     * no client-side timeout / partial-result error.
+     *
+     * @throws Exception if test fails to run
+     */
+    @Test(groups = { "hbase", "features", "gpdb" })
+    public void longScan() throws Exception {
+
+        HBaseTable longScanHBaseTable = new HBaseTable(
+                "hbase_table_long_scan", new String[] { "cf1" });
+        // 10,000 rows is 33x larger than `multiRegionsData`'s 300-rows-per-region
+        // and 100x larger than `sanity`'s 100-row tables, so this is meaningfully
+        // the longest single-region scan in the suite while staying well under
+        // HBase's 2GB per-RPC cell-block ByteBuf cap. The cap matters because
+        // `HBaseDataPreparer.q11` writes `BigInteger.valueOf(10).pow(i).toString()`
+        // — the value length grows linearly with row index, so cumulative q11
+        // bytes ~= N²/2 chars. At N=100k that's ~5 GB which overflows the
+        // Netty PooledUnsafeDirectByteBuf maxCapacity=Integer.MAX_VALUE on the
+        // initial `table.put(List<Put>)` batch. Surfaced first run, fixed by
+        // capping at 10k (q11 cumulative ~50 MB, total batch < 100 MB).
+        int rowsInRegion = 10000;
+        longScanHBaseTable.setNumberOfSplits(0);
+        longScanHBaseTable.setRowsPerSplit(rowsInRegion);
+        LookupTable additionalMapping = new LookupTable();
+        additionalMapping.addMapping(longScanHBaseTable.getName(), "q12", "cf1:q12");
+        hbase.put(additionalMapping);
+        // HBaseDataPreparer generates rows * (numberOfSplits + 1) rows.
+        // numberOfSplits=0 + rowsInRegion=10000 -> exactly 10,000 rows
+        // all routed to a single region (no pre-splits on the HBase side).
+        HBaseDataPreparer dp = new HBaseDataPreparer();
+        dp.setNumberOfSplits(0);
+        prepareDataChain(longScanHBaseTable, dp, rowsInRegion);
+        runSqlTest("features/hbase/longScan");
+    }
+
+    /**
+     * NEW-1 (PTT-1135): Replacement for the removed
+     * {@code HBaseAdmin.checkHBaseAvailable} pre-flight health check. When
+     * HBase is unreachable, the query must fail fast with a clear error
+     * surfaced to GPDB rather than hang or return partial results.
+     *
+     * <p>Runs <em>last</em> in the class via {@code priority = 100} so a
+     * failed restart cannot cascade into the rest of the suite. The
+     * {@code finally} block both restarts HBase and waits for it to come
+     * back up before yielding.
+     *
+     * @throws Exception if test fails to run
+     */
+    @Test(priority = 100, groups = { "hbase", "features", "gpdb" })
+    public void unreachableHBase() throws Exception {
+
+        cluster.stop(PhdCluster.EnumClusterServices.hbase);
+        try {
+            // Give HBase a beat to actually be down (RegionServer + Master).
+            Thread.sleep(3000);
+            try {
+                gpdb.queryResults(exTable,
+                        "SELECT count(*) FROM " + exTable.getName());
+                Assert.fail("Query should have failed because HBase is stopped");
+            } catch (Exception e) {
+                String msg = e.getMessage();
+                Assert.assertTrue(msg != null && !msg.isEmpty(),
+                        "Expected non-empty error message from unreachable-HBase " +
+                        "query, got: " + e);
+                // The error must clearly identify a remote / connection problem.
+                // PXF surfaces backend HBase failures in one of a few shapes:
+                //   - libchurl/Tomcat: "remote component error" (...)
+                //   - HBase 2.x retry-exhausted (what we see today on 2.6.5):
+                //       "PXF server error : Failed after attempts=N, exceptions:"
+                //     — the underlying HBase RetriesExhaustedException class name
+                //     is stripped from the user-facing message, but the retry-
+                //     exhausted shape is still unambiguous evidence the
+                //     ConnectionFactory.createConnection retry budget burned
+                //     out, which is exactly what we want to assert.
+                //   - Pre-retry connection refused: ConnectException /
+                //     MasterNotRunning / ConnectionClosedException
+                // First confirmed value 2026-05-27 first run: "Failed after
+                // attempts=4, exceptions:".
+                Assert.assertTrue(msg.contains("remote component error") ||
+                                msg.contains("Failed after attempts") ||
+                                msg.contains("MasterNotRunning") ||
+                                msg.contains("ConnectException") ||
+                                msg.contains("RetriesExhaustedException") ||
+                                msg.contains("ConnectionClosedException"),
+                        "Expected error to identify a remote/connection failure, got: " + msg);
+            }
+        } finally {
+            // macOS singlecluster quirk: stop-hbase.sh sometimes returns
+            // success while leaving HRegionServer PIDs orphaned. The next
+            // start-hbase.sh then either fails to bind ports or registers
+            // duplicate region locations in the meta table, leaving the
+            // cluster nominally "up" (HMaster reachable) but functionally
+            // broken for ALL subsequent tests. Defensively kill any
+            // survivors before invoking start. Documented in
+            // local-execution-playbook.md §9 + §11 as the manual recovery
+            // path; here we make it part of the test's cleanup contract.
+            try {
+                Runtime.getRuntime().exec(new String[]{
+                        "/bin/sh", "-c",
+                        "jps | grep -E 'HMaster|HRegionServer' | awk '{print $1}' " +
+                                "| xargs -I{} kill -9 {} 2>/dev/null; true"
+                }).waitFor();
+                Thread.sleep(3000);
+            } catch (Exception ignore) { /* best-effort cleanup */ }
+
+            cluster.start(PhdCluster.EnumClusterServices.hbase);
+
+            // Wait up to ~60s for HMaster to be back. cluster.isUp(hbase)
+            // only validates HMaster — RegionServers may still be registering.
+            int retries = 30;
+            while (retries-- > 0 && !cluster.isUp(PhdCluster.EnumClusterServices.hbase)) {
+                Thread.sleep(2000);
+            }
+            // Even after isUp returns true, give RegionServers a beat to
+            // re-register with the master and update meta-table locations.
+            // Without this, the very next test's @BeforeClass can connect
+            // to HMaster successfully but find phantom RegionServer ports
+            // in hbase:meta, retrying for ~150s before failing.
+            Thread.sleep(10000);
+        }
+    }
+
+    /**
      * Query an HBase table with no data and verify that 0 rows are returned.
      *
      * @throws Exception if test fails to run

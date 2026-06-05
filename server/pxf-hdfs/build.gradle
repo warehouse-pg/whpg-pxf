@@ -34,6 +34,18 @@ dependencies {
     implementation("org.apache.hadoop:hadoop-yarn-api")              { transitive = false } // Kerberos dependency
     implementation("org.apache.hadoop:hadoop-yarn-client")           { transitive = false } // Kerberos dependency
     implementation("org.apache.hadoop:hadoop-common")                { transitive = false }
+    // Hadoop 3.3.x references org.apache.hadoop.thirdparty.com.google.common.collect.Interners
+    // from o.a.h.util.StringInterner's static initializer. Without this artifact, StringInterner
+    // fails to initialize at runtime -> "Could not initialize class org.apache.hadoop.util.StringInterner"
+    // when any PXF Hadoop code path executes. Surfaced Phase 5 [5.1] sanity 2026-05-27.
+    // Same finding-shape as Phase 3's hbase-unsafe:4.1.13.
+    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0") { transitive = false }
+    // Hadoop 3.x bumped commons-configuration from v1 → v2 (different group/artifact).
+    // The old commons-configuration:1.10 is still bundled but Hadoop 3.3.6 internals
+    // reference org.apache.commons.configuration2.Configuration. Without this dep,
+    // PXF errors at runtime with "PXF server error : org/apache/commons/configuration2/Configuration"
+    // on any Hadoop-touching code path. Surfaced Phase 5 [5.1] sanity 2026-05-27 (iter 4).
+    implementation("org.apache.commons:commons-configuration2:2.8.0") { transitive = false }
     implementation("org.apache.hadoop:hadoop-hdfs")                  { transitive = false }
     implementation("org.apache.hadoop:hadoop-hdfs-client")           { transitive = false }
     implementation("org.apache.parquet:parquet-format")              { transitive = false }
