@@ -6,16 +6,23 @@
 # Replaces the legacy downloadCDH.sh + compressHDP.sh flow (retired in
 # PTT-1135 Phase 4a — see implementation-plan.md §4a.1).
 #
-# Components (versions track server/gradle.properties):
-#   - Hadoop    3.3.6    (dlcdn.apache.org, .sha512 checksum)
-#   - HBase     2.6.5    (dlcdn.apache.org, .sha512 checksum)
-#   - ZooKeeper 3.8.6    (dlcdn.apache.org, .sha512 checksum)
-#   - Hive      2.3.8    (archive.apache.org, .sha256 checksum — see note)
+# Component versions are sourced at runtime from server/gradle.properties
+# (the canonical source-of-truth pin for the whole tree). Bump a version
+# there and this script — along with the smoke setup_*.bash, the PXF
+# client lib build, and every other consumer — picks it up automatically.
+# Do NOT hardcode versions in this file.
 #
-# Note on Hive 2.3.8: dlcdn.apache.org carries only current Apache releases.
-# Hive 2.3.8 (2021-01) has been moved to archive.apache.org, which publishes
-# .sha256 sidecars but NOT .sha512 (verified via HTTP HEAD). Per-component
-# checksum algorithm is therefore configurable below.
+# Components:
+#   - Hadoop    (dlcdn.apache.org, .sha512 checksum)
+#   - HBase     (dlcdn.apache.org, .sha512 checksum)
+#   - ZooKeeper (dlcdn.apache.org, .sha512 checksum)
+#   - Hive      (archive.apache.org, .sha256 checksum — see note)
+#
+# Note on Hive: dlcdn.apache.org carries only current Apache releases.
+# The 2.3.x line (last release 2021-01) has been moved to
+# archive.apache.org, which publishes .sha256 sidecars but NOT .sha512
+# (verified via HTTP HEAD). Per-component checksum algorithm is
+# therefore configurable below.
 #
 # Output: tars/<component>.tar.gz + tars/<component>.tar.gz.<sha512|sha256>
 # Flat layout (one entry per file), consumed directly by the Makefile's
@@ -36,13 +43,46 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 tars_dir="${script_dir}/../tars"
 mkdir -p "${tars_dir}"
 
+# Resolve component versions from server/gradle.properties (canonical pin).
+# Matches the pattern used by the smoke setup_*.bash scripts so all
+# consumers read from one place. Fail fast if any pin is missing — better
+# to surface a config error here than to fetch a 404'd URL later.
+gradle_props="${script_dir}/../../server/gradle.properties"
+if [[ ! -f "${gradle_props}" ]]; then
+    echo "ERROR: cannot find canonical version pin file at ${gradle_props}" >&2
+    echo "       Expected layout: <repo>/server/gradle.properties relative to <repo>/singlecluster/tools/" >&2
+    exit 1
+fi
+
+read_version() {
+    local key="$1"
+    local value
+    value=$(awk -F= -v k="^${key}=" '$0 ~ k {print $2}' "${gradle_props}" | tr -d '\r\n')
+    if [[ -z "${value}" ]]; then
+        echo "ERROR: could not read ${key} from ${gradle_props}" >&2
+        exit 1
+    fi
+    printf '%s' "${value}"
+}
+
+HADOOP_VERSION=$(read_version hadoopVersion)
+HBASE_VERSION=$(read_version hbaseVersion)
+HIVE_VERSION=$(read_version hiveVersion)
+ZOOKEEPER_VERSION=$(read_version zookeeperVersion)
+
+echo "Resolved component versions from ${gradle_props}:"
+echo "  Hadoop    = ${HADOOP_VERSION}"
+echo "  HBase     = ${HBASE_VERSION}"
+echo "  ZooKeeper = ${ZOOKEEPER_VERSION}"
+echo "  Hive      = ${HIVE_VERSION}"
+
 # Each entry: <local_filename>|<url>|<sha_algo>|<sha_url>
 # sha_algo is "sha512" or "sha256"; sha_url is the sidecar URL.
 components=(
-    "hadoop-3.3.6.tar.gz|https://dlcdn.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz|sha512|https://dlcdn.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz.sha512"
-    "hbase-2.6.5-bin.tar.gz|https://dlcdn.apache.org/hbase/2.6.5/hbase-2.6.5-bin.tar.gz|sha512|https://dlcdn.apache.org/hbase/2.6.5/hbase-2.6.5-bin.tar.gz.sha512"
-    "apache-zookeeper-3.8.6-bin.tar.gz|https://dlcdn.apache.org/zookeeper/zookeeper-3.8.6/apache-zookeeper-3.8.6-bin.tar.gz|sha512|https://dlcdn.apache.org/zookeeper/zookeeper-3.8.6/apache-zookeeper-3.8.6-bin.tar.gz.sha512"
-    "apache-hive-2.3.8-bin.tar.gz|https://archive.apache.org/dist/hive/hive-2.3.8/apache-hive-2.3.8-bin.tar.gz|sha256|https://archive.apache.org/dist/hive/hive-2.3.8/apache-hive-2.3.8-bin.tar.gz.sha256"
+    "hadoop-${HADOOP_VERSION}.tar.gz|https://dlcdn.apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz|sha512|https://dlcdn.apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz.sha512"
+    "hbase-${HBASE_VERSION}-bin.tar.gz|https://dlcdn.apache.org/hbase/${HBASE_VERSION}/hbase-${HBASE_VERSION}-bin.tar.gz|sha512|https://dlcdn.apache.org/hbase/${HBASE_VERSION}/hbase-${HBASE_VERSION}-bin.tar.gz.sha512"
+    "apache-zookeeper-${ZOOKEEPER_VERSION}-bin.tar.gz|https://dlcdn.apache.org/zookeeper/zookeeper-${ZOOKEEPER_VERSION}/apache-zookeeper-${ZOOKEEPER_VERSION}-bin.tar.gz|sha512|https://dlcdn.apache.org/zookeeper/zookeeper-${ZOOKEEPER_VERSION}/apache-zookeeper-${ZOOKEEPER_VERSION}-bin.tar.gz.sha512"
+    "apache-hive-${HIVE_VERSION}-bin.tar.gz|https://archive.apache.org/dist/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz|sha256|https://archive.apache.org/dist/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz.sha256"
 )
 
 # Use shasum on macOS / sha512sum + sha256sum on Linux. Both produce the

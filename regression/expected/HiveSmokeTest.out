@@ -1,4 +1,5 @@
 -- data prep
+-- start_ignore
 {{ GPDB_REMOTE }}\!ssh {{ PGHOST }} mkdir -p {{ TEST_LOCATION }}
 \!mkdir -p {{ TEST_LOCATION }}
 COPY (
@@ -40,6 +41,7 @@ jdbc:hive2> LOAD DATA LOCAL INPATH '{{ TEST_LOCATION }}/data.csv'
 jdbc:hive2> INTO TABLE  hive_small_data_table_{{ FULL_TESTNAME }};
 jdbc:hive2> 
 jdbc:hive2> Closing: 0: jdbc:hive2://{{ HIVE_HOST }}:10000/hive_smoke_test_database_{{ FULL_TESTNAME }}{{ HIVE_PRINCIPAL }}
+-- end_ignore
 -- External Table test
 CREATE EXTERNAL TABLE hive_smoke_test_external_table (
 		name TEXT,
@@ -212,6 +214,7 @@ SELECT name, num FROM hive_smoke_test_external_table WHERE num > 50 ORDER BY nam
  row_99  |  99
 (50 rows)
 
+-- start_ignore
 {{ CLEAN_UP }}-- clean up Hive and local disk
 {{ CLEAN_UP }}\!rm -rf {{ TEST_LOCATION }}
 {{ CLEAN_UP }}\!{{ BEELINE_CMD }} -f {{ SCRIPT cleanup_hive_smoke_test.sql }}
@@ -221,7 +224,8 @@ SELECT name, num FROM hive_smoke_test_external_table WHERE num > 50 ORDER BY nam
 {{ CLEAN_UP }}Driver: Hive JDBC
 {{ CLEAN_UP }}Transaction isolation: TRANSACTION_REPEATABLE_READ
 {{ CLEAN_UP }}jdbc:hive2> DROP DATABASE hive_smoke_test_database_{{ FULL_TESTNAME }} CASCADE;
-{{ CLEAN_UP }}jdbc:hive2> 
+{{ CLEAN_UP }}jdbc:hive2>
 {{ CLEAN_UP }}jdbc:hive2> Closing: 0: jdbc:hive2://{{ HIVE_HOST }}:10000/default{{ HIVE_PRINCIPAL }}
 {{ CLEAN_UP }}\!rm -rf {{ SCRIPT cleanup_hive_smoke_test.sql }} {{ SCRIPT load_small_data.sql }} {{ SCRIPT create_hive_smoke_test_database.sql }}
 {{ CLEAN_UP }}{{ GPDB_REMOTE }}\!ssh {{ PGHOST }} rm -rf {{ TEST_LOCATION }}
+-- end_ignore

@@ -13,9 +13,9 @@
 #   so any leftover CI consumer fails fast with a clear message.
 #   HADOOP_VERSION is stylistic — preserved as a positional arg so that
 #   downstream Concourse `args: ["<ver>", "Apache"]` task specs do not
-#   need to be re-shaped, but is otherwise informational (the only Hadoop
-#   we ship is 3.3.6 per server/gradle.properties; tools/downloadApache.sh
-#   is the canonical version source).
+#   need to be re-shaped, but is otherwise informational. The actual
+#   Hadoop version shipped is pinned in server/gradle.properties and
+#   read at download time by tools/downloadApache.sh (canonical source).
 #
 # Resource layout (Concourse convention preserved):
 #   <pwd>/pxf_src/singlecluster/             — checkout of this repo

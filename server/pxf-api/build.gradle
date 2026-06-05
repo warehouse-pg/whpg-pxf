@@ -54,6 +54,31 @@ dependencies {
     testImplementation("com.esotericsoftware:reflectasm")
     testImplementation('org.mockito:mockito-inline')
     testImplementation('org.springframework.boot:spring-boot-starter-test')
+    // PTT-1135 NEW-A7 (Phase 5 [5.9]): pxf-api's hadoop-common is declared
+    // { transitive = false } on line 20, so Hadoop 3.3.6's split runtime
+    // helpers don't come along. PxfUserGroupInformationTest exercises
+    // Configuration.set() → loadResource() → Parser.handleEndElement() →
+    // StringInterner.<clinit>, which delegates to
+    // org.apache.hadoop.thirdparty.com.google.common.collect.Interners
+    // from the hadoop-shaded-guava artifact. Without it on the TEST
+    // classpath, StringInterner's static init throws — and every
+    // subsequent attempt to touch Hadoop Configuration / UGI fails with
+    // "NoClassDefFoundError: Could not initialize class
+    // org.apache.hadoop.security.UserGroupInformation" (because UGI's
+    // own clinit depends on Configuration which depends on
+    // StringInterner). 64/417 tests in pxf-api failed today; the
+    // single dep below closes the gate. Same finding-shape as Phase 5
+    // [5.1] iter 5 (pxf-hdfs runtime) and Phase 5 [5.4] NEW-4
+    // (pxf-hbase tests). All three modules now mirror the same fix.
+    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0")
+    // PTT-1135 NEW-A7 second-layer: SecureLoginTest exercises Hadoop 3.x
+    // Configuration that internally depends on commons-configuration2's
+    // o.a.commons.configuration2.Configuration interface (Hadoop 3 split
+    // off commons-configuration 1.x). Missing on the TEST classpath
+    // causes a NoClassDefFoundError that cascades — once one test
+    // poisons UGI's static init, the remaining 40 fail. Same artifact
+    // + version pinned in pxf-hdfs/build.gradle from Phase 5 [5.1].
+    testRuntimeOnly("org.apache.commons:commons-configuration2:2.8.0")
 }
 
 test {
