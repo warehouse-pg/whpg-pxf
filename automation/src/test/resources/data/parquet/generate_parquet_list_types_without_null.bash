@@ -6,8 +6,8 @@ set -euxo pipefail
 SRC_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 BASE_DIR=$(echo "${SRC_DIR}" | cut -d "/" -f5)
 UNIT_TEST_SRC_DIR=~/workspace/"${BASE_DIR}"/server/pxf-hdfs/src/test/resources/parquet
-HDFS_CMD=${HDFS_CMD:-~/workspace/singlecluster-HDP3/bin/hdfs}
-HIVE_CMD=${HIVE_CMD:-~/workspace/singlecluster-HDP3/bin/hive}
+HDFS_CMD=${HDFS_CMD:-~/workspace/singlecluster/bin/hdfs}
+HIVE_CMD=${HIVE_CMD:-~/workspace/singlecluster/bin/hive}
 HIVE_WAREHOUSE_PATH=${HIVE_WAREHOUSE_PATH:-/hive/warehouse/parquet_list_types_without_null}
 HQL_FILENAME=${HQL_FILENAME:-generate_parquet_list_types_without_null.hql}
 PARQUET_FILENAME=${PARQUET_FILENAME:-parquet_list_types_without_null.parquet}

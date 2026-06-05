@@ -46,4 +46,23 @@
 		<name>hbase.zookeeper.property.clientPort</name>
 		<value>2181</value>
 	</property>
+	<!--
+	  HBase 2.x's default WAL provider is "asyncfs", which constructs a
+	  Netty ProtobufDecoder via reflection through hadoop-hdfs-client's
+	  bundled protobuf. On Hadoop 3.3.6 + HBase 2.6.5 that reflection
+	  call fails with "java.lang.IllegalArgumentException: object is
+	  not an instance of declaring class" from
+	  FanOutOneBlockAsyncDFSOutputHelper -> ProtobufDecoder.<init>,
+	  which aborts HMaster (HBASE-21639 family). Switching the WAL
+	  provider to the older synchronous "filesystem" writer bypasses
+	  the reflection path entirely. This is the upstream-recommended
+	  mitigation for our specific Hadoop / HBase version combo; flagged
+	  during PTT-1135 Phase 4c sanity. Verified that HMaster boots
+	  cleanly and `hbase shell create/put/scan/drop` succeed with this
+	  setting.
+	-->
+	<property>
+		<name>hbase.wal.provider</name>
+		<value>filesystem</value>
+	</property>
 </configuration>

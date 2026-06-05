@@ -6,7 +6,7 @@ follow the instructions below.
 
 ## Requirements
 
-- Hadoop singlecluster-HDP3 CLI commands
+- Hadoop singlecluster CLI commands
 - Hive version 2.3+
 - Spark 3.3.0
 

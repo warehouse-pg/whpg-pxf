@@ -54,7 +54,7 @@
     </property>
     <property>
         <name>hbase.coprocessor.region.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController,org.apache.hadoop.hbase.security.access.SecureBulkLoadEndpoint</value>
+        <value>org.apache.hadoop.hbase.security.access.AccessController</value>
     </property>
     <property>
         <name>hbase.coprocessor.regionserver.classes</name>
@@ -138,7 +138,7 @@ EOF
     </property>
     <property>
         <name>hbase.coprocessor.region.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController,org.apache.hadoop.hbase.security.access.SecureBulkLoadEndpoint</value>
+        <value>org.apache.hadoop.hbase.security.access.AccessController</value>
     </property>
     <property>
         <name>hbase.coprocessor.regionserver.classes</name>

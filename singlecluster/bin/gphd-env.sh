@@ -29,8 +29,6 @@ export HADOOP_ROOT=${GPHD_ROOT}/hadoop
 export HBASE_ROOT=${GPHD_ROOT}/hbase
 export ZOOKEEPER_ROOT=${GPHD_ROOT}/zookeeper
 export HIVE_ROOT=${GPHD_ROOT}/hive
-export TEZ_ROOT=${GPHD_ROOT}/tez
-export RANGER_ROOT=${GPHD_ROOT}/ranger
 
 export LOGS_ROOT=${STORAGE_ROOT}/logs
 export PIDS_ROOT=${STORAGE_ROOT}/pids
@@ -45,10 +43,6 @@ export HADOOP_CONF=${HADOOP_ROOT}/etc/hadoop
 export ZOOKEEPER_CONF=${ZOOKEEPER_ROOT}/conf
 export HBASE_CONF=${HBASE_ROOT}/conf
 export HIVE_CONF=${HIVE_ROOT}/conf
-export TEZ_CONF=${TEZ_ROOT}/conf
-export RANGER_CONF=${RANGER_ROOT}/conf
-
-export TEZ_JARS=$(echo "$TEZ_ROOT"/*.jar | tr ' ' ':'):$(echo "$TEZ_ROOT"/lib/*.jar | tr ' ' ':')
 
 function cluster_initialized()
 {

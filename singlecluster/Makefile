@@ -7,8 +7,12 @@ ifeq ($(BUILDNUM),)
   BUILDNUM = $(shell whoami)
 endif
 
+# HADOOP_VERSION is stylistic (only one Apache build line is supported);
+# HADOOP_DISTRO MUST be Apache. CDH and HDP build paths were retired in
+# PTT-1135 Phase 4a (see implementation-plan.md §4a.2). Any other value
+# falls through to a dispatch error below.
 HADOOP_VERSION = undefined
-HADOOP_DISTRO = HDP
+HADOOP_DISTRO = Apache
 
 TARGET = singlecluster-$(HADOOP_DISTRO).tar.gz
 
@@ -40,7 +44,6 @@ clean:
 	-rm -rf $(DIRT)
 
 $(TARGET): $(BUILDROOT) make_tarball
-# $(TARGET): $(BUILDROOT)
 
 $(BUILDROOT): copy_binfiles create_versions_file extract_products copy_templates copy_deps
 	chmod -R +w $(BUILDROOT)
@@ -55,6 +58,20 @@ create_versions_file:
 	echo build number: $(BUILDNUM) > $(VERSIONSFILE)
 	echo single_cluster-$(BUILDVER) >> $(VERSIONSFILE)
 
+# extract_products:
+#   1. Run the %.extracted pattern rule for every tars/*.tar.gz (extracts
+#      each into BUILDROOT/<vendor-named>/).
+#   2. Run the per-stack extract_stack_$(STACK) target for any post-extract
+#      cleanup the stack requires (Apache: special-case directory renames
+#      that the generic regex below can't handle).
+#   3. Apply the generic rename loop to collapse <name>-<version>/ into
+#      <name>/. The regex captures the first alpha-numeric run before the
+#      first dash-digit:
+#         hadoop-3.3.6/   -> hadoop/
+#         hbase-2.6.5/    -> hbase/
+#      Apache tarballs with the "apache-" prefix or "-bin" suffix are
+#      handled by extract_stack_apache BEFORE this rename loop runs, so
+#      they're already at canonical names.
 .PHONY: extract_products
 extract_products: $(EXTRACTEDTARS) extract_stack_$(STACK)
 	for X in $(BUILDROOT)/*-[0-9]*; do \
@@ -63,34 +80,34 @@ extract_products: $(EXTRACTEDTARS) extract_stack_$(STACK)
 	chmod -R +w $(BUILDROOT)
 	du -sh $(BUILDROOT)/*
 
-.PHONY: extract_stack_cdh
-extract_stack_cdh:
-	find $(BUILDROOT)/$(HADOOP_DISTRO)-$(HADOOP_VERSION) -iwholename "*.tar.gz" | \
-		grep "\(hadoop\|zookeeper\|hive\|hbase\)" | \
-		xargs -n1 tar -C $(BUILDROOT) -xzf
-	rm -rf $(BUILDROOT)/hbase*/docs $(BUILDROOT)/hadoop*/src $(BUILDROOT)/hadoop*/share/doc
-	rm -rf $(BUILDROOT)/$(HADOOP_DISTRO)-$(HADOOP_VERSION)
-	chown root:root -R $(BUILDROOT)/* || true
-	find $(BUILDROOT) -maxdepth 1 -type d | \
-		grep "\(hadoop\|zookeeper\|hive\|hbase\)" | \
-		xargs -n1 basename >> $(VERSIONSFILE)
-
-.PHONY: extract_stack_hdp
-extract_stack_hdp:
-	find $(BUILDROOT) -iwholename "*.tar.gz" | \
-		grep "\(hadoop\|hbase\|zookeeper\|hive\)" | \
-		grep -v -E "sqoop|plugin|lzo" | \
-		xargs -n1 tar -C $(BUILDROOT) -xzf
-	find $(BUILDROOT) -iwholename "*.tar.gz" | grep "\(tez\)" | \
-		xargs sh -c 'mkdir -p $(BUILDROOT)/`basename $${0%.tar.gz}` && \
-		tar -C $(BUILDROOT)/`basename $${0%.tar.gz}` -xzf $$0'
-	find $(BUILDROOT) -type d -a -iname "$(HADOOP_DISTRO)-*" | xargs rm -rf
-	rm -rf $(BUILDROOT)/*.tar.gz $(BUILDROOT)/hbase*/docs
-	mv $(BUILDROOT)/apache-hive* $(BUILDROOT)/hive || true
-	chown root:root -R $(BUILDROOT)/* || true
-	find $(BUILDROOT) -maxdepth 1 -type d | \
-		grep "\(hadoop\|hbase\|zookeeper\|hive\|tez\)" | \
-		xargs -n1 basename >> $(VERSIONSFILE)
+# extract_stack_apache:
+#   Vanilla Apache tarballs land with a few directory-name shapes that the
+#   generic regex in extract_products can't canonicalize on its own:
+#     - apache-zookeeper-3.8.6-bin/  -> would become apache/ (BAD)
+#     - apache-hive-2.3.8-bin/       -> would become apache/ (BAD; also collides)
+#   Hadoop's hadoop-3.3.6/ and HBase's hbase-2.6.5/ rename fine with the
+#   generic regex, no explicit handling needed.
+#
+#   This target also appends the actual extracted directory names to
+#   versions.txt before they get renamed, so a future maintainer can read
+#   the exact upstream version baked into the tarball.
+.PHONY: extract_stack_apache
+extract_stack_apache:
+	find $(BUILDROOT) -maxdepth 1 -type d \( \
+		-name "apache-zookeeper-*" -o \
+		-name "apache-hive-*" -o \
+		-name "hadoop-[0-9]*" -o \
+		-name "hbase-[0-9]*" \
+	\) -exec basename {} \; >> $(VERSIONSFILE)
+	if [ -d "$(BUILDROOT)" ]; then \
+		for d in $(BUILDROOT)/apache-zookeeper-*; do \
+			[ -e "$$d" ] && mv "$$d" "$(BUILDROOT)/zookeeper"; \
+		done; \
+		for d in $(BUILDROOT)/apache-hive-*; do \
+			[ -e "$$d" ] && mv "$$d" "$(BUILDROOT)/hive"; \
+		done; \
+	fi
+	rm -rf $(BUILDROOT)/hbase*/docs $(BUILDROOT)/hadoop*/share/doc
 
 .PHONY: copy_templates
 copy_templates: $(TEMPLATES)
@@ -106,10 +123,6 @@ copy_templates: $(TEMPLATES)
 .PHONY: copy_deps
 copy_deps:
 	find . -maxdepth 1 -name *.tar.gz | xargs -I {} tar xzf {} -C $(BUILDROOT)
-
-.PHONY: refresh_tars
-refresh_tars:
-	make -C $(TARSROOT) clean all
 
 .PHONY: make_tarball
 make_tarball: $(BUILDROOT)

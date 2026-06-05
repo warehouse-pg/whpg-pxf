@@ -1,40 +1,44 @@
-# Tools
+# singlecluster/tools/
 
-## Compress HDP
+Helper scripts that prepare the `tars/` input directory used by the
+top-level `Makefile`.
 
-The HDP tarball we get from Hortonworks is around 5GB of Hadoop components. We only use a small subset of these for singlecluster so the `compressHDP.sh` script downloads the Hortonworks tarball, strips out the unnecessary components and creates a much smaller tarball
+## `downloadApache.sh`
 
-To invoke the command:
+Populates `singlecluster/tars/` with the four vanilla Apache component
+tarballs the build pipeline needs, plus the corresponding checksum
+sidecars, then verifies each tarball against its sidecar before exit.
 
-```
-#HDP 2.4
-./compressHDP.sh http://public-repo-1.hortonworks.com  HDP-2.4.2.0-centos6-tars-tarball.tar.gz 2.4.2.0 centos6 HDP
+### Usage
 
-#HDP 2.5
-./compressHDP.sh http://public-repo-1.hortonworks.com HDP-2.5.0.0-centos6-tars-tarball.tar.gz 2.5.0.0 centos6 HDP
-```
-
-Once the artifact has been created locally scp it to our dist server
-
-## Download CDH
-
-Cloudera has different Hadoop components packaged separately. The "downloadCDH.sh" script downloads tarballs of required components of specific versions respectively, and archives them together into one single tarball.
-
-To invoke the command:
-
-```
-#CDH 5.12.2
-./downloadCDH.sh
+```bash
+./downloadApache.sh           # download missing tarballs, verify existing
+./downloadApache.sh --force   # re-download everything (overrides cache)
 ```
 
-For other CDH versions, update required component tarballs as needed:
-```
-tarballs=(
-  'hadoop-<hadoop_version>-cdh<cdh_version>.tar.gz'
-  'hbase-<hbase_version>-cdh<cdh_version>.tar.gz'
-  'hive-<hive_version>-cdh<cdh_version>.tar.gz'
-  'zookeeper-<zookeeper_version>-cdh<cdh_version>.tar.gz'
-  '<some_component>-<some_component_version>-cdh<cdh_version>.tar.gz'
-)
-```
-Find CDH tarballs information [here](https://www.cloudera.com/documentation/enterprise/release-notes/topics/cdh_vd_cdh_package_tarball.html). Going forward, please keep this script updated for the preferred CDH version.
+The script is idempotent: a re-run with all tarballs already present
+and their checksums still valid is a no-op. To force a re-download of
+just one component, delete its `.tar.gz` (and `.sha512` / `.sha256`)
+under `singlecluster/tars/` and re-run.
+
+### Components
+
+| Component | Version | Source                  | Checksum |
+|-----------|---------|-------------------------|----------|
+| Hadoop    | 3.3.6   | `dlcdn.apache.org`      | `.sha512` |
+| HBase     | 2.6.5   | `dlcdn.apache.org`      | `.sha512` |
+| ZooKeeper | 3.8.6   | `dlcdn.apache.org`      | `.sha512` |
+| Hive      | 2.3.8   | `archive.apache.org`    | `.sha256` |
+
+Hive 2.3.8 is an archived release (current Apache mirrors only serve
+the latest line); only `.sha256` sidecars are published on
+`archive.apache.org` (verified — no `.sha512` exists). The script
+handles per-component checksum algorithms via the inline
+`components=` table at the top of the file.
+
+### History
+
+Replaced the retired `downloadCDH.sh` (CDH 5.12.2) and `compressHDP.sh`
+(Hortonworks HDP) flows in PTT-1135 Phase 4a — see
+[`03-plan/implementation-plan.md`](../../../../Documents/WorkTasks/ptt-1135-pxf/03-plan/implementation-plan.md)
+§4a.1.

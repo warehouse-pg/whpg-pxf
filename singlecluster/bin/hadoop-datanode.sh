@@ -18,7 +18,7 @@ bin=${root}/bin
 datanode_root=${HADOOP_STORAGE_ROOT}/datanode${nodeid}
 datanode_conf=${datanode_root}/etc/hadoop
 
-export HADOOP_DATANODE_OPTS="-Dhadoop.tmp.dir=$datanode_root/data"
+export HDFS_DATANODE_OPTS="-Dhadoop.tmp.dir=$datanode_root/data"
 export HADOOP_CONF_DIR=${datanode_conf}
 export HADOOP_IDENT_STRING=${USER}-node${nodeid}
 

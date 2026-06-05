@@ -13,9 +13,5 @@ if [ $? != 0 ]; then
 	exit 1
 fi
 
-# Initialize Tez
-${HADOOP_ROOT}/bin/hadoop fs -mkdir -p /apps/tez
-${HADOOP_ROOT}/bin/hadoop fs -copyFromLocal ${TEZ_ROOT}/* /apps/tez
-
 ${bin}/hive-service.sh metastore start
 ${bin}/hive-service.sh hiveserver2 start
