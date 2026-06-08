@@ -589,7 +589,7 @@ public class HBaseTest extends BaseFeature {
     /**
      * Long-scan smoke test. Replacement coverage for the
      * server-side scan-RPC time-limit machinery introduced in HBase 2.0
-     * (HBASE-16981 family). A single region with ~100K rows forces one
+     * (HBASE-16981 family). A single region with ~10,000 rows forces one
      * sustained scan rather than many short ones, exercising the heartbeat /
      * pause-and-continue path. Asserts the full row count is returned with
      * no client-side timeout / partial-result error.

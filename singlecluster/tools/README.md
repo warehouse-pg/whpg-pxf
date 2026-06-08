@@ -23,12 +23,18 @@ under `singlecluster/tars/` and re-run.
 
 ### Components
 
-| Component | Version | Source                  | Checksum |
-|-----------|---------|-------------------------|----------|
-| Hadoop    | 3.3.6   | `dlcdn.apache.org`      | `.sha512` |
-| HBase     | 2.6.5   | `dlcdn.apache.org`      | `.sha512` |
-| ZooKeeper | 3.8.6   | `dlcdn.apache.org`      | `.sha512` |
-| Hive      | 2.3.8   | `archive.apache.org`    | `.sha256` |
+Component versions are sourced at runtime from `server/gradle.properties`
+(`hadoopVersion`, `hbaseVersion`, `zookeeperVersion`, `hiveVersion`) —
+that file is the canonical source-of-truth. The values shown below are
+the current pins (for orientation; `gradle.properties` may move ahead of
+this table):
+
+| Component | gradle.properties key | Current pin | Source                  | Checksum |
+|-----------|-----------------------|-------------|-------------------------|----------|
+| Hadoop    | `hadoopVersion`       | 3.3.6       | `dlcdn.apache.org`      | `.sha512` |
+| HBase     | `hbaseVersion`        | 2.6.5       | `dlcdn.apache.org`      | `.sha512` |
+| ZooKeeper | `zookeeperVersion`    | 3.8.6       | `dlcdn.apache.org`      | `.sha512` |
+| Hive      | `hiveVersion`         | 2.3.8       | `archive.apache.org`    | `.sha256` |
 
 Hive 2.3.8 is an archived release (current Apache mirrors only serve
 the latest line); only `.sha256` sidecars are published on
@@ -39,6 +45,6 @@ handles per-component checksum algorithms via the inline
 ### History
 
 Replaced the retired `downloadCDH.sh` (CDH 5.12.2) and `compressHDP.sh`
-(Hortonworks HDP) flows in PTT-1135 Phase 4a — see
-[`03-plan/implementation-plan.md`](../../../../Documents/WorkTasks/ptt-1135-pxf/03-plan/implementation-plan.md)
-§4a.1.
+(Hortonworks HDP) flows during the migration to the vanilla Apache stack
+for PXF 7.0 (HBase 2.x / Hadoop 3.x). See `CHANGELOG.md` for the
+release-level summary.

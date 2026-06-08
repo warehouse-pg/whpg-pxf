@@ -14,7 +14,7 @@ Bundle contents (pinned to match `server/gradle.properties`):
 | ZooKeeper | 3.8.6 |
 | Hive      | 2.3.8 |
 
-The legacy CDH and HDP build paths were retired in PTT-1135 Phase 4a;
+The legacy CDH and HDP build paths were retired in the PXF 7.0 cut;
 the only supported `HADOOP_DISTRO` is `Apache`.
 
 Prerequisites
@@ -110,11 +110,6 @@ Notes
   alongside PXF automation.
 - Template files under `templates/` are overlaid on top of the
   extracted vanilla configs at build time (`Makefile` `copy_templates`).
-  Phase 4b is responsible for verifying / updating those overlays for
-  Hadoop 3.x + HBase 2.x + ZK 3.8.x compatibility.
-
-For repo-level context, see
-[`03-plan/implementation-plan.md`](../../../Documents/WorkTasks/ptt-1135-pxf/03-plan/implementation-plan.md)
-§4 (Phase 4 walkthrough) and
-[`03-plan/local-execution-playbook.md`](../../../Documents/WorkTasks/ptt-1135-pxf/03-plan/local-execution-playbook.md)
-§3 (singlecluster section of the local dev playbook).
+  These overlays carry the WarehousePG-specific tweaks needed for
+  Hadoop 3.x + HBase 2.x + ZooKeeper 3.8.x compatibility (e.g.
+  HBase `WAL provider = filesystem`, ZK 3.5+ 4lw allowlist).
