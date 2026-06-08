@@ -584,9 +584,15 @@ public class HBase extends BaseSystemObject implements IDbFunctionality {
                         user, null, null, actions);
             }
         } catch (Throwable t) {
+            // Rethrow JVM-fatal Errors (e.g. OutOfMemoryError) unchanged so they
+            // are never masked by being wrapped in a checked Exception.
+            if (t instanceof Error) {
+                throw (Error) t;
+            }
             if (t instanceof Exception) {
                 throw (Exception) t;
             }
+            // Truly unknown non-Exception, non-Error Throwable — wrap as checked.
             throw new Exception("Failed to grant permissions", t);
         }
     }
