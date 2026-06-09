@@ -12,6 +12,14 @@ dependencies {
     api(project(':pxf-api'))
 
     /*******************************
+     * Compile Only Dependencies
+     *******************************/
+
+    // Provides org.apache.hadoop.classification.InterfaceAudience referenced by
+    // annotations on Hadoop 3.x's S3ClientFactory / DefaultS3ClientFactory.
+    compileOnly("org.apache.hadoop:hadoop-annotations")              { transitive = false }
+
+    /*******************************
      * Implementation Dependencies
      *******************************/
 
@@ -34,6 +42,16 @@ dependencies {
      *******************************/
 
     testImplementation('org.springframework.boot:spring-boot-starter-test')
+    // Hadoop 3.3.6 split o.a.h.util.StringInterner's delegate into the shaded
+    // hadoop-shaded-guava artifact. Without it on the test classpath, any test
+    // that touches Hadoop Configuration loading (S3SelectAccessorTest does
+    // via DefaultS3ClientFactory) trips with
+    // NoClassDefFoundError: org/apache/hadoop/thirdparty/com/google/common/collect/Interners.
+    // Same finding-shape as pxf-api / pxf-hdfs.
+    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0")
+    // Hadoop 3 also depends on commons-configuration2 for some Configuration
+    // internals. Added preemptively to forestall a second-tier failure.
+    testRuntimeOnly("org.apache.commons:commons-configuration2:2.8.0")
 }
 
 test {

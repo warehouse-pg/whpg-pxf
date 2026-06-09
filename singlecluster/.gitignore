@@ -1,0 +1,8 @@
+# Downloaded vanilla Apache tarballs + checksum sidecars.
+# Populated by tools/downloadApache.sh; ~1.4GB total. Never committed.
+tars/
+
+# Build outputs from `make`.
+singlecluster-Apache/
+singlecluster-Apache.tar.gz
+*.extracted

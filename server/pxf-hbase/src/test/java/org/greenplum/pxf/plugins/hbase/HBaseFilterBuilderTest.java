@@ -19,7 +19,7 @@ package org.greenplum.pxf.plugins.hbase;
  * under the License.
  */
 
-import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
 import org.apache.hadoop.hbase.filter.NullComparator;
@@ -106,7 +106,7 @@ public class HBaseFilterBuilderTest {
         assertNotNull(result);
         assertSame(families[1], result.getFamily());
         assertSame(qualifiers[1], result.getQualifier());
-        assertEquals(CompareFilter.CompareOp.EQUAL, result.getOperator());
+        assertEquals(CompareOperator.EQUAL, result.getCompareOperator());
         assertTrue(result.getComparator() instanceof NullComparator);
     }
 
@@ -119,7 +119,7 @@ public class HBaseFilterBuilderTest {
         assertNotNull(result);
         assertSame(families[1], result.getFamily());
         assertSame(qualifiers[1], result.getQualifier());
-        assertEquals(CompareFilter.CompareOp.NOT_EQUAL, result.getOperator());
+        assertEquals(CompareOperator.NOT_EQUAL, result.getCompareOperator());
         assertTrue(result.getComparator() instanceof NullComparator);
     }
 
@@ -133,7 +133,7 @@ public class HBaseFilterBuilderTest {
         SingleColumnValueFilter scvFilter = (SingleColumnValueFilter) filter;
         assertSame(families[0], scvFilter.getFamily());
         assertSame(qualifiers[0], scvFilter.getQualifier());
-        assertEquals(CompareFilter.CompareOp.GREATER, scvFilter.getOperator());
+        assertEquals(CompareOperator.GREATER, scvFilter.getCompareOperator());
         assertTrue(scvFilter.getComparator() instanceof HBaseIntegerComparator);
         assertEquals(0, scvFilter.getComparator().compareTo("5".getBytes()));
     }
@@ -167,12 +167,12 @@ public class HBaseFilterBuilderTest {
 
         assertEquals(families[1], scvFilterLeft.getFamily());
         assertEquals(qualifiers[1], scvFilterLeft.getQualifier());
-        assertEquals(CompareFilter.CompareOp.GREATER, scvFilterLeft.getOperator());
+        assertEquals(CompareOperator.GREATER, scvFilterLeft.getCompareOperator());
         assertEquals(0, scvFilterLeft.getComparator().compareTo("2008-02-01".getBytes()));
 
         assertEquals(families[2], scvFilterRight.getFamily());
         assertEquals(qualifiers[2], scvFilterRight.getQualifier());
-        assertEquals(CompareFilter.CompareOp.GREATER, scvFilterRight.getOperator());
+        assertEquals(CompareOperator.GREATER, scvFilterRight.getCompareOperator());
         assertEquals(0, scvFilterRight.getComparator().compareTo("1200".getBytes()));
     }
 
@@ -199,12 +199,12 @@ public class HBaseFilterBuilderTest {
 
         assertEquals(families[2], scvFilterLeft.getFamily());
         assertEquals(qualifiers[2], scvFilterLeft.getQualifier());
-        assertEquals(CompareFilter.CompareOp.LESS, scvFilterLeft.getOperator());
+        assertEquals(CompareOperator.LESS, scvFilterLeft.getCompareOperator());
         assertEquals(0, scvFilterLeft.getComparator().compareTo("999".getBytes()));
 
         assertEquals(families[1], scvFilterRight.getFamily());
         assertEquals(qualifiers[1], scvFilterRight.getQualifier());
-        assertEquals(CompareFilter.CompareOp.EQUAL, scvFilterRight.getOperator());
+        assertEquals(CompareOperator.EQUAL, scvFilterRight.getCompareOperator());
         assertEquals(0, scvFilterRight.getComparator().compareTo("seq".getBytes()));
     }
 
@@ -230,7 +230,7 @@ public class HBaseFilterBuilderTest {
 
         assertEquals(families[1], scvFilterLeft.getFamily());
         assertEquals(qualifiers[1], scvFilterLeft.getQualifier());
-        assertEquals(CompareFilter.CompareOp.GREATER, scvFilterLeft.getOperator());
+        assertEquals(CompareOperator.GREATER, scvFilterLeft.getCompareOperator());
         assertEquals(0, scvFilterLeft.getComparator().compareTo("2008-02-01".getBytes()));
 
         assertEquals(FilterList.Operator.MUST_PASS_ALL, scvFilterListRight.getOperator());
@@ -247,12 +247,12 @@ public class HBaseFilterBuilderTest {
 
         assertEquals(families[1], scvFilterLeft.getFamily());
         assertEquals(qualifiers[1], scvFilterLeft.getQualifier());
-        assertEquals(CompareFilter.CompareOp.LESS, scvFilterLeft.getOperator());
+        assertEquals(CompareOperator.LESS, scvFilterLeft.getCompareOperator());
         assertEquals(0, scvFilterLeft.getComparator().compareTo("2008-12-01".getBytes()));
 
         assertEquals(families[0], scvFilterRight.getFamily());
         assertEquals(qualifiers[0], scvFilterRight.getQualifier());
-        assertEquals(CompareFilter.CompareOp.GREATER, scvFilterRight.getOperator());
+        assertEquals(CompareOperator.GREATER, scvFilterRight.getCompareOperator());
         assertEquals(0, scvFilterRight.getComparator().compareTo("1200".getBytes()));
     }
 

@@ -252,7 +252,7 @@ The cluster has been successfully created. Now do the following:
 
         cp -a dataproc_env_files/conf \${PXF_BASE}/servers/dataproc
 
-    3. (Optional) Configure singlecluster-HDP3 CLI to connect to the cluster
+    3. (Optional) Configure singlecluster CLI to connect to the cluster
 
         export HADOOP_CONF_DIR="${PWD}/dataproc_env_files/conf"
         export HIVE_CONF_DIR="${PWD}/dataproc_env_files/conf"

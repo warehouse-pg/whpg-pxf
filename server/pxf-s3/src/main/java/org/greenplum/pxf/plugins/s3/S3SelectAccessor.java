@@ -304,13 +304,24 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
 
     /**
      * Returns a new AmazonS3 client with credentials from
-     * the configuration file
+     * the configuration file.
+     *
+     * <p>{@code S3ClientFactory} is {@code @Deprecated} in Hadoop 3.3.x as part
+     * of the multi-release move to AWS SDK v2 (which completes in Hadoop 3.4).
+     * The corresponding non-deprecated path is the v2 {@code S3Client} API,
+     * which would require migrating this entire S3 Select pipeline off
+     * AWS SDK v1 (com.amazonaws.*). That migration is tracked separately;
+     * for now we accept the deprecation on a single call site.</p>
      */
+    @SuppressWarnings("deprecation")
     private AmazonS3 initS3Client() {
         try {
             DefaultS3ClientFactory factory = new DefaultS3ClientFactory();
             factory.setConf(configuration);
-            return factory.createS3Client(name);
+            org.apache.hadoop.fs.s3a.S3ClientFactory.S3ClientCreationParameters parameters =
+                    new org.apache.hadoop.fs.s3a.S3ClientFactory.S3ClientCreationParameters()
+                            .withPathUri(name);
+            return factory.createS3Client(name, parameters);
         } catch (IOException e) {
             throw new RuntimeException("Unable to create S3 Client connection", e);
         }

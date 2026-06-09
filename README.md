@@ -1,5 +1,7 @@
-**PXF Build** [![Concourse Build Status](http://ci.ud.gpdb.pivotal.io/api/v1/teams/main/pipelines/pxf-build/badge)](https://ci.ud.gpdb.pivotal.io/teams/main/pipelines/pxf-build) |
-**PXF Certification** [![Concourse Build Status](http://ci.ud.gpdb.pivotal.io/api/v1/teams/main/pipelines/pxf-certification/badge)](https://ci.ud.gpdb.pivotal.io/teams/main/pipelines/pxf-certification)
+PXF is built and certified through the GitHub Actions workflows under
+`whpg-extensions-packaging/.github/workflows/`. The legacy Concourse
+pipelines under `concourse/` are deprecated and retained for historical
+reference only.
 
 ----------------------------------------------------------------------
 
@@ -31,7 +33,7 @@ Contains the automation and integration tests for PXF against the various dataso
 Hadoop testing environment to exercise the pxf automation tests
 
 ## concourse/
-Resources for PXF's Continuous Integration pipelines
+Legacy resources for PXF's Concourse Continuous Integration pipelines. Deprecated and retained for historical reference only; the live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`.
 
 ## regression/
 Contains the end-to-end (integration) tests for PXF against the various datasources, utilizing the PostgreSQL testing framework `pg_regress`
@@ -49,7 +51,7 @@ To start, ensure you have a `~/workspace` directory and have cloned the `pxf` an
 mkdir -p ~/workspace
 cd ~/workspace
 
-git clone https://github.com/greenplum-db/pxf.git
+git clone https://github.com/warehouse-pg/whpg-pxf.git pxf
 ```
 Alternatively, you may create a symlink to your existing repo folder.
 ```bash
@@ -63,21 +65,21 @@ To build PXF, you must have:
 1. GCC compiler, `make` system, `unzip` package, `maven` for running integration tests
 2. Installed Greenplum DB
 
-    Either download and install Greenplum RPM or build Greenplum from the source by following instructions in the [GPDB README](https://github.com/greenplum-db/gpdb).
+    Either download and install the WarehousePG RPM or build WarehousePG from source by following instructions in the [WarehousePG README](https://github.com/warehouse-pg/warehouse-pg).
 
     Assuming you have installed Greenplum into `/usr/local/greenplum-db` directory, run its environment script:
     ```
     source /usr/local/greenplum-db/greenplum_path.sh
     ```
 
-3. JDK 1.8 or JDK 11 to compile/run
+3. JDK 8 to build (the server build uses Lombok, which requires JDK 8); JDK 8 or JDK 11 to run
 
     Export your `JAVA_HOME`:
     ```
     export JAVA_HOME=<PATH_TO_YOUR_JAVA_HOME>
     ```
 
-4. Go (1.9 or later)
+4. Go (1.21 or later — see [`cli/README.md`](cli/README.md))
 
     To install Go on CentOS, `sudo yum install go`. For other platforms, see the [Go downloads page](https://golang.org/dl/).
 
@@ -152,87 +154,44 @@ pxf restart
 ```
 
 ## How to demonstrate Hadoop Integration
-In order to demonstrate end to end functionality you will need Hadoop installed. We have all the related hadoop components (hdfs, hive, hbase, zookeeper, etc) mapped into simple artifact named singlecluster.
-You can [download from here](https://storage.googleapis.com/pxf-public/singlecluster-HDP.tar.gz) and untar the `singlecluster-HDP.tar.gz` file, which contains everything needed to run Hadoop.
+In order to demonstrate end to end functionality you will need Hadoop installed. All the related Hadoop components (HDFS, Hive, HBase, ZooKeeper) are bundled into a single self-contained artifact named `singlecluster`.
+
+Build the bundle from a vanilla-Apache stack (Hadoop 3.3.6, HBase 2.6.5, ZooKeeper 3.8.6, Hive 2.3.8) and extract it. See [`singlecluster/README.md`](singlecluster/README.md) for the full build, layout, and startup instructions.
 
 ```bash
-mv singlecluster-HDP.tar.gz ~/workspace/
+cd ~/workspace/pxf/singlecluster
+tools/downloadApache.sh
+make HADOOP_VERSION=3.3.6 HADOOP_DISTRO=Apache
+
+mv singlecluster-Apache.tar.gz ~/workspace/
 cd ~/workspace
-tar xzf singlecluster-HDP.tar.gz
+tar xzf singlecluster-Apache.tar.gz
+ln -sfn ~/workspace/singlecluster-Apache ~/workspace/singlecluster
 ```
 
-Create a symlink using `ln -s ~/workspace/singlecluster-HDP ~/workspace/singlecluster` and then follow the steps in [Setup Hadoop](#Setup-Hadoop).
+Then follow the steps in [Setup Hadoop](#Setup-Hadoop).
 
-While PXF can run on either Java 8 or Java 11, please ensure that you are running Java 8 for hdfs, hadoop, etc. Please set your java version by seting your `JAVA_HOME` to the appropriate location.
+JDK 8 is the validated runtime for the singlecluster stack (HBase 2.6.5 and Hive 2.3.8 are verified on Java 8 only). The PXF server JVM itself may run on Java 8 or Java 11. Set `JAVA_HOME` to a JDK 8 install before starting the Hadoop components.
 
-On a Mac, you can set your java version using `JAVA_HOME` like so:
+On a Mac, you can set your Java version using `JAVA_HOME` like so:
 ```
 export JAVA_HOME=`/usr/libexec/java_home -v 1.8`
-````
+```
 
 Initialize the default server configurations:
 ```
 cp ${PXF_HOME}/templates/*-site.xml ${PXF_BASE}/servers/default
 ```
 
-# Development With Docker
-NOTE: Since the docker container will house all Single cluster Hadoop, Greenplum and PXF, we recommend that you have at least 4 cpus and 6GB memory allocated to Docker. These settings are available under docker preferences.
+# Local Development Setup
 
-<!-- TODO: Understand why this only works for 6.6 RPM and not latest GPDB6 -->
-The quick and easy is to download the GPDB 6.6 RPM from Github and move it into the `/downloads` folder. Then run `./dev/start.bash` to get a docker image with a running GPDB6, Hadoop cluster and an installed PXF.
-
-If you would like more control over the GPDB installation, you can use the steps below.
-
-```bash
-# Get the latest centos7 image for GPDB6
-docker pull gcr.io/$PROJECT_ID/gpdb-pxf-dev/gpdb6-centos7-test-pxf:latest
-
-# If you want to use gdb to debug gpdb you need the --privileged flag in the command below
-docker run --rm -it \
-  -p 5432:5432 \
-  -p 5888:5888 \
-  -p 8000:8000 \
-  -p 5005:5005 \
-  -p 8020:8020 \
-  -p 9000:9000 \
-  -p 9090:9090 \
-  -p 50070:50070 \
-  -w /home/gpadmin/workspace \
-  -v ~/workspace/gpdb:/home/gpadmin/workspace/gpdb \
-  -v ~/workspace/pxf:/home/gpadmin/workspace/pxf \
-  -v ~/workspace/singlecluster-HDP:/home/gpadmin/workspace/singlecluster \
-  gcr.io/$PROJECT_ID/gpdb-pxf-dev/gpdb6-centos7-test-pxf:latest /bin/bash -c \
-  "/home/gpadmin/workspace/pxf/dev/set_up_gpadmin_user.bash && /usr/sbin/sshd && su - gpadmin"
-```
-
-### Setup GPDB in the Docker image
-
-Configure, build and install GPDB. This will be needed only when you use the container for the first time with GPDB source.
-
-<!-- TODO: This may be because we no longer use greenplum-db-devel?-->
-```bash
-~/workspace/pxf/dev/build_gpdb.bash
-sudo mkdir /usr/local/greenplum-db-devel
-sudo chown gpadmin:gpadmin /usr/local/greenplum-db-devel
-~/workspace/pxf/dev/install_gpdb.bash
-```
-
-For subsequent minor changes to GPDB source you can simply do the following:
-```bash
-~/workspace/pxf/dev/install_gpdb.bash
-```
-
-Run all the instructions below and run GROUP=smoke (in one script):
-```bash
-~/workspace/pxf/dev/smoke_shortcut.sh
-```
-
-Create Greenplum Cluster
-```bash
-source /usr/local/greenplum-db-devel/greenplum_path.sh
-make -C ~/workspace/gpdb create-demo-cluster
-source ~/workspace/gpdb/gpAux/gpdemo/gpdemo-env.sh
-```
+> **Note:** A Docker-based dev flow previously documented here relied on
+> pre-built images (`gcr.io/$PROJECT_ID/gpdb-pxf-dev/...`) and the
+> `singlecluster-HDP` tarball that are no longer accessible, plus the
+> now-deprecated `dev/start.bash` helper. That flow is deprecated. The
+> steps below run Greenplum, the `singlecluster` Hadoop stack, and PXF
+> directly on the host. Build the vanilla-Apache `singlecluster` bundle
+> first (see [`singlecluster/README.md`](singlecluster/README.md)).
 
 ### Setup Hadoop
 Hdfs will be needed to demonstrate functionality. You can choose to start additional hadoop components (hive/hbase) if you need them.
@@ -264,7 +223,7 @@ popd
 ```
 
 ### Setup Minio (optional)
-Minio is an S3-API compatible local storage solution. The development docker image comes with Minio software pre-installed. To start the Minio server, run the following script:
+Minio is an S3-API compatible local storage solution. With the Minio server binary installed and on your `PATH`, start it by running the following script:
 ```bash
 source ~/workspace/pxf/dev/start_minio.bash
 ```
@@ -308,10 +267,10 @@ export PROTOCOL=s3
 popd
 ```
 
-If you see any HBase failures, try copying `pxf-hbase-*.jar` to the HBase classpath, and restart HBase:
+Before running the HBase tests, copy `pxf-hbase-*.jar` onto the HBase classpath and restart HBase. This is a required step: the HBase filter-pushdown tests fail without the PXF JAR on the RegionServer classpath.
 
 ```
-cp ${PXF_HOME}/lib/pxf-hbase-*.jar ~/workspace/singlecluster/hbase/lib/pxf-hbase.jar
+cp ${PXF_HOME}/share/pxf-hbase-*.jar ~/workspace/singlecluster/hbase/lib/pxf-hbase.jar
 ~/workspace/singlecluster/bin/stop-hbase.sh
 ~/workspace/singlecluster/bin/start-hbase.sh
 ```
@@ -335,7 +294,7 @@ $PXF_HOME/bin/pxf start
 
 - Start IntelliJ. Click "Open" and select the directory to which you cloned the `pxf` repo.
 - Select `File > Project Structure`.
-- Make sure you have a JDK (version 1.8) selected.
+- Make sure you have a JDK (version 1.8) selected. JDK 8 is required here because the server build uses Lombok, which only supports JDK 8.
 - In the `Project Settings > Modules` section, select `Import Module`, pick the `pxf/server` directory and import as a Gradle module. You may see an error saying that there's
 no JDK set for Gradle. Just cancel and retry. It goes away the second time.
 - Import a second module, giving the `pxf/automation` directory, select "Import module from external model", pick `Maven` then click Finish.
@@ -356,4 +315,4 @@ no JDK set for Gradle. Just cancel and retry. It goes away the second time.
 
 # To run a Kerberized Hadoop Cluster
 
-- See instructions in the dev folder for spinning up a kerberized Dataproc cluster in GCP.
+- See [`dev/IPA.md`](dev/IPA.md) for spinning up a kerberized multi-node Hadoop cluster backed by FreeIPA, or [`dev/Dataproc-with-Kerberos.md`](dev/Dataproc-with-Kerberos.md) for a kerberized Dataproc cluster in GCP.

@@ -97,10 +97,11 @@ configure(javaProjects) {
             dependency("net.sf.opencsv:opencsv:2.3")
             dependency("org.antlr:antlr-runtime:3.5.2")
             dependency("org.apache.commons:commons-compress:1.20")
-            dependency("org.apache.htrace:htrace-core:3.1.0-incubating")
-            dependency("org.apache.htrace:htrace-core4:4.0.1-incubating")
 
-            dependency("org.apache.zookeeper:zookeeper:3.4.6")
+            dependency("org.apache.zookeeper:zookeeper:${zookeeperVersion}")
+            // ZK 3.6+ split wire-protocol serialization classes into zookeeper-jute.
+            // Without this on runtime classpath, ZK client times out at wire layer.
+            dependency("org.apache.zookeeper:zookeeper-jute:${zookeeperVersion}")
             dependency("org.codehaus.woodstox:stax2-api:3.1.4")
             dependency("org.datanucleus:datanucleus-api-jdo:4.2.4")
             dependency("org.datanucleus:datanucleus-core:4.1.17")
@@ -139,6 +140,7 @@ configure(javaProjects) {
                 entry("hbase-client")
                 entry("hbase-common")
                 entry("hbase-protocol")
+                entry("hbase-protocol-shaded")
             }
 
             // Hive dependencies

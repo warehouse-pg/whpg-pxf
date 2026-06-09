@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -110,6 +111,95 @@ public class HBaseAccessorTest {
     }
 
     /*
+     * hbase.read.rpc.timeout config-propagation smoke test.
+     *
+     * HBase 2.5 renamed the old hbase.rpc.timeout knob to a pair of more
+     * specific keys: hbase.read.rpc.timeout / hbase.write.rpc.timeout
+     * (HBASE-27078). PXF doesn't read these keys directly — it just wraps
+     * the caller-supplied Configuration via HBaseConfiguration.create(...)
+     * before handing it to ConnectionFactory. This test pins the contract
+     * that the wrap doesn't drop or rename the new keys, so an operator
+     * can set them in $PXF_SERVER/hbase-site.xml and have them reach the
+     * HBase client.
+     */
+    @Test
+    public void readRpcTimeoutConfigIsHonored() {
+        Configuration cfg = new Configuration(false);
+        cfg.set("hbase.read.rpc.timeout", "12345");
+        cfg.set("hbase.write.rpc.timeout", "67890");
+        // Also set the legacy key to confirm it survives alongside the new ones.
+        cfg.set("hbase.rpc.timeout", "54321");
+
+        // This mirrors what HBaseAccessor.openTable() does just before
+        // calling ConnectionFactory.createConnection(...).
+        Configuration wrapped = HBaseConfiguration.create(cfg);
+
+        assertEquals("12345", wrapped.get("hbase.read.rpc.timeout"),
+                "hbase.read.rpc.timeout (HBase 2.5 key) must propagate through HBaseConfiguration.create");
+        assertEquals("67890", wrapped.get("hbase.write.rpc.timeout"),
+                "hbase.write.rpc.timeout (HBase 2.5 key) must propagate through HBaseConfiguration.create");
+        assertEquals("54321", wrapped.get("hbase.rpc.timeout"),
+                "Legacy hbase.rpc.timeout must continue to propagate (back-compat for older operators)");
+    }
+
+    /*
+     * post-Connection.close() lifecycle test.
+     *
+     * HBASE-21684 (HBase 2.3) changed StoppedRpcClientException to extend
+     * DoNotRetryIOException so a closed connection no longer triggers a
+     * retry storm. Our PXF accessor closes the connection in closeForRead.
+     * This test pins the contract: closeForRead() actually invokes close()
+     * on both the Table and the Connection it acquired in openForRead(),
+     * so any subsequent RPC against that connection would surface the new
+     * fast-fail exception class. It also guards against a future
+     * refactor that accidentally caches and reuses a closed connection.
+     */
+    @Test
+    public void closeForReadClosesTableAndConnection() throws Exception {
+        prepareConstruction();
+
+        accessor = new HBaseAccessor();
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+
+        // Directly wire up mocks for the private table + connection fields so
+        // closeForRead() has something to act on without going through the
+        // full openForRead path (which needs a region locator etc.). This
+        // keeps the test scoped to the closeForRead lifecycle contract.
+        Connection mockConnection = mock(Connection.class);
+        Table mockTable = mock(Table.class);
+        // Reassign the fields used by the accessor closure callbacks
+        hbaseConnection = mockConnection;
+        table = mockTable;
+        java.lang.reflect.Field connField = HBaseAccessor.class.getDeclaredField("connection");
+        connField.setAccessible(true);
+        connField.set(accessor, mockConnection);
+        java.lang.reflect.Field tableField = HBaseAccessor.class.getDeclaredField("table");
+        tableField.setAccessible(true);
+        tableField.set(accessor, mockTable);
+
+        accessor.closeForRead();
+
+        // Both must be closed — any subsequent RPC on the connection would
+        // now surface as DoNotRetryIOException (HBASE-21684) rather than
+        // retrying.
+        verify(mockTable).close();
+        verify(mockConnection).close();
+
+        // Sanity: the fields are still referenceable (not nulled), so an
+        // accidental re-use would clearly hit the closed connection and
+        // fast-fail.
+        assertNotNull(connField.get(accessor),
+                "connection field is expected to retain its reference after closeForRead so a stale-reuse bug fast-fails");
+        assertNotNull(tableField.get(accessor),
+                "table field is expected to retain its reference after closeForRead so a stale-reuse bug fast-fails");
+
+        // Prevent @AfterEach's closeAccessor() from invoking closeForRead twice
+        // (which would NPE on the closed table mock).
+        accessor = null;
+    }
+
+    /*
      * Helper for test setup.
      * Creates a mock for HBaseTupleDescription and RequestContext
      */
@@ -150,8 +240,8 @@ public class HBaseAccessorTest {
      * Verify Scan object was used but didn't do much
      */
     private void verifyScannerDidNothing() throws Exception {
-        // setMaxVersions was called with 1
-        verify(scanDetails).setMaxVersions(1);
+        // readVersions was called with 1
+        verify(scanDetails).readVersions(1);
         // addColumn was not called
         verify(scanDetails, never()).addColumn(any(byte[].class), any(byte[].class));
         // addFilter was not called

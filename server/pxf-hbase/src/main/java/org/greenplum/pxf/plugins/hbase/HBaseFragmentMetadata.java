@@ -1,7 +1,7 @@
 package org.greenplum.pxf.plugins.hbase;
 
 import lombok.Getter;
-import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.client.RegionInfo;
 import org.greenplum.pxf.api.utilities.FragmentMetadata;
 
 import java.util.Map;
@@ -18,7 +18,7 @@ public class HBaseFragmentMetadata implements FragmentMetadata {
 
     private final Map<String, byte[]> columnMapping;
 
-    public HBaseFragmentMetadata(HRegionInfo region, Map<String, byte[]> columnMapping) {
+    public HBaseFragmentMetadata(RegionInfo region, Map<String, byte[]> columnMapping) {
         this(region.getStartKey(), region.getEndKey(), columnMapping);
     }
 

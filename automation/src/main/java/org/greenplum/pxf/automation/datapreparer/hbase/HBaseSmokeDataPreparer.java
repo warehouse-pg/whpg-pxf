@@ -31,23 +31,23 @@ public class HBaseSmokeDataPreparer implements IDataPreparer {
 
 			// String value
 			String value = "row_" + i;
-			newRow.add(columnFamilyName.getBytes(), qualifiers[0].getBytes(), value.getBytes());
+			newRow.addColumn(columnFamilyName.getBytes(), qualifiers[0].getBytes(), value.getBytes());
 
 			// int value
 			value = Integer.toString(i);
-			newRow.add(columnFamilyName.getBytes(), qualifiers[1].getBytes(), value.getBytes());
+			newRow.addColumn(columnFamilyName.getBytes(), qualifiers[1].getBytes(), value.getBytes());
 
 			// double value
 			value = Double.toString(i);
-			newRow.add(columnFamilyName.getBytes(), qualifiers[2].getBytes(), value.getBytes());
+			newRow.addColumn(columnFamilyName.getBytes(), qualifiers[2].getBytes(), value.getBytes());
 
 			// long value
 			value = String.valueOf(Long.toString(100000000000L * (i)));
-			newRow.add(columnFamilyName.getBytes(), qualifiers[3].getBytes(), value.getBytes());
+			newRow.addColumn(columnFamilyName.getBytes(), qualifiers[3].getBytes(), value.getBytes());
 
 			// boolean value
 			value = Boolean.toString((i % 2) == 0);
-			newRow.add(columnFamilyName.getBytes(), qualifiers[4].getBytes(), value.getBytes());
+			newRow.addColumn(columnFamilyName.getBytes(), qualifiers[4].getBytes(), value.getBytes());
 
 			generatedRows.add(newRow);
 		}

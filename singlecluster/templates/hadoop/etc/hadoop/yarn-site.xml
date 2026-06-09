@@ -44,14 +44,14 @@
             <name>yarn.application.classpath</name>
 	        <value>
 		    $HADOOP_CONF,
-		    $HADOOP_ROOT/share/hadoop/common/*,
-		    $HADOOP_ROOT/share/hadoop/common/lib/*,
-		    $HADOOP_ROOT/share/hadoop/hdfs/*,
-		    $HADOOP_ROOT/share/hadoop/hdfs/lib/*,
-		    $HADOOP_ROOT/share/hadoop/mapreduce/*,
-		    $HADOOP_ROOT/share/hadoop/mapreduce/lib/*,
-		    $HADOOP_ROOT/share/hadoop/yarn/*,
-		    $HADOOP_ROOT/share/hadoop/yarn/lib/*
+		    ${HADOOP_HOME}/share/hadoop/common/*,
+		    ${HADOOP_HOME}/share/hadoop/common/lib/*,
+		    ${HADOOP_HOME}/share/hadoop/hdfs/*,
+		    ${HADOOP_HOME}/share/hadoop/hdfs/lib/*,
+		    ${HADOOP_HOME}/share/hadoop/mapreduce/*,
+		    ${HADOOP_HOME}/share/hadoop/mapreduce/lib/*,
+		    ${HADOOP_HOME}/share/hadoop/yarn/*,
+		    ${HADOOP_HOME}/share/hadoop/yarn/lib/*
 	        </value>
         </property>
 

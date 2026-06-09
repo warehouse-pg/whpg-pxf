@@ -12,28 +12,23 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.ClusterConnection;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptor;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.ipc.PayloadCarryingRpcController;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.mapreduce.ImportTsv;
-import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
-import org.apache.hadoop.hbase.protobuf.generated.AccessControlProtos;
-import org.apache.hadoop.hbase.security.access.AccessControlLists;
+import org.apache.hadoop.hbase.security.access.AccessControlClient;
 import org.apache.hadoop.hbase.security.access.Permission.Action;
 import org.apache.hadoop.hbase.util.Bytes;
 
-import com.google.protobuf.BlockingRpcChannel;
 import org.greenplum.pxf.automation.components.common.BaseSystemObject;
 import org.greenplum.pxf.automation.components.common.IDbFunctionality;
 import org.greenplum.pxf.automation.structures.tables.hbase.HBaseTable;
@@ -77,10 +72,9 @@ public class HBase extends BaseSystemObject implements IDbFunctionality {
             config.set("hbase.rootdir", "hdfs://" + host + ":8020/hbase");
         }
 
-        HBaseAdmin.checkHBaseAvailable(config);
         connection = ConnectionFactory.createConnection(config);
         admin = connection.getAdmin();
-        if (admin.getClusterStatus().getServersSize() == 0) {
+        if (admin.getClusterMetrics().getLiveServerMetrics().isEmpty()) {
             ReportUtils.report(report, getClass(),
                     "No HBase region servers running", Reporter.FAIL);
         }
@@ -114,13 +108,13 @@ public class HBase extends BaseSystemObject implements IDbFunctionality {
 
         ReportUtils.startLevel(report, getClass(), "List Tables");
 
-        HTableDescriptor[] tables = admin.listTables();
+        List<TableDescriptor> tables = admin.listTableDescriptors();
 
         ArrayList<String> tablesNames = new ArrayList<String>();
 
-        for (int i = 0; i < tables.length; i++) {
+        for (TableDescriptor td : tables) {
 
-            tablesNames.add(tables[i].getNameAsString());
+            tablesNames.add(td.getTableName().getNameAsString());
 
         }
 
@@ -351,20 +345,22 @@ public class HBase extends BaseSystemObject implements IDbFunctionality {
         ReportUtils.startLevel(report, getClass(),
                 "Create Table " + table.getName());
 
-        HTableDescriptor htd = new HTableDescriptor(
+        TableDescriptorBuilder tdb = TableDescriptorBuilder.newBuilder(
                 TableName.valueOf(table.getName()));
 
         for (int i = 0; i < hTable.getFields().length; i++) {
 
-            HColumnDescriptor hcd = new HColumnDescriptor(hTable.getFields()[i]);
+            ColumnFamilyDescriptor cfd = ColumnFamilyDescriptorBuilder
+                    .newBuilder(Bytes.toBytes(hTable.getFields()[i]))
+                    .build();
 
-            htd.addFamily(hcd);
+            tdb.setColumnFamily(cfd);
         }
 
         String[] splits = generateSplits(hTable.getNumberOfSplits(),
                 hTable.getRowKeyPrefix(), hTable.getRowsPerSplit());
 
-        admin.createTable(htd, Bytes.toByteArrays(splits));
+        admin.createTable(tdb.build(), Bytes.toByteArrays(splits));
         ReportUtils.stopLevel(report);
     }
 
@@ -411,7 +407,7 @@ public class HBase extends BaseSystemObject implements IDbFunctionality {
         disableTable(table);
 
         for (int i = 0; i < columns.length; i++) {
-            admin.deleteColumn(TableName.valueOf(table.getName()),
+            admin.deleteColumnFamily(TableName.valueOf(table.getName()),
                     Bytes.toBytes(columns[i]));
         }
 
@@ -428,9 +424,10 @@ public class HBase extends BaseSystemObject implements IDbFunctionality {
         disableTable(table);
 
         for (int i = 0; i < columns.length; i++) {
-            HColumnDescriptor column = new HColumnDescriptor(
-                    Bytes.toBytes(columns[i]));
-            admin.addColumn(TableName.valueOf(table.getName()), column);
+            ColumnFamilyDescriptor column = ColumnFamilyDescriptorBuilder
+                    .newBuilder(Bytes.toBytes(columns[i]))
+                    .build();
+            admin.addColumnFamily(TableName.valueOf(table.getName()), column);
         }
 
         enableTable(table);
@@ -579,18 +576,24 @@ public class HBase extends BaseSystemObject implements IDbFunctionality {
             return;
         }
 
-        org.apache.hadoop.hbase.client.Table acl = connection.getTable(AccessControlLists.ACL_TABLE_NAME);
         try {
-            BlockingRpcChannel service = acl.coprocessorService(HConstants.EMPTY_START_ROW);
-            AccessControlProtos.AccessControlService.BlockingInterface protocol = AccessControlProtos.AccessControlService.newBlockingStub(service);
-            PayloadCarryingRpcController controller = ((ClusterConnection) connection).getRpcControllerFactory().newController();
             if (table == null) {
-                ProtobufUtil.grant(controller, protocol, user, actions);
+                AccessControlClient.grant(connection, user, actions);
             } else {
-                ProtobufUtil.grant(controller, protocol, user, TableName.valueOf(table.getName()), null, null, actions);
+                AccessControlClient.grant(connection, TableName.valueOf(table.getName()),
+                        user, null, null, actions);
             }
-        } finally {
-            acl.close();
+        } catch (Throwable t) {
+            // Rethrow JVM-fatal Errors (e.g. OutOfMemoryError) unchanged so they
+            // are never masked by being wrapped in a checked Exception.
+            if (t instanceof Error) {
+                throw (Error) t;
+            }
+            if (t instanceof Exception) {
+                throw (Exception) t;
+            }
+            // Truly unknown non-Exception, non-Error Throwable — wrap as checked.
+            throw new Exception("Failed to grant permissions", t);
         }
     }
 

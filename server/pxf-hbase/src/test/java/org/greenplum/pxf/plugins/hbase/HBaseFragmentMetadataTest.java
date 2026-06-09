@@ -1,6 +1,6 @@
 package org.greenplum.pxf.plugins.hbase;
 
-import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.client.RegionInfo;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -14,18 +14,18 @@ import static org.mockito.Mockito.when;
 class HBaseFragmentMetadataTest {
 
     @Test
-    public void testHRegionInfoConstructor() {
+    public void testRegionInfoConstructor() {
         final byte[] startKey = new byte[0];
         final byte[] endKey = new byte[0];
         final byte[] fooValue = new byte[0];
         Map<String, byte[]> columnMapping = new HashMap<>();
         columnMapping.put("foo", fooValue);
 
-        HRegionInfo hRegionInfo = mock(HRegionInfo.class);
-        when(hRegionInfo.getStartKey()).thenReturn(startKey);
-        when(hRegionInfo.getEndKey()).thenReturn(endKey);
+        RegionInfo regionInfo = mock(RegionInfo.class);
+        when(regionInfo.getStartKey()).thenReturn(startKey);
+        when(regionInfo.getEndKey()).thenReturn(endKey);
 
-        HBaseFragmentMetadata metadata = new HBaseFragmentMetadata(hRegionInfo, columnMapping);
+        HBaseFragmentMetadata metadata = new HBaseFragmentMetadata(regionInfo, columnMapping);
         assertNotNull(metadata);
         assertSame(startKey, metadata.getStartKey());
         assertSame(endKey, metadata.getEndKey());

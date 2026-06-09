@@ -18,11 +18,7 @@
    make install
    ```
 
-1. There is also end to end testing for the pxf-cli located at `pxf/concourse/scripts/cli`. These tests can be run by flying the following pipeline:
-```sh
-MULTINODE=true make -C ~/workspace/pxf/concourse dev
-```
-To make iteration times faster, feel free to comment out the task `Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-IMPERS on RHEL7` in the `dev_build_pipeline-tpl.yml` file.
+1. There is also end to end testing for the pxf-cli located at `pxf/concourse/scripts/cli`. These tests were historically run via the Concourse `dev` pipeline (`MULTINODE=true make -C ~/workspace/pxf/concourse dev`). That Concourse tooling is deprecated and targets infrastructure that is no longer accessible (see [`concourse/README.md`](../concourse/README.md)); the live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`.
 
 ## Debugging the CLI on a live system
 

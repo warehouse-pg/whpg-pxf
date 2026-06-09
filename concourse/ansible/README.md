@@ -1,3 +1,5 @@
+> **NOTE.** The Concourse *CI pipeline* that originally invoked this play is deprecated — the live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`. **This `ipa-multinode-hadoop` Ansible play itself is still in use**, though: it configures the kerberized multi-node Hadoop cluster and is driven by the local dev flow `dev/ipa-cluster.bash` (see [`dev/IPA.md`](../../dev/IPA.md)). It does **not** depend on the retired Pivotal infrastructure.
+
 # PXF CI Ansible
 
 **Ansible plays for provisioning infrastructure in CI tasks**

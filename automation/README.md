@@ -10,7 +10,8 @@ In order to run PXF automation tests the following are needed
 
 1. Running Hadoop cluster
 2. Running GPDB
-3. JRE 1.8
+3. JDK 8 (required to build the automation jars, which depend on Lombok); JDK 8 or 11 to run
+4. Bash 4 or newer. macOS ships Bash 3.2; install GNU Bash via Homebrew (`brew install bash`) and invoke the regression flow through `/opt/homebrew/bin/bash` (Apple Silicon) or `/usr/local/bin/bash` (Intel).
 
 ## Build & Test
 
@@ -124,6 +125,10 @@ Note: If you get an error saying that the jar does not exist, ensure that you ha
 
 1. installed the PXF server, and
 1. only have 1 jar file inside `/usr/local/pxf/application/`
+
+### Maven repositories
+
+The JSystem dependencies (`jsystemCore`, `cli`) used by the automation harness are not published to Maven Central. They are resolved from the public TopQ Nexus at `maven.top-q.co.il`, which `automation/pom.xml` references directly. If a `mvn` run fails to resolve these artifacts, confirm that this repository is reachable from your network.
 
 ### Project structure
 
@@ -312,7 +317,7 @@ In IntelliJ, create an `Automation Debug` configuration:
 There are 2 different JVMs running when automation tests. The first is the automation application itself that can be debugged. The second is the PXF server that the automation suite is testing.
 Setting the `PXF_TEST_DEBUG` flag in the automation app will also set the flag `PXF_DEBUG` to enable debugging of the PXF server itself if the automation restarts PXF server during some of the tests. This is done so that a debugger can be connected to a PXF server restarted by the automation tests.
 
-Follow the steps [here](https://github.com/greenplum-db/pxf#debugging-the-locally-running-instance-of-pxf-server-using-intellij) to set up a PXF server debug configuration if it is not already done.
+Follow the steps in the root [README.md](../README.md#debugging-the-locally-running-instance-of-pxf-server-using-intellij) to set up a PXF server debug configuration if it is not already done.
 
 1. Run automation with `PXF_TEST_DEBUG=true` to connect to the automation debug session.
 2. Attach to the automation debug session

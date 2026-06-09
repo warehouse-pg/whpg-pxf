@@ -136,9 +136,33 @@ public class PxfUserGroupInformation {
 
         UserGroupInformation ugi = loginSession.getLoginUser();
 
+        /*
+         * Guard rationale: we deliberately ask PXF's own bookkeeping (the keytabPath
+         * carried on the LoginSession) rather than {@code UserGroupInformation#isFromKeytab()}.
+         *
+         * In Hadoop 2.x, {@code isFromKeytab()} returned the private {@code isKeytab}
+         * boolean that {@code UGI.loginUserFromKeytab(...)} set on success. In Hadoop 3.x
+         * (HADOOP-13433, HADOOP-15013) the check was reworked to require the underlying
+         * {@code LoginContext} to be an instance of the package-private
+         * {@code UserGroupInformation.HadoopLoginContext} nested class. PXF builds its
+         * UGI manually via {@link LoginContextProvider#newLoginContext} (see
+         * {@link #loginUserFromKeytab}), which produces a plain {@link LoginContext} —
+         * never a {@code HadoopLoginContext}. Under Hadoop 3.x, asking the UGI would
+         * therefore always answer {@code false} and this guard would silently no-op
+         * every TGT refresh, eventually surfacing as
+         * {@code GSSException: No valid credentials provided} once the TGT expires.
+         *
+         * keytabPath is set authoritatively by {@link #loginUserFromKeytab} on the
+         * LoginSession it returns; the only path that constructs a LoginSession without
+         * a keytabPath is the non-Kerberos {@code createRemoteUser(...)} branch in
+         * {@code SecureLogin#getLoginSession}. So a non-null keytabPath is an
+         * unambiguous, Hadoop-version-independent signal that this session was built
+         * from a keytab and is eligible for relogin.
+         */
         if (ugi.getAuthenticationMethod() != UserGroupInformation.AuthenticationMethod.KERBEROS ||
-                !ugi.isFromKeytab()) {
-            LOG.error("Did not attempt to relogin from keytab: auth={}, fromKeyTab={}", ugi.getAuthenticationMethod(), ugi.isFromKeytab());
+                loginSession.getKeytabPath() == null) {
+            LOG.error("Did not attempt to relogin from keytab: auth={}, keytabPath={}",
+                    ugi.getAuthenticationMethod(), loginSession.getKeytabPath());
             return;
         }
 

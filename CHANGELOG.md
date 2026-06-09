@@ -1,5 +1,61 @@
 # Changelog
 
+## 7.0.0 (unreleased)
+
+Major release: PXF now targets the **HBase 2.x** client stack on WarehousePG
+(runs on WHPG 6 and 7). This release covers the HBase/Hadoop/ZooKeeper library
+modernization; the remaining PXF 7.0 features (Hive 3.x, external cluster mode,
+CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
+
+### Library bundle
+
+- HBase client **1.3.2 → 2.6.5** (current Apache release).
+- Hadoop **2.10.2 → 3.3.6**.
+- ZooKeeper **3.4.6 → 3.8.6** (matches HBase 2.6.5's declared ZooKeeper version).
+- Hive unchanged (2.3.8); AWS SDK stays at v1; Spring/Tomcat/Postgres-JDBC/Go unchanged.
+
+### HBase 2.x client migration
+
+- The `pxf-hbase` plugin was migrated to the HBase 2.x client API: `HTable` →
+  `Connection.getTable(...)`, `Cell`/`CellUtil`, `CompareFilter.CompareOp`,
+  `Scan.readVersions/withStartRow/withStopRow`, `HRegionInfo` → `RegionInfo`,
+  and related changes across the fragmenter, accessor, filter builder, resolver,
+  and lookup-table utilities.
+- Bundled the HBase 2.x / Hadoop 3.x internal artifacts the new client requires
+  at runtime (shaded miscellaneous/netty, OpenTelemetry client tracing,
+  `zookeeper-jute` wire serialization, Dropwizard metrics, Hadoop shaded-guava,
+  commons-configuration2). Without these the service starts but HBase queries
+  fail with `NoClassDefFoundError`.
+- Hadoop 3.3.6 source adaptations: `ReadStatistics` import (promoted to a
+  top-level class) in the HDFS chunk reader; `S3ClientFactory.createS3Client`
+  two-arg signature in the S3-Select accessor.
+- Kerberos TGT relogin now gates on the configured keytab path rather than
+  `UGI.isFromKeytab()`, which Hadoop 3.x returns `false` for PXF's login path —
+  previously this caused PXF queries to a Kerberized backend to fail after the
+  initial ticket lifetime expired.
+
+### Dev / test cluster
+
+- `singlecluster/` rebuilt on vanilla Apache HBase 2.6.5 + Hadoop 3.3.6 +
+  ZooKeeper 3.8.6 (CDH/HDP download paths retired).
+
+### Breaking changes
+
+- This release targets **HBase 2.x**. HBase 1.x support is maintained on a
+  separate branch.
+
+### Compatibility notes
+
+- **Wire protocol unchanged** — `api_version` stays at `16`; no coordinated
+  C-extension/server re-release is required beyond installing 7.0.0.
+- **SQL surface unchanged** — the `pxf` external-table extension
+  (`default_version = 2.1`) and `pxf_fdw` (`default_version = 2.0`) are
+  unchanged; **no `ALTER EXTENSION ... UPDATE` migration script is needed.**
+- **HBase 2.x `Scan` caching default changed** — row caching is now driven by
+  `hbase.client.scanner.max.result.size` rather than a fixed 100-row default.
+  This can shift HBase read-throughput characteristics; tune the size knob if
+  needed. No perf baseline is published with this release.
+
 ## 6.10.1 (03/27/2024)
 
 ### Bug Fixes:

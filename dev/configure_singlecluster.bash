@@ -38,27 +38,15 @@
     </property>
     <property>
         <name>hadoop.security.authorization</name>
-        <value>true</value>
+        <value>false</value>
     </property>
     <property>
         <name>hbase.security.authorization</name>
-        <value>true</value>
+        <value>false</value>
     </property>
     <property>
         <name>hbase.rpc.protection</name>
         <value>authentication</value>
-    </property>
-    <property>
-        <name>hbase.coprocessor.master.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController</value>
-    </property>
-    <property>
-        <name>hbase.coprocessor.region.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController,org.apache.hadoop.hbase.security.access.SecureBulkLoadEndpoint</value>
-    </property>
-    <property>
-        <name>hbase.coprocessor.regionserver.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController</value>
     </property>
 </configuration>
 EOF
@@ -122,27 +110,25 @@ EOF
     </property>
     <property>
         <name>hadoop.security.authorization</name>
-        <value>true</value>
+        <value>false</value>
     </property>
     <property>
         <name>hbase.security.authorization</name>
-        <value>true</value>
+        <value>false</value>
     </property>
     <property>
         <name>hbase.rpc.protection</name>
         <value>authentication</value>
     </property>
+    <!--
+      HBASE-21639 mitigation: HBase 2.6.5 default asyncfs WAL provider hits a
+      ProtobufDecoder reflection incompatibility on Hadoop 3.3.6 causing HMaster
+      to abort. Switching to the older synchronous "filesystem" writer bypasses
+      the reflection path. Surfaced during singlecluster sanity checks.
+    -->
     <property>
-        <name>hbase.coprocessor.master.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController</value>
-    </property>
-    <property>
-        <name>hbase.coprocessor.region.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController,org.apache.hadoop.hbase.security.access.SecureBulkLoadEndpoint</value>
-    </property>
-    <property>
-        <name>hbase.coprocessor.regionserver.classes</name>
-        <value>org.apache.hadoop.hbase.security.access.AccessController</value>
+        <name>hbase.wal.provider</name>
+        <value>filesystem</value>
     </property>
 </configuration>
 EOF

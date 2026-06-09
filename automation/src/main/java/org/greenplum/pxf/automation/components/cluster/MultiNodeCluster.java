@@ -41,7 +41,7 @@ public class MultiNodeCluster extends PhdCluster {
     @Override
     public void init() throws Exception {
         if (StringUtils.isEmpty(getPhdRoot())) {
-            setPhdRoot("/Users/pivotal/workspace/singlecluster");
+            setPhdRoot(System.getProperty("user.home") + "/workspace/singlecluster");
         }
         // path to pxf conf in general conf
         setPathToPxfConfInGeneralConf("pxf/conf");

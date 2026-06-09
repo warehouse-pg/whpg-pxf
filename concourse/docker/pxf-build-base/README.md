@@ -1,3 +1,5 @@
+> **⚠️ DEPRECATED.** This Concourse pipeline tooling targets infrastructure (`ci.ud.gpdb.pivotal.io`, `gs://data-gpdb-ud-*`, `gcr.io/data-gpdb-ud/*`) that is no longer accessible. It is retained as historical reference only. The live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`.
+
 # How to generate a tarball with PXF dependencies locally
 
 You can generate the tarball with all the build dependencies for PXF

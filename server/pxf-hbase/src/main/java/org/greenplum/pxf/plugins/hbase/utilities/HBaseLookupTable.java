@@ -23,16 +23,15 @@ import org.apache.commons.collections.MapUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.ClusterStatus;
-import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.ClusterMetrics;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.Closeable;
@@ -75,18 +74,18 @@ public class HBaseLookupTable implements Closeable {
 
     /**
      * Constructs a connector to HBase lookup table. Requires calling
-     * {@link #close()} to close {@link HBaseAdmin} instance.
+     * {@link #close()} to close the underlying admin instance.
      *
      * @param conf HBase configuration
-     * @throws IOException when initializing HBaseAdmin fails
+     * @throws IOException when initializing the admin client fails
      */
     public HBaseLookupTable(Configuration conf) throws Exception {
         hbaseConfiguration = conf;
         connection = ConnectionFactory.createConnection(hbaseConfiguration);
         admin = connection.getAdmin();
-        ClusterStatus cs = admin.getClusterStatus();
-        LOG.debug("HBase cluster has " + cs.getServersSize()
-                + " region servers " + "(" + cs.getDeadServers() + " dead)");
+        ClusterMetrics cm = admin.getClusterMetrics();
+        LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
+                + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
     }
 
     /**
@@ -138,8 +137,8 @@ public class HBaseLookupTable implements Closeable {
      * @return whether lookup has expected column family name
      */
     private boolean lookupHasCorrectStructure() throws IOException {
-        HTableDescriptor htd = admin.getTableDescriptor(TableName.valueOf(LOOKUPTABLENAME));
-        return htd.hasFamily(LOOKUPCOLUMNFAMILY);
+        TableDescriptor td = admin.getDescriptor(TableName.valueOf(LOOKUPTABLENAME));
+        return td.hasColumnFamily(LOOKUPCOLUMNFAMILY);
     }
 
     /**
@@ -191,7 +190,7 @@ public class HBaseLookupTable implements Closeable {
      */
     private void loadMappingMap(String tableName) throws IOException {
         Get lookupRow = new Get(Bytes.toBytes(tableName));
-        lookupRow.setMaxVersions(1);
+        lookupRow.readVersions(1);
         lookupRow.addFamily(LOOKUPCOLUMNFAMILY);
         Result row;
 

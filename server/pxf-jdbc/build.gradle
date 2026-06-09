@@ -46,6 +46,17 @@ dependencies {
     testImplementation("org.apache.parquet:parquet-pig")
     testImplementation('org.springframework.boot:spring-boot-starter-test')
     testImplementation('org.mockito:mockito-inline')
+    // Hadoop 3.3.6 split o.a.h.util.StringInterner's delegate into the shaded
+    // hadoop-shaded-guava artifact. Without it on the test classpath, any test
+    // that touches Hadoop Configuration loading trips with
+    // NoClassDefFoundError: org/apache/hadoop/thirdparty/com/google/common/collect/Interners.
+    // Same finding-shape as pxf-api / pxf-hdfs.
+    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0")
+    // Hadoop 3 also depends on commons-configuration2 (formerly v1) for some
+    // Configuration internals. Added preemptively to forestall a second-tier
+    // failure once hadoop-shaded-guava unblocks the StringInterner cascade —
+    // same two-deps-needed pattern pxf-api exposed.
+    testRuntimeOnly("org.apache.commons:commons-configuration2:2.8.0")
 }
 
 test {

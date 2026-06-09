@@ -22,6 +22,8 @@ It is expected that these commands are configured correctly for communication wi
 
 If your external data or Greenplum are remote, it is best to have password-less SSH configured, as some tests may use SCP to transfer prepared data files.
 
+Bash 4 or newer is required, as `scripts/substitute.bash` and other helper scripts use Bash 4+ features. macOS ships Bash 3.2; install GNU Bash via Homebrew (`brew install bash`) and invoke `make` through `/opt/homebrew/bin/bash` (Apple Silicon) or `/usr/local/bin/bash` (Intel).
+
 ## Make targets
 
 The tests are invoked by running the `make` command with certain environment variables set.

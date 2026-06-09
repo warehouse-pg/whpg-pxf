@@ -189,10 +189,13 @@ public class PxfUserGroupInformationTest {
 
     @Test
     public void testReloginFromKeytabNoopForNonKeytab() throws KerberosAuthException {
+        // Non-keytab session: SecureLogin#getLoginSession constructs a LoginSession with
+        // keytabPath == null when running the createRemoteUser(...) branch. The guard
+        // must early-return without invoking any login machinery.
         user.setLogin(mockLoginContext);
         ugi = new UserGroupInformation(subject);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
-        session = new LoginSession("config", "principal", "keytab", ugi, subject, 1, 0.8f);
+        session = new LoginSession("config", "principal", null, ugi, subject, 1, 0.8f);
 
         pxfUserGroupInformation.reloginFromKeytab(serverName, session);
 
@@ -246,16 +249,32 @@ public class PxfUserGroupInformationTest {
     }
 
     @Test
-    public void testReloginFromKeytabFailsNoKeytab() {
+    public void testReloginFromKeytabSkipsWhenKeytabPathIsNull() throws KerberosAuthException {
+        // Mirrors the non-keytab path: SecureLogin#getLoginSession builds a LoginSession
+        // with keytabPath == null when running via createRemoteUser(...). The guard must
+        // early-return without throwing and without invoking any login machinery.
         user.setLogin(mockLoginContext);
         ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
         ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.KERBEROS);
         // leave user.lastLogin at 0 to simulate old login
         session = new LoginSession("config", "principal", null, ugi, subjectWithKerberosKeyTab, 1, 0.8f);
 
-        Exception e = assertThrows(KerberosAuthException.class,
-                () -> pxfUserGroupInformation.reloginFromKeytab(serverName, session));
-        assertEquals(" loginUserFromKeyTab must be done first", e.getMessage());
+        pxfUserGroupInformation.reloginFromKeytab(serverName, session);
+
+        verifyNoInteractions(mockLoginContext); // proves noop — no logout/login attempted
+    }
+
+    @Test
+    public void testReloginFromKeytabSkipsWhenAuthMethodIsNotKerberos() throws KerberosAuthException {
+        // keytabPath is set, but auth method is SIMPLE — the other half of the guard.
+        user.setLogin(mockLoginContext);
+        ugi = new UserGroupInformation(subjectWithKerberosKeyTab);
+        ugi.setAuthenticationMethod(UserGroupInformation.AuthenticationMethod.SIMPLE);
+        session = new LoginSession("config", "principal", "keytab", ugi, subjectWithKerberosKeyTab, 1, 0.8f);
+
+        pxfUserGroupInformation.reloginFromKeytab(serverName, session);
+
+        verifyNoInteractions(mockLoginContext); // proves noop
     }
 
     /* ---------- Test below follow full login path via a few alternatives ---------- */
