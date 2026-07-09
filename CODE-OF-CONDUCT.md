@@ -3,7 +3,7 @@
 ## Our Pledge
 
 In the interest of fostering an open and welcoming environment, we as
-contributors and maintainers pledge to make participation in the Greenplum
+contributors and maintainers pledge to make participation in the WarehousePG
 Platform Extension Framework project and our community a harassment-free
 experience for everyone, regardless of age, body size, disability, ethnicity,
 sex characteristics, gender identity and expression, level of experience,
