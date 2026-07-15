@@ -106,10 +106,13 @@ dependencies {
     implementation("org.apache.commons:commons-compress")            { transitive = false }
     implementation("org.tukaani:xz")                                 { transitive = false }
 
-    // Hadoop 2.10.1 uses log4j:1.2.17, but since we are using slf4j
-    // we bring log4j-over-slf4j which provides compatibility for log4j
-    // using underlying slf4j functionality (i.e MDC).
-    implementation("org.slf4j:log4j-over-slf4j")                     { transitive = false }
+    // Hadoop uses the log4j 1.x API; we bridge it to our log4j2 backend with
+    // log4j-1.2-api (MDC calls map to log4j2 ThreadContext, same as slf4j MDC).
+    // Do NOT use org.slf4j:log4j-over-slf4j here: its org.apache.log4j.Log4jLoggerFactory
+    // marker class trips the slf4j-log4j12 delegation-loop check inside third-party JDBC
+    // drivers that shade slf4j-log4j12 (e.g. Cloudera Impala JDBC), causing
+    // ExceptionInInitializerError on first connection.
+    implementation("org.apache.logging.log4j:log4j-1.2-api")         { transitive = false }
 
     // Dependency in hadoop 2.10.1
     implementation("com.fasterxml.woodstox:woodstox-core")           { transitive = false }
