@@ -140,7 +140,7 @@ func doSetup() (*ClusterData, error) {
 	}
 	segConfigs, err := cluster.GetSegmentConfiguration(connection, true)
 	if err != nil {
-		gplog.Error("%s", "ERROR: Could not retrieve segment information from GPDB.\n%s\n"+err.Error())
+		gplog.Error("ERROR: Could not retrieve segment information from GPDB.\n%s\n", err.Error())
 		return nil, err
 	}
 	clusterData := &ClusterData{Cluster: cluster.NewCluster(segConfigs), connection: connection}
