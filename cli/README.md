@@ -34,9 +34,9 @@ go install github.com/go-delve/delve/cmd/dlv@latest
 
 ```
 config max-string-len 1000
-break vendor/github.com/greenplum-db/gp-common-go-libs/cluster/cluster.go:351
+break cluster/cluster.go:216
 continue
-print commandList
+print commands
 ```
 
 3. Run the `dlv` command to enter the interactive REPL:

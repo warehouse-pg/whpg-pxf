@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/greenplum-db/gp-common-go-libs/cluster"
+	"pxf-cli/cluster"
 )
 
 type envVar string

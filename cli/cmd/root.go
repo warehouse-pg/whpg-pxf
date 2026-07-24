@@ -3,7 +3,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/greenplum-db/gp-common-go-libs/gplog"
+	"pxf-cli/gplog"
 
 	"github.com/spf13/cobra"
 )
