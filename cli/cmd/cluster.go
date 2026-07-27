@@ -110,7 +110,7 @@ func GenerateOutput(cmd *command, clusterData *ClusterData) error {
 	}
 	response := ""
 	for _, failedCommand := range clusterData.Output.FailedCommands {
-		if failedCommand == nil {
+		if failedCommand.Error == nil {
 			continue
 		}
 		host := failedCommand.Host
