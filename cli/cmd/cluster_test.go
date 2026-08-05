@@ -144,9 +144,8 @@ var _ = Describe("GenerateStatusReport()", func() {
 var _ = Describe("GenerateOutput()", func() {
 	BeforeEach(func() {
 		clusterData.Output = &cluster.RemoteOutput{
-			NumErrors: 0,
-			FailedCommands: []cluster.ShellCommand{
-			},
+			NumErrors:      0,
+			FailedCommands: []cluster.ShellCommand{},
 			Commands: []cluster.ShellCommand{
 				{
 					Host:   "mdw",
@@ -418,9 +417,8 @@ stderr line three`
 	Context("when only one host gets acted on", func() {
 		BeforeEach(func() {
 			clusterDataWithOneHost.Output = &cluster.RemoteOutput{
-				NumErrors: 0,
-				FailedCommands: []cluster.ShellCommand{
-				},
+				NumErrors:      0,
+				FailedCommands: []cluster.ShellCommand{},
 				Commands: []cluster.ShellCommand{
 					{
 						Host:   "mdw",
