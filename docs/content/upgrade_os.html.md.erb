@@ -28,9 +28,7 @@ Perform the following steps before you upgrade the operating system:
 
 After you upgrade the operating system and install, configure, and verify Greenplum Database on the new set of hosts, perform the following procedure:
 
-1. Download a PXF package for the upgraded OS from [VMware Tanzu Network](https://network.tanzu.vmware.com/products/vmware-greenplum/). *You must download the same version of PXF as the version that was running on the original Greenplum Database cluster.*
-
-1. Install PXF for the upgraded OS on all Greenplum Database hosts.
+1. Install PXF for the upgraded OS on all Greenplum Database hosts. *You must install the same version of PXF as the version that was running on the original Greenplum Database cluster.*
 
 1. Copy the PXF configuration files from the original cluster to `/user/local/pxf-gp6` on the upgraded OS Greenplum Database coordinator host. If you choose to [relocate $PXF_BASE](about_pxf_dir.html#movebase), copy the configuration to that directory instead.
 

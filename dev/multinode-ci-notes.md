@@ -1,6 +1,10 @@
 # PXF MultiNode CI Notes
 
-Based on the CI job [Test PXF-GP6-HDP2-SECURE-MULTI-IMPERS on RHEL7](https://ci.ud.gpdb.pivotal.io/teams/main/pipelines/pxf-build/jobs/Test%20PXF-GP6-HDP2-SECURE-MULTI-IMPERS%20on%20RHEL7)
+Based on the `Test PXF-GP6-HDP2-SECURE-MULTI-IMPERS on RHEL7` job of the retired
+`pxf-build` Concourse pipeline: a secure (Kerberized) HDP 2 multi-node run with
+user impersonation, on RHEL 7. That pipeline ran on infrastructure that is no
+longer reachable, so these notes stand on their own — they describe what the job
+provisioned and configured, for anyone reproducing the setup by hand.
 
 ## Infrastructure
 
