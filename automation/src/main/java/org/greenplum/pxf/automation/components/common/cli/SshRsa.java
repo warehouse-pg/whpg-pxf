@@ -10,11 +10,11 @@ import ch.ethz.ssh2.Connection;
  * Extends {@link SSH} to connect using private key if exists instead of password connection.
  *
  */
-public class PivotalSshRsa extends SSH {
+public class SshRsa extends SSH {
 
 	private File privateKeyFile;
 
-	public PivotalSshRsa(String hostnameP, String usernameP, String passwordP, File privateKey) {
+	public SshRsa(String hostnameP, String usernameP, String passwordP, File privateKey) {
 		super(hostnameP, usernameP, passwordP);
 		privateKeyFile = privateKey;
 
