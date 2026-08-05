@@ -10,7 +10,7 @@ import jsystem.framework.report.Reporter;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.greenplum.pxf.automation.components.common.cli.PivotalCliConnectionImpl;
+import org.greenplum.pxf.automation.components.common.cli.PxfCliConnectionImpl;
 import org.greenplum.pxf.automation.components.common.cli.ShellCommandErrorException;
 import systemobject.terminal.Prompt;
 
@@ -21,7 +21,7 @@ import org.greenplum.pxf.automation.utils.jsystem.report.ReportUtils;
  * General Shell system objects, each System Object can extend it or use it.
  */
 public class ShellSystemObject extends BaseSystemObject {
-    private PivotalCliConnectionImpl connection;
+    private PxfCliConnectionImpl connection;
     private String host = "localHost";
     private String masterHost = "localHost";
     private String hostName = "";
@@ -96,7 +96,7 @@ public class ShellSystemObject extends BaseSystemObject {
         ReportUtils.report(report, getClass(), "Establish connection to: "
                 + host + " (User Name: " + getUserName() + " Password: "
                 + getPassword() + ")");
-        connection = new PivotalCliConnectionImpl(host, getUserName(),
+        connection = new PxfCliConnectionImpl(host, getUserName(),
                 getPassword());
 
         /**
@@ -121,7 +121,7 @@ public class ShellSystemObject extends BaseSystemObject {
                         + privateKeyFile.getAbsolutePath() + ")");
 
         /**
-         * PivotalCliConnectionImpl is setting the prompt to be '#'.Add the
+         * PxfCliConnectionImpl is setting the prompt to be '#'.Add the
          * required prompt to the connection.
          */
         Prompt p = new Prompt();

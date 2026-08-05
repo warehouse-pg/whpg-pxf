@@ -15,21 +15,21 @@ import com.aqua.sysobj.conn.CliConnectionImpl;
 import com.aqua.sysobj.conn.Position;
 
 /**
- * extends {@link CliConnectionImpl} for PXF needs. Using the {@link PivotalSshRsa} modified SSH
+ * extends {@link CliConnectionImpl} for PXF needs. Using the {@link SshRsa} modified SSH
  * class for using private key connection.
  */
-public class PivotalCliConnectionImpl extends CliConnectionImpl {
+public class PxfCliConnectionImpl extends CliConnectionImpl {
 
 	private ArrayList<Prompt> prompts = new ArrayList<Prompt>();;
 
-	public PivotalCliConnectionImpl() {
+	public PxfCliConnectionImpl() {
 		setDump(true);
 		setUseTelnetInputStream(true);
 		setProtocol("ssh-rsa");
 		setPort(22);
 	}
 
-	public PivotalCliConnectionImpl(String host, String user, String password) {
+	public PxfCliConnectionImpl(String host, String user, String password) {
 		this();
 		setUser(user);
 		setPassword(password);
@@ -118,7 +118,7 @@ public class PivotalCliConnectionImpl extends CliConnectionImpl {
 		} else if (protocol.toLowerCase().equals(EnumConnectionType.SSH.value())) {
 			terminal = new SSH(host, user, password);
 		} else if (protocol.toLowerCase().equals(EnumConnectionType.SSH_RSA.value())) {
-			terminal = new PivotalSshRsa(host, user, password, getPrivateKey());
+			terminal = new SshRsa(host, user, password, getPrivateKey());
 			isRsa = true;
 		} else {
 			terminal = new Telnet(host, port, useTelnetInputStream);
