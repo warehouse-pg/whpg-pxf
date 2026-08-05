@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/greenplum-db/gp-common-go-libs/cluster"
+	"github.com/warehouse-pg/common-go-libs/cluster"
 )
 
 type envVar string
