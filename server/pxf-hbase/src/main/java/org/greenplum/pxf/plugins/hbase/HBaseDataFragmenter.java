@@ -101,10 +101,9 @@ public class HBaseDataFragmenter extends BaseFragmenter {
      *                     or serialization fails
      */
     private Map<String, byte[]> prepareUserData() throws Exception {
-        HBaseLookupTable lookupTable = new HBaseLookupTable(configuration);
-        Map<String, byte[]> mappings = lookupTable.getMappings(context.getDataSource());
-        lookupTable.close();
-        return mappings;
+        try (HBaseLookupTable lookupTable = new HBaseLookupTable(configuration)) {
+            return lookupTable.getMappings(context.getDataSource());
+        }
     }
 
     private void addTableFragments(Map<String, byte[]> userData) throws IOException {
