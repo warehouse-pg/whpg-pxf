@@ -188,7 +188,10 @@ public class HBaseLookupTableTest {
         when(mockDescriptor.hasColumnFamily(Bytes.toBytes("mapping"))).thenReturn(true);
         when(mockConnection.getTable(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(mockTable);
         when(mockTable.get(any(Get.class))).thenReturn(mockResult);
-        when(mockResult.getFamilyMap(Bytes.toBytes("mapping"))).thenReturn(new HashMap<>());
+        when(mockResult.getFamilyMap(Bytes.toBytes("mapping"))).thenReturn(
+            new java.util.TreeMap<byte[], byte[]>((a, b) -> org.apache.hadoop.hbase.util.Bytes.compareTo(a, b)) {{
+                put(new byte[]{1}, new byte[]{2});
+            }});
 
         HBaseLookupTable lookupTable = newLookupTableWithMocks(mockAdmin, mockConnection, null);
 

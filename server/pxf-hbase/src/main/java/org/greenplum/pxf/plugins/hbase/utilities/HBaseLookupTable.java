@@ -88,10 +88,9 @@ public class HBaseLookupTable implements Closeable {
             connection = ConnectionFactory.createConnection(hbaseConfiguration);
             admin = connection.getAdmin();
             if (LOG.isDebugEnabled()) {
-                try (ClusterMetrics cm = admin.getClusterMetrics()) {
-                    LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
-                           + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
-                }
+                ClusterMetrics cm = admin.getClusterMetrics();
+                LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
+                        + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
             }
         } catch (IOException e) {
             got_ex = e;

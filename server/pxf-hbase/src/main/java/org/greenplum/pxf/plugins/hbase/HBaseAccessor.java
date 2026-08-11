@@ -143,12 +143,12 @@ public class HBaseAccessor extends BasePlugin implements Accessor {
     @Override
     public void closeForRead() throws Exception {
         IOException got_ex = null;
-        try {
-            if (currentScanner != null) {
+        if (currentScanner != null) {
+            try {
                 currentScanner.close();
+            } catch (Exception e) {
+                got_ex = (e instanceof IOException) ? (IOException) e : new IOException(e);
             }
-        } catch (IOException e) {
-            got_ex = e;
         }
 
         try {
