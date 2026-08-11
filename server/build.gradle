@@ -151,8 +151,7 @@ configure(javaProjects) {
                 entry("hive-serde")
                 entry("hive-common")
             }
-            // 1.2.2 breaks on CDH-5.x
-            dependencySet(group:"org.apache.hive", version:"1.1.0") {
+            dependencySet(group:"org.apache.hive", version:"2.3.9") {
                 entry("hive-jdbc")
                 entry("hive-service")
             }

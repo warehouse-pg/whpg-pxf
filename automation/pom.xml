@@ -19,7 +19,7 @@
         <pxf.lib>${user.home}/automation_tmp_lib</pxf.lib>
         <hdp.hadoop.version>3.3.6</hdp.hadoop.version>
         <hdp.hbase.version>2.6.5</hdp.hbase.version>
-        <hdp.hive.version>1.1.0</hdp.hive.version>
+        <hdp.hive.version>2.3.9</hdp.hive.version>
         <orc.version>1.6.13</orc.version>
         <snappy.java.version>1.1.10.4</snappy.java.version>
         <powermock.version>1.6.4</powermock.version>
@@ -410,6 +410,11 @@
                     <groupId>org.apache.calcite</groupId>
                     <artifactId>calcite-avatica</artifactId>
                 </exclusion>
+                <!-- Hosted only on the defunct conjars.org; blocks Hive 2.x resolution. -->
+                <exclusion>
+                    <groupId>org.pentaho</groupId>
+                    <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -425,6 +430,11 @@
                 <exclusion>
                     <groupId>org.apache.calcite</groupId>
                     <artifactId>calcite-avatica</artifactId>
+                </exclusion>
+                <!-- Hosted only on the defunct conjars.org; blocks Hive 2.x resolution. -->
+                <exclusion>
+                    <groupId>org.pentaho</groupId>
+                    <artifactId>pentaho-aggdesigner-algorithm</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
