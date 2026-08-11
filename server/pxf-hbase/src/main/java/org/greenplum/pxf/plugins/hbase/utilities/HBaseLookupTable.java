@@ -82,11 +82,26 @@ public class HBaseLookupTable implements Closeable {
      */
     public HBaseLookupTable(Configuration conf) throws Exception {
         hbaseConfiguration = conf;
-        connection = ConnectionFactory.createConnection(hbaseConfiguration);
-        admin = connection.getAdmin();
-        ClusterMetrics cm = admin.getClusterMetrics();
-        LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
-                + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
+        IOException got_ex = null;
+
+        try {
+            connection = ConnectionFactory.createConnection(hbaseConfiguration);
+            admin = connection.getAdmin();
+            if (LOG.isDebugEnabled()) {
+                try (ClusterMetrics cm = admin.getClusterMetrics()) {
+                    LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
+                           + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
+                }
+            }
+        } catch (IOException e) {
+            got_ex = e;
+            try {
+                this.close();
+            } catch (IOException closeEx) {
+                got_ex.addSuppressed(closeEx);
+            }
+            throw got_ex;
+        }
     }
 
     /**
@@ -124,10 +139,24 @@ public class HBaseLookupTable implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        if (lookupTable != null) {
-            lookupTable.close();
+        IOException got_ex = null;
+        try {
+            if (lookupTable != null)
+                lookupTable.close();
+        } catch (IOException e){
+            got_ex = e;
         }
-        HBaseUtilities.closeConnection(admin, connection);
+        try {
+            HBaseUtilities.closeConnection(admin, connection);
+        } catch (IOException e) {
+            if (got_ex == null)
+                got_ex = e;
+            else
+                got_ex.addSuppressed(e);
+        }
+        if (got_ex != null) {
+            throw got_ex;
+        }
     }
 
     /**

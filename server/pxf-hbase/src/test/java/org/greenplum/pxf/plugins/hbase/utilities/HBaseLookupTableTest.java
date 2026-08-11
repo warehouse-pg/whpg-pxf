@@ -22,15 +22,27 @@ package org.greenplum.pxf.plugins.hbase.utilities;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptor;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.lang.reflect.Field;
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -41,9 +53,11 @@ import static org.mockito.Mockito.withSettings;
  * HBaseLookupTable's real constructor opens a live HBase Connection/Admin,
  * so these tests never call it directly. Instead they build the object
  * as a partial mock (byte-buddy/Objenesis creates the instance without
- * running the declared constructor, same trick used in
- * HBaseAccessorTest#closeForReadClosesTableAndConnection) and wire mock
+ * running the declared constructor) and wire mock
  * Admin/Connection/Table instances into the private fields via reflection.
+ * This is similar to the field-injection strategy used in
+ * HBaseAccessorTest#closeForReadClosesTableAndConnection, though that test
+ * constructs HBaseAccessor normally rather than bypassing its constructor.
  * close() and getMappings() are then invoked for real via CALLS_REAL_METHODS.
  */
 public class HBaseLookupTableTest {
@@ -95,29 +109,103 @@ public class HBaseLookupTableTest {
 
         lookupTable.close();
 
-        verify(mockTable).close();
-        verify(mockAdmin).close();
-        verify(mockConnection).close();
+        InOrder inOrder = inOrder(mockTable, mockAdmin, mockConnection);
+        inOrder.verify(mockTable).close();
+        inOrder.verify(mockAdmin).close();
+        inOrder.verify(mockConnection).close();
     }
 
     /*
-     * If lookupTable was never opened (early-return path), close() must
-     * not attempt to close a null Table reference.
+     * Regression test: if lookupTable.close() throws, close() must still
+     * attempt to close admin and connection and propagate the original exception.
      */
     @Test
-    public void closeDoesNotTouchLookupTableWhenNeverOpened() throws Exception {
+    public void closeStillClosesAdminAndConnectionWhenLookupTableCloseThrows() throws Exception {
         Admin mockAdmin = mock(Admin.class);
         Connection mockConnection = mock(Connection.class);
+        Table mockTable = mock(Table.class);
+
+        doThrow(new IOException("table close failed")).when(mockTable).close();
+
+        HBaseLookupTable lookupTable = newLookupTableWithMocks(mockAdmin, mockConnection, mockTable);
+
+        try {
+            lookupTable.close();
+        } catch (IOException e) {
+            InOrder inOrder = inOrder(mockTable, mockAdmin, mockConnection);
+            inOrder.verify(mockTable).close();
+            inOrder.verify(mockAdmin).close();
+            inOrder.verify(mockConnection).close();
+            return;
+        }
+        throw new AssertionError("Expected IOException from Table.close() to be thrown");
+    }
+
+    /*
+     * Regression test: when the lookup table exists but does not contain the
+     * expected mapping family, this is treated as invalid structure and
+     * getMappings() should return null.
+     */
+    @Test
+    public void getMappingsReturnsNullAndClosesAdminAndConnectionWhenLookupTableStructureInvalid() throws Exception {
+        Admin mockAdmin = mock(Admin.class);
+        Connection mockConnection = mock(Connection.class);
+        TableDescriptor mockDescriptor = mock(TableDescriptor.class);
+
+        when(mockAdmin.isTableAvailable(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(true);
+        when(mockAdmin.isTableEnabled(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(true);
+        when(mockAdmin.getDescriptor(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(mockDescriptor);
+        when(mockDescriptor.hasColumnFamily(Bytes.toBytes("mapping"))).thenReturn(false);
 
         HBaseLookupTable lookupTable = newLookupTableWithMocks(mockAdmin, mockConnection, null);
 
+        Map<String, byte[]> mappings = lookupTable.getMappings("some_table");
+        assertNull(mappings, "expected null mappings when lookup table structure is invalid");
+
         lookupTable.close();
 
-        verify(mockAdmin).close();
-        verify(mockConnection).close();
-        // No Table mock was ever wired in, so there is nothing to verify
-        // interactions "never" happened on -- absence of an NPE here is
-        // itself the assertion that the null lookupTable was skipped.
+        InOrder inOrder = inOrder(mockAdmin, mockConnection);
+        inOrder.verify(mockAdmin).close();
+        inOrder.verify(mockConnection).close();
+        verify(mockConnection, never()).getTable(any(TableName.class));
+    }
+
+    /*
+     * Success-path test: when getMappings() is executed, resources should
+     * remain open until close() is explicitly called.
+     */
+    @Test
+    public void getMappingsKeepsResourcesOpenUntilClose() throws Exception {
+        Admin mockAdmin = mock(Admin.class);
+        Connection mockConnection = mock(Connection.class);
+        Table mockTable = mock(Table.class);
+        TableDescriptor mockDescriptor = mock(TableDescriptor.class);
+        Result mockResult = mock(Result.class);
+
+        when(mockAdmin.isTableAvailable(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(true);
+        when(mockAdmin.isTableEnabled(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(true);
+        when(mockAdmin.getDescriptor(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(mockDescriptor);
+        when(mockDescriptor.hasColumnFamily(Bytes.toBytes("mapping"))).thenReturn(true);
+        when(mockConnection.getTable(TableName.valueOf(LOOKUP_TABLE_NAME))).thenReturn(mockTable);
+        when(mockTable.get(any(Get.class))).thenReturn(mockResult);
+        when(mockResult.getFamilyMap(Bytes.toBytes("mapping"))).thenReturn(new HashMap<>());
+
+        HBaseLookupTable lookupTable = newLookupTableWithMocks(mockAdmin, mockConnection, null);
+
+        Map<String, byte[]> mappings = lookupTable.getMappings("some_table");
+
+        assertNotNull(mappings, "expected non-null mappings on success path");
+        verify(mockAdmin, never()).close();
+        verify(mockConnection, never()).close();
+        verify(mockTable, never()).close();
+
+        ReflectionTestUtils.setField(lookupTable, "lookupTable", mockTable);
+        lookupTable.close();
+
+        InOrder inOrder = inOrder(mockTable, mockAdmin, mockConnection);
+        inOrder.verify(mockTable).close();
+        inOrder.verify(mockAdmin).close();
+        inOrder.verify(mockConnection).close();
     }
 
     /*
@@ -130,18 +218,13 @@ public class HBaseLookupTableTest {
         HBaseLookupTable instance = mock(HBaseLookupTable.class,
                 withSettings().defaultAnswer(CALLS_REAL_METHODS));
 
-        setField(instance, "admin", admin);
-        setField(instance, "connection", connection);
+        ReflectionTestUtils.setField(instance, "admin", admin);
+        ReflectionTestUtils.setField(instance, "connection", connection);
         if (lookupTable != null) {
-            setField(instance, "lookupTable", lookupTable);
+            ReflectionTestUtils.setField(instance, "lookupTable", lookupTable);
         }
 
         return instance;
     }
 
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = HBaseLookupTable.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
-    }
 }

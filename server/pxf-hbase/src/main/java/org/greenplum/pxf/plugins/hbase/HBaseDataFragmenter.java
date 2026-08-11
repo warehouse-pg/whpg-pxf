@@ -23,6 +23,8 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -50,7 +52,7 @@ import java.util.Map;
  */
 public class HBaseDataFragmenter extends BaseFragmenter {
 
-    private Connection connection;
+    private static final Log LOG = LogFactory.getLog(HBaseDataFragmenter.class);
 
     @Override
     public void afterPropertiesSet() {
@@ -77,44 +79,56 @@ public class HBaseDataFragmenter extends BaseFragmenter {
      */
     @Override
     public List<Fragment> getFragments() throws Exception {
-
-        connection = ConnectionFactory.createConnection(configuration);
-        Admin hbaseAdmin = connection.getAdmin();
-        if (!HBaseUtilities.isTableAvailable(hbaseAdmin, context.getDataSource())) {
-            HBaseUtilities.closeConnection(hbaseAdmin, connection);
-            throw new TableNotFoundException(context.getDataSource());
+        try (Connection connection = ConnectionFactory.createConnection(configuration)) {
+            try (Admin hbaseAdmin = connection.getAdmin()) {
+                if (!HBaseUtilities.isTableAvailable(hbaseAdmin, context.getDataSource())) {
+                    throw new TableNotFoundException(context.getDataSource());
+                }
+            }
+            Map<String, byte[]> userData = prepareUserData();
+            addTableFragments(connection, userData);
+        } catch (IOException e) {
+            // Log I/O failures rather than failing the whole query, since
+            // cleanup errors are already handled and should not override
+            // the primary fragment-generation path.
+            LOG.error("Failed to get fragments for table " + context.getDataSource(), e);
+        } catch (RuntimeException e) {
+            // Log failures due to runtime exceptions.
+            LOG.error("Unexpected runtime failure while getting fragments for table " + context.getDataSource(), e);
         }
-
-        Map<String, byte[]> userData = prepareUserData();
-        addTableFragments(userData);
-
-        HBaseUtilities.closeConnection(hbaseAdmin, connection);
-
         return fragments;
     }
 
     /**
-     * Serializes lookup table mapping into byte array.
+     * Loads lookup table mappings for the current table.
+     * <p>
+     * Cleanup errors from {@link HBaseLookupTable#close()} are logged and do
+     * not override the result of the mapping load.
      *
-     * @return serialized lookup table mapping
-     * @throws IOException when connection to lookup table fails
-     *                     or serialization fails
+     * @return lookup table mappings keyed by field name
+     * @throws Exception when the lookup table connection or mapping lookup fails
      */
     private Map<String, byte[]> prepareUserData() throws Exception {
-        try (HBaseLookupTable lookupTable = new HBaseLookupTable(configuration)) {
+        HBaseLookupTable lookupTable = new HBaseLookupTable(configuration);
+        try {
             return lookupTable.getMappings(context.getDataSource());
+        } finally {
+            try {
+                lookupTable.close();
+            } catch (IOException closeEx) {
+                LOG.warn("Failed to close HBase lookup table after loading mappings", closeEx);
+            }
         }
     }
 
-    private void addTableFragments(Map<String, byte[]> userData) throws IOException {
-        RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(context.getDataSource()));
-        List<HRegionLocation> locations = regionLocator.getAllRegionLocations();
+    private void addTableFragments(Connection connection, Map<String, byte[]> userData) throws IOException {
+        try (RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(context.getDataSource()))) {
+            List<HRegionLocation> locations = regionLocator.getAllRegionLocations();
 
-        for (HRegionLocation location : locations) {
-            addFragment(location, userData);
+            for (HRegionLocation location : locations) {
+                addFragment(location, userData);
+            }
         }
-
-        regionLocator.close();
     }
 
     private void addFragment(HRegionLocation location, Map<String, byte[]> userData) throws IOException {

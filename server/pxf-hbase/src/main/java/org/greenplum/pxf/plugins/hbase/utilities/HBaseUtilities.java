@@ -43,18 +43,33 @@ public class HBaseUtilities {
     }
 
     /**
-     * Closes HBase admin and connection if they are openForWrite.
+     * Closes HBase admin and connection if they are open.
      *
      * @param hbaseAdmin HBase admin
      * @param hbaseConnection HBase connection
-     * @throws IOException if an I/O error occurs when connecting to HBase
+     * @throws IOException if an I/O error occurs when closing HBase resources
      */
     public static void closeConnection(Admin hbaseAdmin, Connection hbaseConnection) throws IOException {
-        if (hbaseAdmin != null) {
-            hbaseAdmin.close();
+        IOException got_ex = null;
+        try {
+            if (hbaseAdmin != null) {
+                hbaseAdmin.close();
+            }
+        } catch (IOException e) {
+            got_ex = e;
         }
-        if (hbaseConnection != null) {
-            hbaseConnection.close();
+        try {
+            if (hbaseConnection != null) {
+                hbaseConnection.close();
+            }
+        } catch (IOException e) {
+            if (got_ex == null)
+                got_ex = e;
+            else
+                got_ex.addSuppressed(e);
         }
+        if (got_ex != null) {
+            throw got_ex;
+        }           
     }
 }
