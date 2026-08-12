@@ -1,6 +1,12 @@
 package org.greenplum.pxf.plugins.s3;
 
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.util.AwsHostNameUtils;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.CSVInput;
 import com.amazonaws.services.s3.model.CSVOutput;
 import com.amazonaws.services.s3.model.CompressionType;
@@ -14,7 +20,6 @@ import com.amazonaws.services.s3.model.SelectObjectContentEventVisitor;
 import com.amazonaws.services.s3.model.SelectObjectContentRequest;
 import com.amazonaws.services.s3.model.SelectObjectContentResult;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.s3a.DefaultS3ClientFactory;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.BasePlugin;
@@ -302,29 +307,91 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
         return csvInput;
     }
 
+    // Standard s3a-connector configuration keys. Hardcoded here rather
+    // than imported from org.apache.hadoop.fs.s3a.Constants so that this
+    // class does not depend on hadoop-aws internals (the constant names
+    // and containing class have churned across Hadoop 3.x releases).
+    // The wire-level keys themselves have been stable since Hadoop 2.6.
+    private static final String S3A_ACCESS_KEY        = "fs.s3a.access.key";
+    private static final String S3A_SECRET_KEY        = "fs.s3a.secret.key";
+    private static final String S3A_SESSION_TOKEN     = "fs.s3a.session.token";
+    private static final String S3A_ENDPOINT          = "fs.s3a.endpoint";
+    private static final String S3A_ENDPOINT_REGION   = "fs.s3a.endpoint.region";
+    private static final String S3A_PATH_STYLE_ACCESS = "fs.s3a.path.style.access";
+    // hadoop-aws's own fallback when fs.s3a.endpoint.region is unset
+    // (org.apache.hadoop.fs.s3a.Constants.AWS_S3_CENTRAL_REGION).
+    private static final String DEFAULT_REGION = "us-east-1";
+
     /**
-     * Returns a new AmazonS3 client with credentials from
-     * the configuration file.
+     * Returns a new AmazonS3 client (AWS SDK v1) built from the Hadoop
+     * {@link org.apache.hadoop.conf.Configuration} using the standard
+     * {@code fs.s3a.*} property keys.
      *
-     * <p>{@code S3ClientFactory} is {@code @Deprecated} in Hadoop 3.3.x as part
-     * of the multi-release move to AWS SDK v2 (which completes in Hadoop 3.4).
-     * The corresponding non-deprecated path is the v2 {@code S3Client} API,
-     * which would require migrating this entire S3 Select pipeline off
-     * AWS SDK v1 (com.amazonaws.*). That migration is tracked separately;
-     * for now we accept the deprecation on a single call site.</p>
+     * <p>Historical note: prior to Hadoop 3.4 this method delegated to
+     * {@code org.apache.hadoop.fs.s3a.DefaultS3ClientFactory}. Hadoop 3.4
+     * migrated its internal S3 client from AWS SDK v1 to AWS SDK v2 —
+     * the factory now returns {@code software.amazon.awssdk.services.s3.S3Client}
+     * rather than {@code AmazonS3}. Because the rest of this class's S3
+     * Select pipeline is written against SDK v1 API types
+     * ({@code SelectObjectContentRequest}, {@code SelectObjectContentResult},
+     * {@code SelectObjectContentEventVisitor}, etc.), we build the v1
+     * client directly from configuration and drop the dependency on
+     * {@code hadoop-aws} internals. Migrating the pipeline to SDK v2 is
+     * tracked separately and is out of scope for the Hadoop 3.4 bump.</p>
+     *
+     * <p>If access/secret keys are absent from the configuration the
+     * builder falls through to the AWS SDK v1 default credentials
+     * provider chain (environment, system properties, instance profile,
+     * container credentials), matching the previous factory's behaviour.</p>
      */
-    @SuppressWarnings("deprecation")
     private AmazonS3 initS3Client() {
-        try {
-            DefaultS3ClientFactory factory = new DefaultS3ClientFactory();
-            factory.setConf(configuration);
-            org.apache.hadoop.fs.s3a.S3ClientFactory.S3ClientCreationParameters parameters =
-                    new org.apache.hadoop.fs.s3a.S3ClientFactory.S3ClientCreationParameters()
-                            .withPathUri(name);
-            return factory.createS3Client(name, parameters);
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to create S3 Client connection", e);
+        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+
+        String accessKey    = configuration.get(S3A_ACCESS_KEY);
+        String secretKey    = configuration.get(S3A_SECRET_KEY);
+        String sessionToken = configuration.get(S3A_SESSION_TOKEN);
+        if (StringUtils.isNotBlank(accessKey) && StringUtils.isNotBlank(secretKey)) {
+            builder.withCredentials(new AWSStaticCredentialsProvider(
+                    StringUtils.isNotBlank(sessionToken)
+                            ? new BasicSessionCredentials(accessKey, secretKey, sessionToken)
+                            : new BasicAWSCredentials(accessKey, secretKey)));
         }
+
+        // Endpoint / region handling mirrors hadoop-aws 3.3.x
+        // DefaultS3ClientFactory#configureEndpoint, verified by decompiling
+        // hadoop-aws-3.3.6.jar so that behaviour is unchanged by this bump:
+        //   - endpoint set   -> withEndpointConfiguration(endpoint, signingRegion)
+        //   - endpoint unset -> forceGlobalBucketAccess(true) + region,
+        //                       defaulting the region to us-east-1.
+        // The global-bucket-access flag is what lets a client created for
+        // one region still address buckets in another; dropping it would
+        // silently break cross-region S3 Select reads.
+        String endpoint = configuration.getTrimmed(S3A_ENDPOINT, "");
+        String region   = configuration.getTrimmed(S3A_ENDPOINT_REGION, "");
+        if (StringUtils.isNotBlank(endpoint)) {
+            String signingRegion = region;
+            if (StringUtils.isBlank(signingRegion)) {
+                // Derive the signing region from the endpoint host the same
+                // way the AWS SDK does, then fall back to the default.
+                String host = endpoint.contains("://")
+                        ? URI.create(endpoint).getHost()
+                        : endpoint;
+                signingRegion = AwsHostNameUtils.parseRegion(host, "s3");
+            }
+            builder.withEndpointConfiguration(
+                    new AwsClientBuilder.EndpointConfiguration(
+                            endpoint,
+                            StringUtils.defaultIfBlank(signingRegion, DEFAULT_REGION)));
+        } else {
+            builder.withForceGlobalBucketAccessEnabled(true);
+            builder.withRegion(StringUtils.defaultIfBlank(region, DEFAULT_REGION));
+        }
+
+        if (configuration.getBoolean(S3A_PATH_STYLE_ACCESS, false)) {
+            builder.enablePathStyleAccess();
+        }
+
+        return builder.build();
     }
 
     @Override

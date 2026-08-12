@@ -83,7 +83,11 @@ dependencies {
     // hadoop-shaded-guava. Same root cause as the runtime classpath hole
     // fixed in pxf-hdfs/build.gradle; needed
     // here only for tests because runtime depends on the fat-jar.
-    testImplementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0")
+    testImplementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.5.0")
+    // Hadoop 3.4 moved Configuration's DeprecationContext onto
+    // commons-collections4 (3.3.x used commons-collections 3.x). Same
+    // test-classpath reasoning as hadoop-shaded-guava above.
+    testRuntimeOnly("org.apache.commons:commons-collections4:4.4")
 }
 
 test {

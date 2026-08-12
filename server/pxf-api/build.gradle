@@ -55,7 +55,7 @@ dependencies {
     testImplementation('org.mockito:mockito-inline')
     testImplementation('org.springframework.boot:spring-boot-starter-test')
     // pxf-api's hadoop-common is declared
-    // { transitive = false } on line 20, so Hadoop 3.3.6's split runtime
+    // { transitive = false } on line 20, so Hadoop 3.4.3's split runtime
     // helpers don't come along. PxfUserGroupInformationTest exercises
     // Configuration.set() → loadResource() → Parser.handleEndElement() →
     // StringInterner.<clinit>, which delegates to
@@ -70,7 +70,7 @@ dependencies {
     // single dep below closes the gate. Same finding-shape as the
     // pxf-hdfs runtime and pxf-hbase test classpath holes; all three
     // modules now mirror the same fix.
-    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0")
+    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.5.0")
     // Second-layer fix: SecureLoginTest exercises Hadoop 3.x
     // Configuration that internally depends on commons-configuration2's
     // o.a.commons.configuration2.Configuration interface (Hadoop 3 split
@@ -78,7 +78,12 @@ dependencies {
     // causes a NoClassDefFoundError that cascades — once one test
     // poisons UGI's static init, the remaining 40 fail. Same artifact
     // + version pinned in pxf-hdfs/build.gradle.
-    testRuntimeOnly("org.apache.commons:commons-configuration2:2.8.0")
+    testRuntimeOnly("org.apache.commons:commons-configuration2:2.10.1")
+    // Third-layer fix for the same cascade: Hadoop 3.4 builds
+    // Configuration's DeprecationContext on commons-collections4 (it used
+    // commons-collections 3.x through 3.3.x). Missing on the TEST classpath
+    // the clinit throws and poisons UGI exactly as above.
+    testRuntimeOnly("org.apache.commons:commons-collections4:4.4")
 }
 
 test {
