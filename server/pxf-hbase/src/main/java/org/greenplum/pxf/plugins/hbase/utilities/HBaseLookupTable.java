@@ -80,26 +80,25 @@ public class HBaseLookupTable implements Closeable {
      * @param conf HBase configuration
      * @throws IOException when initializing the admin client fails
      */
-    public HBaseLookupTable(Configuration conf) throws Exception {
+    public HBaseLookupTable(Configuration conf) throws IOException {
         hbaseConfiguration = conf;
-        IOException got_ex = null;
-
         try {
             connection = ConnectionFactory.createConnection(hbaseConfiguration);
             admin = connection.getAdmin();
-            if (LOG.isDebugEnabled()) {
-                ClusterMetrics cm = admin.getClusterMetrics();
-                LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
-                        + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
-            }
-        } catch (IOException e) {
-            got_ex = e;
+            // Deliberately unconditional: the constructor's only RPC, so
+            // connectivity failures surface here regardless of log level.
+            ClusterMetrics cm = admin.getClusterMetrics();
+            LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
+                    + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
+        } catch (Exception e) {
+            // Not this.close(): avoid calling an overridable method from a
+            // constructor; only admin/connection can be open here.
             try {
-                this.close();
-            } catch (IOException closeEx) {
-                got_ex.addSuppressed(closeEx);
+                HBaseUtilities.closeConnection(admin, connection);
+            } catch (Exception closeEx) {
+                e.addSuppressed(closeEx);
             }
-            throw got_ex;
+            throw e;
         }
     }
 
@@ -138,24 +137,7 @@ public class HBaseLookupTable implements Closeable {
      */
     @Override
     public void close() throws IOException {
-        IOException got_ex = null;
-        try {
-            if (lookupTable != null)
-                lookupTable.close();
-        } catch (IOException e){
-            got_ex = e;
-        }
-        try {
-            HBaseUtilities.closeConnection(admin, connection);
-        } catch (IOException e) {
-            if (got_ex == null)
-                got_ex = e;
-            else
-                got_ex.addSuppressed(e);
-        }
-        if (got_ex != null) {
-            throw got_ex;
-        }
+        HBaseUtilities.closeAll(lookupTable, admin, connection);
     }
 
     /**

@@ -23,8 +23,6 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -52,8 +50,6 @@ import java.util.Map;
  */
 public class HBaseDataFragmenter extends BaseFragmenter {
 
-    private static final Log LOG = LogFactory.getLog(HBaseDataFragmenter.class);
-
     @Override
     public void afterPropertiesSet() {
         configuration = HBaseConfiguration.create(configuration);
@@ -79,6 +75,9 @@ public class HBaseDataFragmenter extends BaseFragmenter {
      */
     @Override
     public List<Fragment> getFragments() throws Exception {
+        // Failures must propagate: a swallowed exception here becomes an empty
+        // or partial fragment list that FragmenterService caches as success,
+        // and GSSFailureHandler only retries on a thrown IOException.
         try (Connection connection = ConnectionFactory.createConnection(configuration)) {
             try (Admin hbaseAdmin = connection.getAdmin()) {
                 if (!HBaseUtilities.isTableAvailable(hbaseAdmin, context.getDataSource())) {
@@ -87,19 +86,8 @@ public class HBaseDataFragmenter extends BaseFragmenter {
             }
             Map<String, byte[]> userData = prepareUserData();
             addTableFragments(connection, userData);
-        } catch (TableNotFoundException e) {
-            throw e;
-        } catch (IOException e) {
-            // Log I/O failures rather than failing the whole query, since
-            // cleanup errors are already handled and should not override
-            // the primary fragment-generation path.
-            LOG.error("Failed to get fragments for table " + context.getDataSource(), e);
-        } catch (RuntimeException e) {
-            // Log failures due to runtime exceptions.
-            LOG.error("Unexpected runtime failure while getting fragments for table " + context.getDataSource(), e);
+            return fragments;
         }
-
-        return fragments;
     }
 
     /**
@@ -109,16 +97,18 @@ public class HBaseDataFragmenter extends BaseFragmenter {
      * not override the result of the mapping load.
      *
      * @return lookup table mappings keyed by field name
-     * @throws Exception when the lookup table connection or mapping lookup fails
+     * @throws IOException when the lookup table connection or mapping lookup fails
      */
-    private Map<String, byte[]> prepareUserData() throws Exception {
+    private Map<String, byte[]> prepareUserData() throws IOException {
         HBaseLookupTable lookupTable = new HBaseLookupTable(configuration);
         try {
             return lookupTable.getMappings(context.getDataSource());
         } finally {
+            // Exception, not IOException: an unchecked throw from a finally
+            // would replace the mapping result or the primary exception.
             try {
                 lookupTable.close();
-            } catch (IOException closeEx) {
+            } catch (Exception closeEx) {
                 LOG.warn("Failed to close HBase lookup table after loading mappings", closeEx);
             }
         }

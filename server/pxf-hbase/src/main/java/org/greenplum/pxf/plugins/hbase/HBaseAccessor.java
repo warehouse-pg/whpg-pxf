@@ -142,37 +142,7 @@ public class HBaseAccessor extends BasePlugin implements Accessor {
      */
     @Override
     public void closeForRead() throws Exception {
-        IOException got_ex = null;
-        if (currentScanner != null) {
-            try {
-                currentScanner.close();
-            } catch (Exception e) {
-                got_ex = (e instanceof IOException) ? (IOException) e : new IOException(e);
-            }
-        }
-
-        try {
-            if (table != null) {
-                table.close();
-            }
-        } catch (IOException e) {
-            if (got_ex == null)
-                got_ex = e;
-            else
-                got_ex.addSuppressed(e);
-        } finally {
-            try {
-                HBaseUtilities.closeConnection(null, connection);
-            } catch (IOException e) {
-                if (got_ex == null)
-                    got_ex = e;
-                else
-                    got_ex.addSuppressed(e);
-            }
-        }
-        if (got_ex != null) {
-            throw got_ex;
-        }
+        HBaseUtilities.closeAll(currentScanner, table, connection);
     }
 
     /**
