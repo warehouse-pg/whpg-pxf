@@ -70,6 +70,6 @@ public class HBaseUtilities {
         }
         if (got_ex != null) {
             throw got_ex;
-        }           
+        }
     }
 }
