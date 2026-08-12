@@ -87,6 +87,8 @@ public class HBaseDataFragmenter extends BaseFragmenter {
             }
             Map<String, byte[]> userData = prepareUserData();
             addTableFragments(connection, userData);
+        } catch (TableNotFoundException e) {
+            throw e;
         } catch (IOException e) {
             // Log I/O failures rather than failing the whole query, since
             // cleanup errors are already handled and should not override
@@ -96,6 +98,7 @@ public class HBaseDataFragmenter extends BaseFragmenter {
             // Log failures due to runtime exceptions.
             LOG.error("Unexpected runtime failure while getting fragments for table " + context.getDataSource(), e);
         }
+
         return fragments;
     }
 
