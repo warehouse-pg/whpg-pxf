@@ -41,7 +41,7 @@
       Hadoop proxy-user config for singlecluster's HDFS.
 
       PXF (running as gpadmin) talks to HDFS/Hive on behalf of gpadmin.
-      That is "self-impersonation" -- gpadmin proxying gpadmin -- and
+      That is a self-impersonation (gpadmin proxying gpadmin) and
       still requires an explicit hadoop.proxyuser.gpadmin.* entry;
       without it HDFS returns
         AuthorizationException: User: gpadmin is not allowed to impersonate gpadmin
