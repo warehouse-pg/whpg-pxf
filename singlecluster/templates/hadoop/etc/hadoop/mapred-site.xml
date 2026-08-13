@@ -13,8 +13,9 @@
 	    at NativeIO$POSIX.chmodImpl
 	  during setPermission and the MR job never gets off the ground. Every
 	  Hive test whose fixture does INSERT ... SELECT (i.e. most of the L2
-	  hive group -- HiveOrcTest, HiveTextTest, HiveVectorizedOrcTest, ...)
-	  fails at beforeClass with return code 1 from MapRedTask.
+	  hive group, such as HiveOrcTest, HiveTextTest, and
+	  HiveVectorizedOrcTest) fails at beforeClass with return code 1 from
+	  MapRedTask.
 
 	  With "yarn" MR submits to the RM, staging goes to HDFS at
 	  /tmp/hadoop-yarn/staging/${user}/.staging/${jobid}/, and HDFS handles
