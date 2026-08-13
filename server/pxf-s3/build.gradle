@@ -58,6 +58,18 @@ dependencies {
     implementation("software.amazon.awssdk:apache-client:${awsJavaSdkV2}")
     implementation("software.amazon.awssdk:sts:${awsJavaSdkV2}")
     implementation("software.amazon.awssdk:s3-transfer-manager:${awsJavaSdkV2}")
+    // hadoop-aws 3.4.x's S3AFileSystem resolves its input-stream factory
+    // through org.apache.hadoop.fs.s3a.impl.streams, which references the
+    // S3 analytics accelerator classes while selecting a stream type. That
+    // reference is reached on the DEFAULT path, not only when
+    // fs.s3a.input.stream.type=analytics is set, so the artifact cannot be
+    // treated as opt-in: without it the first read through any s3a-backed
+    // profile fails with
+    //   "PXF server error : software/amazon/s3/analyticsaccelerator/request/ObjectClient"
+    // Surfaced by the packaging smoke run (parquet profile) after the
+    // Hadoop 3.4.3 bump. Version tracks hadoop-project-3.4.3.pom's
+    // <amazon-s3-analyticsaccelerator-s3.version>.
+    implementation("software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3:${analyticsAcceleratorVersion}")
     implementation("com.amazonaws:aws-java-sdk-core")                { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-kms")                 { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-s3")                  { transitive = false }
