@@ -53,17 +53,22 @@ mkdir -p ${HIVE_STORAGE_ROOT}
 # schematool does NOT read HIVE_OPTS (that variable is for the hive CLI),
 # and hive-site.xml here does not set javax.jdo.option.ConnectionURL --
 # the metastore server picks it up from HIVE_OPTS in hive-env.sh at
-# start time. So we must tell schematool explicitly where the Derby DB
-# lives, otherwise it defaults to a relative metastore_db in cwd (e.g.
-# /home/runner/metastore_db on a CI runner), fails to write because the
-# dir isn't ours, and bails with:
-#   Booting Derby ... in READ ONLY mode
+# start time. Left in the default cwd, schematool would try to create
+# ./metastore_db wherever init-gphd.sh was invoked from (e.g.
+# /home/runner on the CI runner), find that dir non-writable, boot
+# Derby in READ ONLY mode and bail with
 #   Error: DDL is not permitted for a read-only connection
-# both `cd` and `--url` are set here for belt-and-braces: the URL wins,
-# but the cd matches whatever a hand-run of schematool would produce.
+#
+# cd into ${HIVE_STORAGE_ROOT} first so Derby's default (metastore_db
+# in cwd) resolves to the same absolute path the metastore server later
+# uses via the javax.jdo.option.ConnectionURL in HIVE_OPTS
+# (databaseName=${HIVE_STORAGE_ROOT}/metastore_db). Both tools then
+# operate on the same DB.
+#
+# schemaTool in Hive 2.3.x has no explicit --url flag; the only knobs
+# are -dbType / -dbOpts. cd is the working mechanism.
 cd ${HIVE_STORAGE_ROOT}
-${HIVE_BIN}/schematool -dbType derby -initSchema \
-	--url "jdbc:derby:;databaseName=${HIVE_STORAGE_ROOT}/metastore_db;create=true"
+${HIVE_BIN}/schematool -dbType derby -initSchema
 
 if [ $? -ne 0 ]; then
 	echo Hive schema initialization failed
