@@ -33,13 +33,18 @@
         <name>dfs.replication</name>
         <value>3</value>
     </property>
-   <property>
-	   <name>dfs.datanode.socket.write.timeout</name> 
-	   <value>0</value>
-	   <description>
-		   used for sockets to and from datanodes. It is 8 minutes by default. Some users set this to 0, effectively disabling the write timeout.
-	   </description> 
-   </property>
+   <!--
+     Historically this file set dfs.datanode.socket.write.timeout=0 with a
+     comment saying 0 disables the timeout. That is not how Hadoop 3.x
+     interprets it: 0 means an immediate 0 ms timeout, so DataStreamer
+     bails on the first ack wait with
+       InterruptedIOException: No ack received after 0s and a timeout of 0s
+     during any real HDFS write pipeline. Nothing hit it while Hive-on-MR
+     ran in-process (LocalJobRunner has no HDFS pipeline). Once MR was
+     routed through YARN via mapred-site.xml on this branch, the first
+     JobResourceUploader.copyJar tried a real DFS write and failed. Left
+     absent here so the default (480000 ms = 8 min) applies.
+   -->
     <property>
         <name>dfs.webhdfs.enabled</name>
         <value>true</value>
