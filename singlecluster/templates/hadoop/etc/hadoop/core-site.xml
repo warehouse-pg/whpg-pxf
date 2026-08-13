@@ -29,4 +29,45 @@
 		<name>ipc.ping.interval</name>
 		<value>900000</value>
 	</property>
+    <property>
+        <name>hadoop.proxyuser.gpadmin.hosts</name>
+        <value>*</value>
+    </property>
+    <property>
+        <name>hadoop.proxyuser.gpadmin.groups</name>
+        <value>*</value>
+    </property>
+    <!--
+      Hadoop proxy-user config for singlecluster's HDFS.
+
+      PXF (running as gpadmin) talks to HDFS/Hive on behalf of gpadmin.
+      That is "self-impersonation" -- gpadmin proxying gpadmin -- and
+      still requires an explicit hadoop.proxyuser.gpadmin.* entry;
+      without it HDFS returns
+        AuthorizationException: User: gpadmin is not allowed to impersonate gpadmin
+      the first time PXF touches HDFS from a Hive test.
+
+      HiveServer2 additionally impersonates whichever OS user invokes a
+      beeline session on its behalf. singlecluster's start-hive.sh
+      launches HS2 as the user that ran init-gphd.sh (typically hadoop
+      in L2, root in some smoke paths), so both hadoop and root need
+      proxyuser entries too. Same pattern as installcheck's
+      setup_hdfs.bash carries in the packaging repo.
+    -->
+    <property>
+        <name>hadoop.proxyuser.hadoop.hosts</name>
+        <value>*</value>
+    </property>
+    <property>
+        <name>hadoop.proxyuser.hadoop.groups</name>
+        <value>*</value>
+    </property>
+    <property>
+        <name>hadoop.proxyuser.root.hosts</name>
+        <value>*</value>
+    </property>
+    <property>
+        <name>hadoop.proxyuser.root.groups</name>
+        <value>*</value>
+    </property>
 </configuration>
