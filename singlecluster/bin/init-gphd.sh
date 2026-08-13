@@ -34,6 +34,30 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# Initialize the Hive metastore schema in Derby. datanucleus.autoCreateTables
+# in hive-site.xml only creates the JDO-managed metadata tables (DBS, TBLS,
+# SDS, ...). The transaction tables that DbTxnManager needs (TXNS, HIVE_LOCKS,
+# COMPACTION_QUEUE, NEXT_TXN_ID, ...) are NOT JDO-managed and are only
+# created by schematool via hive-txn-schema-2.3.0.derby.sql.
+#
+# Without this, HiveOrcAcidTest -- and any other test that goes through the
+# lock() metastore RPC -- fails with
+#   TApplicationException: Internal error processing lock
+# because the metastore's insert into HIVE_LOCKS hits a missing-table error
+# it then swallows into a generic Thrift exception.
+#
+# Runs unconditionally here rather than gated behind an existence check
+# because init-gphd.sh has just cleared ${STORAGE_ROOT}, so Derby is
+# guaranteed fresh.
+mkdir -p ${HIVE_STORAGE_ROOT}
+${HIVE_BIN}/schematool -dbType derby -initSchema
+
+if [ $? -ne 0 ]; then
+	echo Hive schema initialization failed
+	echo check error log in console output
+	exit 1
+fi
+
 echo
 echo
 echo Cluster initialized
