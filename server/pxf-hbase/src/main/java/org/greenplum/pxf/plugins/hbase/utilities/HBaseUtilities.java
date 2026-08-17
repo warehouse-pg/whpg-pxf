@@ -43,18 +43,52 @@ public class HBaseUtilities {
     }
 
     /**
-     * Closes HBase admin and connection if they are openForWrite.
+     * Closes HBase admin and connection if they are open.
      *
      * @param hbaseAdmin HBase admin
      * @param hbaseConnection HBase connection
-     * @throws IOException if an I/O error occurs when connecting to HBase
+     * @throws IOException if an I/O error occurs when closing HBase resources
      */
     public static void closeConnection(Admin hbaseAdmin, Connection hbaseConnection) throws IOException {
-        if (hbaseAdmin != null) {
-            hbaseAdmin.close();
+        closeAll(hbaseAdmin, hbaseConnection);
+    }
+
+    /**
+     * Closes the given resources in order, attempting every one even if an
+     * earlier close fails. Null resources are skipped. The first failure is
+     * rethrown after all resources have been attempted — an
+     * {@link IOException} or {@link RuntimeException} as-is, any other
+     * checked exception wrapped in an {@link IOException} — with later
+     * failures attached to it as suppressed exceptions.
+     *
+     * @param resources resources to close, in the order they should be closed
+     * @throws IOException if a resource fails to close with a checked exception
+     */
+    public static void closeAll(AutoCloseable... resources) throws IOException {
+        Exception first = null;
+        for (AutoCloseable resource : resources) {
+            if (resource == null) {
+                continue;
+            }
+            try {
+                resource.close();
+            } catch (Exception e) {
+                if (first == null) {
+                    first = e;
+                } else {
+                    first.addSuppressed(e);
+                }
+            }
         }
-        if (hbaseConnection != null) {
-            hbaseConnection.close();
+        if (first == null) {
+            return;
         }
+        if (first instanceof IOException) {
+            throw (IOException) first;
+        }
+        if (first instanceof RuntimeException) {
+            throw (RuntimeException) first;
+        }
+        throw new IOException(first);
     }
 }

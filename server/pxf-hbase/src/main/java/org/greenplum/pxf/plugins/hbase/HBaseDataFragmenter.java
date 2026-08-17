@@ -50,8 +50,6 @@ import java.util.Map;
  */
 public class HBaseDataFragmenter extends BaseFragmenter {
 
-    private Connection connection;
-
     @Override
     public void afterPropertiesSet() {
         configuration = HBaseConfiguration.create(configuration);
@@ -77,45 +75,53 @@ public class HBaseDataFragmenter extends BaseFragmenter {
      */
     @Override
     public List<Fragment> getFragments() throws Exception {
-
-        connection = ConnectionFactory.createConnection(configuration);
-        Admin hbaseAdmin = connection.getAdmin();
-        if (!HBaseUtilities.isTableAvailable(hbaseAdmin, context.getDataSource())) {
-            HBaseUtilities.closeConnection(hbaseAdmin, connection);
-            throw new TableNotFoundException(context.getDataSource());
+        // Failures must propagate: a swallowed exception here becomes an empty
+        // or partial fragment list that FragmenterService caches as success,
+        // and GSSFailureHandler only retries on a thrown IOException.
+        try (Connection connection = ConnectionFactory.createConnection(configuration)) {
+            try (Admin hbaseAdmin = connection.getAdmin()) {
+                if (!HBaseUtilities.isTableAvailable(hbaseAdmin, context.getDataSource())) {
+                    throw new TableNotFoundException(context.getDataSource());
+                }
+            }
+            Map<String, byte[]> userData = prepareUserData();
+            addTableFragments(connection, userData);
+            return fragments;
         }
-
-        Map<String, byte[]> userData = prepareUserData();
-        addTableFragments(userData);
-
-        HBaseUtilities.closeConnection(hbaseAdmin, connection);
-
-        return fragments;
     }
 
     /**
-     * Serializes lookup table mapping into byte array.
+     * Loads lookup table mappings for the current table.
+     * <p>
+     * Cleanup errors from {@link HBaseLookupTable#close()} are logged and do
+     * not override the result of the mapping load.
      *
-     * @return serialized lookup table mapping
-     * @throws IOException when connection to lookup table fails
-     *                     or serialization fails
+     * @return lookup table mappings keyed by field name
+     * @throws IOException when the lookup table connection or mapping lookup fails
      */
-    private Map<String, byte[]> prepareUserData() throws Exception {
+    private Map<String, byte[]> prepareUserData() throws IOException {
         HBaseLookupTable lookupTable = new HBaseLookupTable(configuration);
-        Map<String, byte[]> mappings = lookupTable.getMappings(context.getDataSource());
-        lookupTable.close();
-        return mappings;
+        try {
+            return lookupTable.getMappings(context.getDataSource());
+        } finally {
+            // Exception, not IOException: an unchecked throw from a finally
+            // would replace the mapping result or the primary exception.
+            try {
+                lookupTable.close();
+            } catch (Exception closeEx) {
+                LOG.warn("Failed to close HBase lookup table after loading mappings", closeEx);
+            }
+        }
     }
 
-    private void addTableFragments(Map<String, byte[]> userData) throws IOException {
-        RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(context.getDataSource()));
-        List<HRegionLocation> locations = regionLocator.getAllRegionLocations();
+    private void addTableFragments(Connection connection, Map<String, byte[]> userData) throws IOException {
+        try (RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(context.getDataSource()))) {
+            List<HRegionLocation> locations = regionLocator.getAllRegionLocations();
 
-        for (HRegionLocation location : locations) {
-            addFragment(location, userData);
+            for (HRegionLocation location : locations) {
+                addFragment(location, userData);
+            }
         }
-
-        regionLocator.close();
     }
 
     private void addFragment(HRegionLocation location, Map<String, byte[]> userData) throws IOException {

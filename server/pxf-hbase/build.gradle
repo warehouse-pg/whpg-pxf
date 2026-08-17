@@ -75,6 +75,9 @@ dependencies {
     testImplementation("com.esotericsoftware:minlog")
     testImplementation("com.esotericsoftware:reflectasm")
     testImplementation('org.springframework.boot:spring-boot-starter-test')
+    // Enables Mockito.mockStatic (used to pin the HBaseLookupTable
+    // constructor's cleanup-on-failure contract); same pattern as pxf-jdbc.
+    testImplementation('org.mockito:mockito-inline')
     // The hbase.read.rpc.timeout unit test actually invokes HBaseConfiguration.create(),
     // which loads core-default.xml and instantiates StringInterner from
     // hadoop-shaded-guava. Same root cause as the runtime classpath hole

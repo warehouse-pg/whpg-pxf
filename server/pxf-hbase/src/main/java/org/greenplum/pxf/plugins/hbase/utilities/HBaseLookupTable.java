@@ -74,18 +74,32 @@ public class HBaseLookupTable implements Closeable {
 
     /**
      * Constructs a connector to HBase lookup table. Requires calling
-     * {@link #close()} to close the underlying admin instance.
+     * {@link #close()} to release the underlying connection, admin
+     * instance, and (if opened) lookup table.
      *
      * @param conf HBase configuration
      * @throws IOException when initializing the admin client fails
      */
-    public HBaseLookupTable(Configuration conf) throws Exception {
+    public HBaseLookupTable(Configuration conf) throws IOException {
         hbaseConfiguration = conf;
-        connection = ConnectionFactory.createConnection(hbaseConfiguration);
-        admin = connection.getAdmin();
-        ClusterMetrics cm = admin.getClusterMetrics();
-        LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
-                + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
+        try {
+            connection = ConnectionFactory.createConnection(hbaseConfiguration);
+            admin = connection.getAdmin();
+            // Deliberately unconditional: the constructor's only RPC, so
+            // connectivity failures surface here regardless of log level.
+            ClusterMetrics cm = admin.getClusterMetrics();
+            LOG.debug("HBase cluster has " + cm.getLiveServerMetrics().size()
+                    + " region servers " + "(" + cm.getDeadServerNames().size() + " dead)");
+        } catch (Exception e) {
+            // Not this.close(): avoid calling an overridable method from a
+            // constructor; only admin/connection can be open here.
+            try {
+                HBaseUtilities.closeConnection(admin, connection);
+            } catch (Exception closeEx) {
+                e.addSuppressed(closeEx);
+            }
+            throw e;
+        }
     }
 
     /**
@@ -115,10 +129,15 @@ public class HBaseLookupTable implements Closeable {
 
     /**
      * Closes HBase resources. Must be called after initializing this class.
+     * This is the single point of cleanup for this instance: it closes the
+     * lookup table (if it was opened), the admin instance, and the
+     * underlying connection, regardless of which code path in
+     * {@link #getMappings(String)} was taken (including early returns from
+     * {@link #lookupTableValid()}).
      */
     @Override
     public void close() throws IOException {
-        admin.close();
+        HBaseUtilities.closeAll(lookupTable, admin, connection);
     }
 
     /**
@@ -143,13 +162,16 @@ public class HBaseLookupTable implements Closeable {
 
     /**
      * Loads table name mappings from {@link #LOOKUPTABLENAME} lookup table.
+     * <p>
+     * Note: the {@link #lookupTable} opened here is not closed by this
+     * method. It is closed centrally by {@link #close()}, which is the
+     * single owner of this instance's resource cleanup.
      *
      * @param tableName table name
      */
     private void loadTableMappings(String tableName) throws IOException {
         openLookupTable();
         loadMappingMap(tableName);
-        closeLookupTable();
     }
 
     /**
@@ -199,11 +221,6 @@ public class HBaseLookupTable implements Closeable {
         LOG.debug("lookup table mapping for " + tableName + " has "
                 + (rawTableMapping == null ? 0 : rawTableMapping.size())
                 + " entries");
-    }
-
-    private void closeLookupTable() throws IOException {
-        lookupTable.close();
-        HBaseUtilities.closeConnection(admin, connection);
     }
 
     private String lowerCase(byte[] key) {
