@@ -14,6 +14,9 @@ dependencies {
      *******************************/
 
     compileOnly("org.apache.hadoop:hadoop-annotations")              { transitive = false }
+    // the Hive 4.x metastore client classes carry Hadoop's classification
+    // annotations; javac -Werror needs them resolvable at test compile too
+    testCompileOnly("org.apache.hadoop:hadoop-annotations")          { transitive = false }
 
     /*******************************
      * Implementation Dependencies
@@ -39,11 +42,28 @@ dependencies {
      *******************************/
 
     implementation("org.apache.hive:hive-common")                    { transitive = false }
+    // Artifacts new to this block with the Hive 4.x tree (the splits
+    // happened upstream in Hive 2.1-4.0): the metastore thrift client
+    // classes live in hive-standalone-metastore-common, the
+    // HiveServer2/TCLIService RPC types in hive-service-rpc, and the
+    // InterfaceAudience annotations in hive-classification
+    implementation("org.apache.hive:hive-standalone-metastore-common") { transitive = false }
+    implementation("org.apache.hive:hive-service-rpc")               { transitive = false }
+    implementation("org.apache.hive:hive-classification")            { transitive = false }
+    implementation("org.apache.hive:hive-udf")                       { transitive = false }
+    // the Hive 4.x metastore client can speak thrift-over-HTTP and
+    // references the Apache HttpClient API at class-load time
+    implementation("org.apache.httpcomponents:httpclient")           { transitive = false }
+    implementation("org.apache.httpcomponents:httpcore")             { transitive = false }
     implementation("org.apache.hive.shims:hive-shims-common")        { transitive = false }
     implementation("org.apache.hive.shims:hive-shims-0.23")          { transitive = false }
     implementation("org.apache.commons:commons-lang3")               { transitive = false }
     implementation("org.apache.hive:hive-storage-api")               { transitive = false }
     implementation("org.apache.orc:orc-core")                        { transitive = false }
+    // a declared runtime dependency of orc-core (already bundled for the
+    // hdfs:orc profile via pxf-hdfs; declared here too so the hive plugin's
+    // ORC path does not depend on module ordering)
+    implementation("org.threeten:threeten-extra")                    { transitive = false }
     implementation("io.airlift:aircompressor")                       { transitive = false }
     implementation("joda-time:joda-time")                            { transitive = false }
     implementation("org.objenesis:objenesis")                        { transitive = false }
@@ -53,13 +73,10 @@ dependencies {
     implementation("org.apache.thrift:libfb303")                     { transitive = false }
     implementation("org.apache.thrift:libthrift")                    { transitive = false }
     implementation("org.antlr:antlr-runtime")                        { transitive = false }
-    implementation("org.datanucleus:datanucleus-api-jdo")            { transitive = false }
-    implementation("org.datanucleus:datanucleus-core")               { transitive = false }
     implementation("org.xerial.snappy:snappy-java")                  { transitive = false }
-    implementation("javax.jdo:jdo-api")                              { transitive = false }
-    implementation("org.codehaus.jackson:jackson-core-asl")          { transitive = false }
-    implementation("org.codehaus.jackson:jackson-mapper-asl")        { transitive = false }
-    implementation("org.jodd:jodd-core")                             { transitive = false }
+    // hive-common 4.x reads JSON through com.tdunning:json
+    implementation("com.tdunning:json")                              { transitive = false }
+    implementation("org.jodd:jodd-util")                             { transitive = false }
 
     // transitive dependency for reading Hive tables with SerDe 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
     implementation("net.sf.opencsv:opencsv")                         { transitive = false }
