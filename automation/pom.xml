@@ -370,11 +370,6 @@
             <artifactId>hbase-client</artifactId>
             <version>${hdp.hbase.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.hbase</groupId>
-            <artifactId>hbase-thrift</artifactId>
-            <version>${hdp.hbase.version}</version>
-        </dependency>
 
         <dependency>
             <groupId>org.apache.hbase</groupId>

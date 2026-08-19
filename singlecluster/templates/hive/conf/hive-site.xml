@@ -35,4 +35,40 @@
 		<name>hive.metastore.integral.jdo.pushdown</name>
 		<value>true</value>
 	</property>
+
+	<!--
+	  Transaction (ACID) support. Required by the JSystem hive group:
+	  HiveOrcAcidTest creates transactional ORC tables, which drive
+	  Hive's DbTxnManager and a lock() RPC against the metastore.
+
+	  The test does SET these on its own JDBC session, but that is
+	  not sufficient. The metastore SERVER reads them from here at
+	  startup, and without them it rejects the lock RPC with
+	    TApplicationException: Internal error processing lock
+	  surfacing to the client as
+	    FAILED: Error in acquiring locks: Error communicating with the metastore
+
+	  compactor.worker.threads is 1 rather than 0 so compaction can
+	  actually run; the initiator alone only queues work.
+	-->
+	<property>
+		<name>hive.support.concurrency</name>
+		<value>true</value>
+		<description>Required for ACID tables; enables the lock manager</description>
+	</property>
+	<property>
+		<name>hive.txn.manager</name>
+		<value>org.apache.hadoop.hive.ql.lockmgr.DbTxnManager</value>
+		<description>Transaction manager backing ACID tables</description>
+	</property>
+	<property>
+		<name>hive.compactor.initiator.on</name>
+		<value>true</value>
+		<description>Queue compaction of ACID delta files</description>
+	</property>
+	<property>
+		<name>hive.compactor.worker.threads</name>
+		<value>1</value>
+		<description>Workers to run queued compactions</description>
+	</property>
 </configuration>

@@ -1,7 +1,29 @@
 <configuration>
+	<!--
+	  Route MapReduce through YARN rather than the in-process LocalJobRunner.
+	  L2's pxf-l2-run.bash starts start-yarn.sh (ResourceManager + NodeManager)
+	  when L2_GROUPS includes hive or hcatalog, so a real YARN cluster is
+	  listening on the ports yarn-site.xml declares.
+
+	  Left at "local", MR runs in-process and stages files to a path under
+	  /tmp/hadoop-yarn/staging on the local filesystem via RawLocalFileSystem.
+	  On a CI runner where the submitting user (gpadmin) does not own that
+	  path chain, JobSubmitter.getStagingDir hits
+	    ENOENT: No such file or directory
+	    at NativeIO$POSIX.chmodImpl
+	  during setPermission and the MR job never gets off the ground. Every
+	  Hive test whose fixture does INSERT ... SELECT (i.e. most of the L2
+	  hive group, such as HiveOrcTest, HiveTextTest, and
+	  HiveVectorizedOrcTest) fails at beforeClass with return code 1 from
+	  MapRedTask.
+
+	  With "yarn" MR submits to the RM, staging goes to HDFS at
+	  /tmp/hadoop-yarn/staging/${user}/.staging/${jobid}/, and HDFS handles
+	  the permissions chain correctly for a fresh cluster.
+	-->
 	<property>
 		<name>mapreduce.framework.name</name>
-		<value>local</value>
+		<value>yarn</value>
 	</property>
 	<property>
 		<name>mapreduce.input.fileinputformat.input.dir.recursive</name>

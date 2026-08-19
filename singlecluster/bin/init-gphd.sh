@@ -34,6 +34,48 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# Initialize the Hive metastore schema in Derby. datanucleus.autoCreateTables
+# in hive-site.xml only creates the JDO-managed metadata tables (DBS, TBLS,
+# SDS, ...). The transaction tables that DbTxnManager needs (TXNS, HIVE_LOCKS,
+# COMPACTION_QUEUE, NEXT_TXN_ID, ...) are NOT JDO-managed and are only
+# created by schematool via hive-txn-schema-2.3.0.derby.sql.
+#
+# Without this, HiveOrcAcidTest -- and any other test that goes through the
+# lock() metastore RPC -- fails with
+#   TApplicationException: Internal error processing lock
+# because the metastore's insert into HIVE_LOCKS hits a missing-table error
+# it then swallows into a generic Thrift exception.
+#
+# Runs unconditionally here rather than gated behind an existence check
+# because init-gphd.sh has just cleared ${STORAGE_ROOT}, so Derby is
+# guaranteed fresh.
+mkdir -p ${HIVE_STORAGE_ROOT}
+# schematool does NOT read HIVE_OPTS (that variable is for the hive CLI),
+# and hive-site.xml here does not set javax.jdo.option.ConnectionURL --
+# the metastore server picks it up from HIVE_OPTS in hive-env.sh at
+# start time. Left in the default cwd, schematool would try to create
+# ./metastore_db wherever init-gphd.sh was invoked from (e.g.
+# /home/runner on the CI runner), find that dir non-writable, boot
+# Derby in READ ONLY mode and bail with
+#   Error: DDL is not permitted for a read-only connection
+#
+# cd into ${HIVE_STORAGE_ROOT} first so Derby's default (metastore_db
+# in cwd) resolves to the same absolute path the metastore server later
+# uses via the javax.jdo.option.ConnectionURL in HIVE_OPTS
+# (databaseName=${HIVE_STORAGE_ROOT}/metastore_db). Both tools then
+# operate on the same DB.
+#
+# schemaTool in Hive 2.3.x has no explicit --url flag; the only knobs
+# are -dbType / -dbOpts. cd is the working mechanism.
+cd ${HIVE_STORAGE_ROOT}
+${HIVE_BIN}/schematool -dbType derby -initSchema
+
+if [ $? -ne 0 ]; then
+	echo Hive schema initialization failed
+	echo check error log in console output
+	exit 1
+fi
+
 echo
 echo
 echo Cluster initialized
