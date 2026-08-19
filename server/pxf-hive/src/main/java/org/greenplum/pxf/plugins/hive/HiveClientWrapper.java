@@ -6,6 +6,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
 import org.apache.hadoop.hive.metastore.api.GetTableRequest;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClientCompatibility2x;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
@@ -374,8 +375,11 @@ public class HiveClientWrapper {
                 // (falling back to the raw get_table thrift call when a 1.x
                 // metastore lacked get_table_req) is gone: the Hive 4.x thrift
                 // bindings no longer generate the raw call, and a 4.x client
-                // cannot meaningfully talk to a 1.x metastore anyway. Supported
-                // metastores are 2.x+ (verified against 2.3.8 and 4.0.1).
+                // cannot meaningfully talk to a 1.x metastore anyway. Its
+                // successor handles 2.x metastores, which reject the
+                // request-object partition RPCs the 4.x client issues.
+                // Supported metastores are 2.x+ (verified against 2.3.8 and
+                // 4.0.1).
                 return new MetaStoreClientHolder(
                         RetryingMetaStoreClient.getProxy(
                                 hiveConf,
@@ -384,7 +388,7 @@ public class HiveClientWrapper {
                                 new Class[]{Configuration.class, HiveMetaHookLoader.class, Boolean.class},
                                 new Object[]{hiveConf, null, true},
                                 null,
-                                HiveMetaStoreClient.class.getName()
+                                HiveMetaStoreClientCompatibility2x.class.getName()
                         )
                 );
             } catch (RuntimeException ex) {
