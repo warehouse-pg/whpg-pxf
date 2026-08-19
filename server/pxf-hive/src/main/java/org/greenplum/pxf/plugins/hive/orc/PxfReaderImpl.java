@@ -33,6 +33,15 @@ public class PxfReaderImpl extends ReaderImpl
     @Override
     public RecordReader rowsOptions(Options options) throws IOException {
         LOG.info("Reading ORC rows from {} with {}", path, options);
-        return new PxfRecordReaderImpl(this, options);
+        return new PxfRecordReaderImpl(this, options, conf);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public RecordReader rowsOptions(Options options, org.apache.hadoop.conf.Configuration conf) throws IOException {
+        LOG.info("Reading ORC rows from {} with {}", path, options);
+        return new PxfRecordReaderImpl(this, options, conf);
     }
 }

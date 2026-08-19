@@ -26,6 +26,7 @@ import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.io.ByteWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
@@ -123,7 +124,7 @@ public class HiveResolver extends BasePlugin implements Resolver {
     public void afterPropertiesSet() {
         super.afterPropertiesSet();
 
-        hiveDefaultPartName = HiveConf.getVar(configuration, HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+        hiveDefaultPartName = HiveConf.getVar(configuration, HiveConf.ConfVars.DEFAULT_PARTITION_NAME);
 
         try {
             parseUserData(context);
@@ -177,7 +178,11 @@ public class HiveResolver extends BasePlugin implements Resolver {
     void initSerde() throws Exception {
         Class<?> c = Class.forName(serdeClassName, true, JavaUtils.getClassLoader());
         deserializer = (Deserializer) c.getDeclaredConstructor().newInstance();
-        deserializer.initialize(getJobConf(), getSerdeProperties());
+        // Hive 4.x removed Deserializer.initialize(Configuration, Properties);
+        // every Hive serde extends AbstractSerDe, whose initialize takes the
+        // table properties plus optional partition properties (null here --
+        // PXF folds partition info into the table properties it builds)
+        ((AbstractSerDe) deserializer).initialize(getJobConf(), getSerdeProperties(), null);
     }
 
     protected JobConf getJobConf() {
@@ -643,13 +648,21 @@ public class HiveResolver extends BasePlugin implements Resolver {
                 break;
             }
             case TIMESTAMP: {
-                val = (o != null) ? ((TimestampObjectInspector) oi).getPrimitiveJavaObject(o)
+                // Hive 4.x object inspectors return Hive's own proleptic
+                // Timestamp type; convert through its yyyy-MM-dd HH:mm:ss[.f]
+                // string form to keep emitting java.sql.Timestamp exactly as
+                // before
+                val = (o != null)
+                        ? java.sql.Timestamp.valueOf(((TimestampObjectInspector) oi).getPrimitiveJavaObject(o).toString())
                         : null;
                 addOneFieldToRecord(record, DataType.TIMESTAMP, val);
                 break;
             }
             case DATE:
-                val = (o != null) ? ((DateObjectInspector) oi).getPrimitiveJavaObject(o)
+                // same for Hive 4.x's Date type: convert via its yyyy-MM-dd
+                // string form to keep emitting java.sql.Date
+                val = (o != null)
+                        ? java.sql.Date.valueOf(((DateObjectInspector) oi).getPrimitiveJavaObject(o).toString())
                         : null;
                 addOneFieldToRecord(record, DataType.DATE, val);
                 break;

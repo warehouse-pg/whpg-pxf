@@ -4,9 +4,10 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClientCompatibility1xx;
+import org.apache.hadoop.hive.metastore.api.GetTableRequest;
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -111,7 +112,9 @@ public class HiveClientWrapper {
     }
 
     public Table getHiveTable(IMetaStoreClient client, Metadata.Item itemName) throws Exception {
-        Table tbl = client.getTable(itemName.getPath(), itemName.getName());
+        // the two-string getTable overload is deprecated in Hive 4.x in
+        // favor of the request-object form
+        Table tbl = client.getTable(new GetTableRequest(itemName.getPath(), itemName.getName()));
         String tblType = tbl.getTableType();
 
         LOG.debug("Item: {}.{}, type: {}", itemName.getPath(), itemName.getName(), tblType);
@@ -255,7 +258,7 @@ public class HiveClientWrapper {
         }
 
         if (tokens.size() == 1) {
-            dbPattern = MetaStoreUtils.DEFAULT_DATABASE_NAME;
+            dbPattern = Warehouse.DEFAULT_DATABASE_NAME;
             tablePattern = tokens.get(0);
         } else if (tokens.size() == 2) {
             dbPattern = tokens.get(0);
@@ -367,20 +370,28 @@ public class HiveClientWrapper {
     public static class HiveClientFactory {
         MetaStoreClientHolder initHiveClient(HiveConf hiveConf) throws MetaException {
             try {
+                // The Hive-1.x compatibility client that used to be passed here
+                // (falling back to the raw get_table thrift call when a 1.x
+                // metastore lacked get_table_req) is gone: the Hive 4.x thrift
+                // bindings no longer generate the raw call, and a 4.x client
+                // cannot meaningfully talk to a 1.x metastore anyway. Supported
+                // metastores are 2.x+ (verified against 2.3.8 and 4.0.1).
                 return new MetaStoreClientHolder(
                         RetryingMetaStoreClient.getProxy(
                                 hiveConf,
-                                new Class[]{HiveConf.class, HiveMetaHookLoader.class, Boolean.class},
+                                // Hive 4.x HiveMetaStoreClient constructors take a
+                                // plain Hadoop Configuration, not HiveConf
+                                new Class[]{Configuration.class, HiveMetaHookLoader.class, Boolean.class},
                                 new Object[]{hiveConf, null, true},
                                 null,
-                                HiveMetaStoreClientCompatibility1xx.class.getName()
+                                HiveMetaStoreClient.class.getName()
                         )
                 );
             } catch (RuntimeException ex) {
                 // Report MetaException if found in the stack. A RuntimeException
-                // was thrown when the HiveMetaStoreClientCompatibility1xx
+                // was thrown when the metastore client
                 // failed to instantiate with a MetaException cause.
-                // java.lang.RuntimeException: Unable to instantiate org.apache.hadoop.hive.metastore.HiveMetaStoreClientCompatibility1xx
+                // java.lang.RuntimeException: Unable to instantiate the metastore client
                 // and it reports an error message that is hard to interpret
                 // by the user/admin
                 Throwable e = ex;

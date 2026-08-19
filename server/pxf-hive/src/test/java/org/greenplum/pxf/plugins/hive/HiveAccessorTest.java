@@ -9,7 +9,6 @@ import org.apache.hadoop.mapred.Reporter;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
-import org.greenplum.pxf.api.utilities.SerializationService;
 import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,6 @@ class HiveAccessorTest {
     RequestContext context;
     HiveAccessor accessor;
     Properties properties;
-    SerializationService serializationService;
     List<ColumnDescriptor> columnDescriptors;
 
     @BeforeEach
@@ -82,8 +80,6 @@ class HiveAccessorTest {
         columnDescriptors.add(new ColumnDescriptor("name", DataType.TEXT.getOID(), 1, "", null));
         columnDescriptors.add(new ColumnDescriptor("dec1", DataType.NUMERIC.getOID(), 2, "", null, false));
         context.setTupleDescription(columnDescriptors);
-
-        serializationService = new SerializationService();
     }
 
     // ---------- skip header tests ----------
@@ -95,7 +91,7 @@ class HiveAccessorTest {
         HiveFragmentMetadata metadata = new HiveFragmentMetadata(0, 0, properties);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, mockHiveUtilities, serializationService);
+        accessor = new HiveAccessor(null, mockHiveUtilities);
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
         accessor.openForRead();
@@ -113,7 +109,7 @@ class HiveAccessorTest {
         context.setFragmentIndex(0);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, mockHiveUtilities, serializationService);
+        accessor = new HiveAccessor(null, mockHiveUtilities);
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
         accessor.openForRead();
@@ -132,7 +128,7 @@ class HiveAccessorTest {
         context.setFragmentIndex(2);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, mockHiveUtilities, serializationService);
+        accessor = new HiveAccessor(null, mockHiveUtilities);
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
         accessor.openForRead();
@@ -149,7 +145,7 @@ class HiveAccessorTest {
         context.setFragmentIndex(0);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, mockHiveUtilities, serializationService);
+        accessor = new HiveAccessor(null, mockHiveUtilities);
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
         accessor.openForRead();
@@ -167,7 +163,7 @@ class HiveAccessorTest {
         context.setFragmentIndex(0);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, mockHiveUtilities, serializationService);
+        accessor = new HiveAccessor(null, mockHiveUtilities);
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
         accessor.openForRead();
@@ -182,7 +178,7 @@ class HiveAccessorTest {
         HiveFragmentMetadata metadata = new HiveFragmentMetadata(0, 0, properties);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, new HiveUtilities(), serializationService);
+        accessor = new HiveAccessor(null, new HiveUtilities());
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
 
@@ -208,7 +204,7 @@ class HiveAccessorTest {
         HiveFragmentMetadata metadata = new HiveFragmentMetadata(0, 0, properties);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, new HiveUtilities(), serializationService);
+        accessor = new HiveAccessor(null, new HiveUtilities());
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
 
@@ -230,7 +226,7 @@ class HiveAccessorTest {
         HiveFragmentMetadata metadata = new HiveFragmentMetadata(0, 0, properties);
         context.setFragmentMetadata(metadata);
 
-        accessor = new HiveAccessor(null, new HiveUtilities(), serializationService);
+        accessor = new HiveAccessor(null, new HiveUtilities());
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
 
@@ -251,7 +247,7 @@ class HiveAccessorTest {
         context.setFragmentMetadata(metadata);
         context.setFilterString("a0c20s1d1o5");
 
-        accessor = new HiveAccessor(null, new HiveUtilities(), serializationService);
+        accessor = new HiveAccessor(null, new HiveUtilities());
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
 
@@ -273,7 +269,7 @@ class HiveAccessorTest {
         context.setFragmentMetadata(metadata);
         context.setFilterString("a0c20s1d1o5");
 
-        accessor = new HiveAccessor(null, new HiveUtilities(), serializationService);
+        accessor = new HiveAccessor(null, new HiveUtilities());
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
 
@@ -291,7 +287,7 @@ class HiveAccessorTest {
 
     @Test
     public void testWriteIsNotSupported() {
-        accessor = new HiveAccessor(null, new HiveUtilities(), serializationService);
+        accessor = new HiveAccessor(null, new HiveUtilities());
 
         Exception e = assertThrows(UnsupportedOperationException.class, () -> accessor.openForWrite());
         assertEquals("Hive accessor does not support write operation.", e.getMessage());
@@ -305,7 +301,7 @@ class HiveAccessorTest {
 
     @Test
     public void testWriteWithRequestContextAsWrite(){
-        accessor = new HiveAccessor(null, new HiveUtilities(), serializationService);
+        accessor = new HiveAccessor(null, new HiveUtilities());
         context.setRequestType(RequestContext.RequestType.WRITE_BRIDGE);
         accessor.setRequestContext(context);
         Exception e = assertThrows(UnsupportedOperationException.class, () -> accessor.afterPropertiesSet());

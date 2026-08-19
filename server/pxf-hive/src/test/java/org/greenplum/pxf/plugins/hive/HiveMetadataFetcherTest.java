@@ -22,6 +22,7 @@ package org.greenplum.pxf.plugins.hive;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.GetTableRequest;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -122,7 +123,7 @@ public class HiveMetadataFetcherTest {
         // mock hive table returned from hive client
         Table hiveTable = new Table();
         hiveTable.setTableType("VIRTUAL_VIEW");
-        when(mockHiveClient.getTable("default", tableName)).thenReturn(hiveTable);
+        when(mockHiveClient.getTable(new GetTableRequest("default", tableName))).thenReturn(hiveTable);
 
         Exception e = assertThrows(UnsupportedOperationException.class,
                 () -> fetcher.getMetadata(tableName));
@@ -143,7 +144,7 @@ public class HiveMetadataFetcherTest {
         hiveTable.setTableType("MANAGED_TABLE");
         hiveTable.setParameters(mockParameters);
         when(mockParameters.get(hive_metastoreConstants.TABLE_IS_TRANSACTIONAL)).thenReturn("true");
-        when(mockHiveClient.getTable("default", tableName)).thenReturn(hiveTable);
+        when(mockHiveClient.getTable(new GetTableRequest("default", tableName))).thenReturn(hiveTable);
 
         Exception e = assertThrows(UnsupportedOperationException.class,
                 () -> fetcher.getMetadata(tableName));
@@ -171,7 +172,7 @@ public class HiveMetadataFetcherTest {
         hiveTable.setSd(sd);
         hiveTable.setPartitionKeys(new ArrayList<>());
         hiveTable.setParameters(mockParameters);
-        when(mockHiveClient.getTable("default", tableName)).thenReturn(hiveTable);
+        when(mockHiveClient.getTable(new GetTableRequest("default", tableName))).thenReturn(hiveTable);
 
         // Get metadata
         metadataList = fetcher.getMetadata(tableName);
@@ -225,7 +226,7 @@ public class HiveMetadataFetcherTest {
             hiveTable.setSd(sd);
             hiveTable.setPartitionKeys(new ArrayList<>());
             hiveTable.setParameters(mockParameters);
-            when(mockHiveClient.getTable(dbName, tableName)).thenReturn(hiveTable);
+            when(mockHiveClient.getTable(new GetTableRequest(dbName, tableName))).thenReturn(hiveTable);
         }
 
         // Mock database and table names return from hive client
@@ -268,7 +269,7 @@ public class HiveMetadataFetcherTest {
         // mock hive table returned from hive client
         Table hiveTable1 = new Table();
         hiveTable1.setTableType("VIRTUAL_VIEW");
-        when(mockHiveClient.getTable(dbName, tableName1)).thenReturn(hiveTable1);
+        when(mockHiveClient.getTable(new GetTableRequest(dbName, tableName1))).thenReturn(hiveTable1);
 
         String tableName2 = "regulartable";
         // mock hive table returned from hive client
@@ -283,7 +284,7 @@ public class HiveMetadataFetcherTest {
         hiveTable2.setSd(sd);
         hiveTable2.setPartitionKeys(new ArrayList<>());
         hiveTable2.setParameters(mockParameters);
-        when(mockHiveClient.getTable(dbName, tableName2)).thenReturn(hiveTable2);
+        when(mockHiveClient.getTable(new GetTableRequest(dbName, tableName2))).thenReturn(hiveTable2);
 
         // Mock get databases and tables return from hive client
         List<String> tableNames = new ArrayList<>(Arrays.asList(tableName1, tableName2));
