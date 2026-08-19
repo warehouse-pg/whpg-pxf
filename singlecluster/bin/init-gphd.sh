@@ -44,9 +44,16 @@ fi
 # Hive ships the jar itself; copy it into the Hadoop lib dirs that task
 # containers read. Harmless when Hadoop already bundles the jar (pre-3.4)
 # and idempotent across re-runs.
+# (mkdir -p because Hadoop 3.4.3's tarball no longer ships a
+# share/hadoop/mapreduce/lib/ directory at all -- the path is still part
+# of MapReduce's default application classpath
+# (MRJobConfig.DEFAULT_MAPREDUCE_APPLICATION_CLASSPATH), so creating it
+# is safe.)
 if compgen -G "${HIVE_ROOT}/lib/commons-collections-*.jar" > /dev/null; then
-	cp -f ${HIVE_ROOT}/lib/commons-collections-*.jar ${HADOOP_ROOT}/share/hadoop/common/lib/
-	cp -f ${HIVE_ROOT}/lib/commons-collections-*.jar ${HADOOP_ROOT}/share/hadoop/mapreduce/lib/
+	for hadoop_lib_dir in ${HADOOP_ROOT}/share/hadoop/common/lib ${HADOOP_ROOT}/share/hadoop/mapreduce/lib; do
+		mkdir -p ${hadoop_lib_dir}
+		cp -f ${HIVE_ROOT}/lib/commons-collections-*.jar ${hadoop_lib_dir}/
+	done
 fi
 
 # Initialize the Hive metastore schema in Derby. datanucleus.autoCreateTables
