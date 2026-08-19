@@ -61,6 +61,11 @@
 		<value>false</value>
 		<description>Hive 4.x metastores reject notification-API calls unless the caller is a superuser; the singlecluster runs unsecured, so disable the check</description>
 	</property>
+	<property>
+		<name>hive.vectorized.execution.enabled</name>
+		<value>false</value>
+		<description>Hive 4 enables vectorization by default (Hive 2.x did not). On this MR-engine cluster the vectorized deserializer nulls BINARY columns read from text tables in MR tasks (fetch tasks, which do not vectorize, read the same rows correctly), so fixture INSERT...SELECT copies silently write NULL binary data. Pin the Hive 2.x behavior; vectorization is a server-side optimization irrelevant to what these tests exercise</description>
+	</property>
 
 	<!--
 	  Transaction (ACID) support. Required by the JSystem hive group:
