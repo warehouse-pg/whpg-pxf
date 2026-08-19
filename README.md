@@ -174,7 +174,7 @@ read it; the actual version is controlled by `hadoopVersion` in
 
 Then follow the steps in [Setup Hadoop](#Setup-Hadoop).
 
-JDK 8 or 11 can run the singlecluster stack (HBase 2.6.5 supports both; Hive 4.0.1 targets Java 8 class files and runs on either). The PXF server JVM itself may run on Java 8 or Java 11. Set `JAVA_HOME` to a JDK 8 or 11 install before starting the Hadoop components.
+JDK 8 or JDK 11 are the validated runtimes for the singlecluster stack (HBase 2.6.5 supports both; Hive 4.0.1 targets Java 8 class files and runs on both). The PXF server JVM itself may run on Java 8 or Java 11. Set `JAVA_HOME` accordingly before starting the Hadoop components.
 
 On a Mac, you can set your Java version using `JAVA_HOME` like so:
 ```
