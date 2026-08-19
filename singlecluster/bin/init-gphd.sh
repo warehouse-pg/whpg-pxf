@@ -34,6 +34,21 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# Hadoop 3.4 removed commons-collections 3.x from its bundled libraries,
+# but hive-exec (through 4.x at least) still references
+# org.apache.commons.collections classes from code that runs inside
+# MapReduce tasks. Task containers are launched with Hadoop's classpath
+# only, so without the jar every Hive query that spawns a MapReduce job
+# dies in the map task with
+#   ClassNotFoundException: org.apache.commons.collections.CollectionUtils
+# Hive ships the jar itself; copy it into the Hadoop lib dirs that task
+# containers read. Harmless when Hadoop already bundles the jar (pre-3.4)
+# and idempotent across re-runs.
+if compgen -G "${HIVE_ROOT}/lib/commons-collections-*.jar" > /dev/null; then
+	cp -f ${HIVE_ROOT}/lib/commons-collections-*.jar ${HADOOP_ROOT}/share/hadoop/common/lib/
+	cp -f ${HIVE_ROOT}/lib/commons-collections-*.jar ${HADOOP_ROOT}/share/hadoop/mapreduce/lib/
+fi
+
 # Initialize the Hive metastore schema in Derby. datanucleus.autoCreateTables
 # in hive-site.xml only creates the JDO-managed metadata tables (DBS, TBLS,
 # SDS, ...). The transaction tables that DbTxnManager needs (TXNS, HIVE_LOCKS,
