@@ -18,6 +18,7 @@ import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.ESTABLISH_TIMEOUT;
 import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.MAX_ERROR_RETRIES;
+import static org.apache.hadoop.fs.s3a.Constants.PATH_STYLE_ACCESS;
 import static org.apache.hadoop.fs.s3a.Constants.PROXY_HOST;
 import static org.apache.hadoop.fs.s3a.Constants.PROXY_PORT;
 import static org.apache.hadoop.fs.s3a.Constants.PROXY_USERNAME;
@@ -241,6 +242,24 @@ public class S3SelectClientFactoryTest {
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         S3SelectClientFactory.applyEndpointAndRegion(builder, configuration);
         assertNull(builder.getRegion());
+    }
+
+    // ----- bucket addressing style -----
+
+    @Test
+    public void testPathStyleAccessIsAppliedWhenConfigured() {
+        configuration.set(ENDPOINT, "http://localhost:9100");
+        configuration.setBoolean(PATH_STYLE_ACCESS, true);
+        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+        S3SelectClientFactory.applyEndpointAndRegion(builder, configuration);
+        assertTrue(builder.isPathStyleAccessEnabled());
+    }
+
+    @Test
+    public void testVirtualHostAddressingIsTheDefault() {
+        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
+        S3SelectClientFactory.applyEndpointAndRegion(builder, configuration);
+        assertFalse(builder.isPathStyleAccessEnabled() != null && builder.isPathStyleAccessEnabled());
     }
 
     // ----- client-side encryption guard -----

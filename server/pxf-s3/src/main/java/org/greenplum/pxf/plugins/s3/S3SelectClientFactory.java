@@ -110,9 +110,6 @@ final class S3SelectClientFactory {
 
         applyEndpointAndRegion(builder, configuration);
 
-        if (configuration.getBoolean(PATH_STYLE_ACCESS, false)) {
-            builder.enablePathStyleAccess();
-        }
         return builder.build();
     }
 
@@ -275,6 +272,8 @@ final class S3SelectClientFactory {
      * key is <em>explicitly</em> set to the empty string.
      */
     static void applyEndpointAndRegion(AmazonS3ClientBuilder builder, Configuration configuration) {
+        applyAddressingStyle(builder, configuration);
+
         String endpoint = configuration.getTrimmed(ENDPOINT, "");
         String rawRegion = configuration.get(AWS_REGION);
         String region = rawRegion == null ? null : rawRegion.trim();
@@ -295,6 +294,17 @@ final class S3SelectClientFactory {
             LOG.debug("{} is explicitly empty; deferring to the SDK region resolution chain", AWS_REGION);
         } else {
             builder.withRegion(region);
+        }
+    }
+
+    /**
+     * Bucket addressing style: path-style (bucket in the path) instead of
+     * the default virtual-host style (bucket as a hostname prefix) —
+     * required by most non-AWS endpoints such as MinIO.
+     */
+    private static void applyAddressingStyle(AmazonS3ClientBuilder builder, Configuration configuration) {
+        if (configuration.getBoolean(PATH_STYLE_ACCESS, false)) {
+            builder.enablePathStyleAccess();
         }
     }
 
