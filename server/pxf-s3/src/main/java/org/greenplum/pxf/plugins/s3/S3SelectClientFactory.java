@@ -44,6 +44,7 @@ import static org.apache.hadoop.fs.s3a.Constants.SOCKET_RECV_BUFFER;
 import static org.apache.hadoop.fs.s3a.Constants.SOCKET_SEND_BUFFER;
 import static org.apache.hadoop.fs.s3a.Constants.SESSION_TOKEN;
 import static org.apache.hadoop.fs.s3a.Constants.SIGNING_ALGORITHM;
+import static org.apache.hadoop.fs.s3a.Constants.SIGNING_ALGORITHM_S3;
 import static org.apache.hadoop.fs.s3a.Constants.SOCKET_TIMEOUT;
 import static org.apache.hadoop.fs.s3a.Constants.USER_AGENT_PREFIX;
 
@@ -201,7 +202,11 @@ final class S3SelectClientFactory {
                 configuration.getInt(SOCKET_SEND_BUFFER, DEFAULT_SOCKET_SEND_BUFFER),
                 configuration.getInt(SOCKET_RECV_BUFFER, DEFAULT_SOCKET_RECV_BUFFER));
 
-        String signerOverride = configuration.getTrimmed(SIGNING_ALGORITHM, "");
+        // the pre-3.4 factory called createAwsConf with the "s3" service
+        // identifier, which lets the service-specific override
+        // (fs.s3a.s3.signing-algorithm) win over the generic key
+        String signerOverride = configuration.getTrimmed(SIGNING_ALGORITHM_S3,
+                configuration.getTrimmed(SIGNING_ALGORITHM, ""));
         if (StringUtils.isNotBlank(signerOverride)) {
             awsConf.setSignerOverride(signerOverride);
         }

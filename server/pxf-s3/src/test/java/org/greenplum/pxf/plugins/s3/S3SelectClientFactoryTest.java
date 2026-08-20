@@ -143,6 +143,14 @@ public class S3SelectClientFactoryTest {
     }
 
     @Test
+    public void testServiceSpecificSignerOverridesGenericSigner() {
+        configuration.set(SIGNING_ALGORITHM, "S3SignerType");
+        configuration.set("fs.s3a.s3.signing-algorithm", "AWSS3V4SignerType");
+        assertEquals("AWSS3V4SignerType",
+                S3SelectClientFactory.createClientConfiguration(configuration).getSignerOverride());
+    }
+
+    @Test
     public void testProxySettingsAreApplied() {
         configuration.set(PROXY_HOST, "proxy.example.com");
         configuration.setInt(PROXY_PORT, 3128);
