@@ -244,6 +244,38 @@ public class S3SelectClientFactoryTest {
         assertNull(builder.getRegion());
     }
 
+    // ----- full assembly: createClient() composes all helpers -----
+
+    @Test
+    public void testCreateClientAssemblesEndpointAddressingAndCredentials() {
+        configuration.set(ENDPOINT, "http://localhost:9100");
+        configuration.setBoolean(PATH_STYLE_ACCESS, true);
+        configuration.set(ACCESS_KEY, "AKIAFOO");
+        configuration.set(SECRET_KEY, "sekrit");
+
+        com.amazonaws.services.s3.AmazonS3 client = S3SelectClientFactory.createClient(configuration);
+
+        // getUrl performs no network I/O and reflects the composed endpoint
+        // + addressing style: path-style keeps the bucket in the path
+        assertEquals("http://localhost:9100/bucket/key.csv",
+                client.getUrl("bucket", "key.csv").toString());
+    }
+
+    @Test
+    public void testCreateClientDefaultsComposeToVirtualHostCentralRegion() {
+        com.amazonaws.services.s3.AmazonS3 client = S3SelectClientFactory.createClient(configuration);
+        assertEquals("us-east-1", client.getRegionName());
+        // virtual-host addressing: bucket becomes a hostname prefix
+        assertTrue(client.getUrl("bucket", "key.csv").toString().startsWith("https://bucket."));
+    }
+
+    @Test
+    public void testCreateClientRejectsClientSideEncryption() {
+        configuration.set(S3_ENCRYPTION_ALGORITHM, "CSE-KMS");
+        assertThrows(UnsupportedOperationException.class,
+                () -> S3SelectClientFactory.createClient(configuration));
+    }
+
     // ----- bucket addressing style -----
 
     @Test
