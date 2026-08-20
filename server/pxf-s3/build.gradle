@@ -70,6 +70,18 @@ dependencies {
     // Hadoop 3.4.3 bump. Version tracks hadoop-project-3.4.3.pom's
     // <amazon-s3-analyticsaccelerator-s3.version>.
     implementation("software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3:${analyticsAcceleratorVersion}")
+    // Client-side encryption (fs.s3a.encryption.algorithm=CSE-*) on the
+    // plain s3a path: hadoop-aws 3.4's EncryptionS3ClientFactory
+    // hard-references software.amazon.encryption.s3.S3EncryptionClient, but
+    // the artifact is provided-scope in hadoop-aws's pom and never arrives
+    // transitively — without it a CSE-enabled server fails its first s3a
+    // query with NoClassDefFoundError. Version tracks
+    // hadoop-project-3.4.3.pom's <amazon-s3-encryption-client-java.version>.
+    // The encryption client needs the SDK v2 kms module at runtime for
+    // CSE-KMS, hence the extra module below (its other runtime needs — s3,
+    // joda-time, commons-logging — are already on the classpath).
+    implementation("software.amazon.encryption.s3:amazon-s3-encryption-client-java:4.0.0") { transitive = false }
+    implementation("software.amazon.awssdk:kms:${awsJavaSdkV2}")
     implementation("com.amazonaws:aws-java-sdk-core")                { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-kms")                 { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-s3")                  { transitive = false }
