@@ -24,14 +24,15 @@ under `singlecluster/tars/` and re-run.
 ### Components
 
 Component versions are sourced at runtime from `server/gradle.properties`
-(`hadoopVersion`, `hbaseVersion`, `zookeeperVersion`, `hiveVersion`) —
+(`singleclusterHadoopVersion`, `hbaseVersion`, `zookeeperVersion`,
+`hiveVersion`) —
 that file is the canonical source-of-truth. The values shown below are
 the current pins (for orientation; `gradle.properties` may move ahead of
 this table):
 
 | Component | gradle.properties key | Current pin | Source                  | Checksum |
 |-----------|-----------------------|-------------|-------------------------|----------|
-| Hadoop    | `hadoopVersion`       | 3.3.6       | `dlcdn.apache.org`      | `.sha512` |
+| Hadoop    | `singleclusterHadoopVersion` | 3.3.6 | `dlcdn.apache.org`     | `.sha512` |
 | HBase     | `hbaseVersion`        | 2.6.5       | `dlcdn.apache.org`      | `.sha512` |
 | ZooKeeper | `zookeeperVersion`    | 3.8.6       | `dlcdn.apache.org`      | `.sha512` |
 | Hive      | `hiveVersion`         | 2.3.8       | `archive.apache.org`    | `.sha256` |
