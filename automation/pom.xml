@@ -304,6 +304,14 @@
             <artifactId>hadoop-aws</artifactId>
             <version>${hdp.hadoop.version}</version>
             <exclusions>
+                <!-- hadoop-aws 3.4.x declares the shaded AWS SDK v2 uber-jar
+                     (~654 MB) at compile scope; exclude it here for the same
+                     reason the server build uses the unbundled modules. The
+                     v1 exclusion below is kept for older resolution paths. -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>bundle</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>com.amazonaws</groupId>
                     <artifactId>aws-java-sdk-s3</artifactId>

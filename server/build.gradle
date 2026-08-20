@@ -67,6 +67,12 @@ configure(javaProjects) {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
+    // The AWS SDK v2 (2.35.4) pins netty 4.1.126.Final; without this
+    // override the Spring Boot 2.7 BOM would downgrade it to 4.1.101.Final
+    // (Nov 2023) on the netty-nio-client runtime path that S3AFileSystem's
+    // async client uses, reintroducing since-fixed netty CVEs.
+    ext['netty.version'] = '4.1.126.Final'
+
     dependencyManagement {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:${springBootVersion}")
