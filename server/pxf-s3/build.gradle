@@ -89,16 +89,16 @@ dependencies {
     // directly in its helpers, so it hits this cascade. Same finding-shape
     // as pxf-api / pxf-hdfs. Pinned to 1.5.0 to match Hadoop 3.4.3's
     // hadoop-thirdparty pom.
-    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.5.0")
+    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava")
     // Hadoop 3 also depends on commons-configuration2 for some Configuration
     // internals. Added preemptively to forestall a second-tier failure.
-    testRuntimeOnly("org.apache.commons:commons-configuration2:2.10.1")
+    testRuntimeOnly("org.apache.commons:commons-configuration2")
     // Hadoop 3.4 moved Configuration's DeprecationContext onto
     // commons-collections4 (3.3.x used commons-collections 3.x).
     // S3SelectAccessorTest constructs Configuration in its helpers, so
     // without this the clinit throws NoClassDefFoundError:
     // org/apache/commons/collections4/map/UnmodifiableMap.
-    testRuntimeOnly("org.apache.commons:commons-collections4:4.4")
+    testRuntimeOnly("org.apache.commons:commons-collections4")
 }
 
 test {

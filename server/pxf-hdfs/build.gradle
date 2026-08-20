@@ -38,7 +38,7 @@ dependencies {
     // from o.a.h.util.StringInterner's static initializer. Without this artifact, StringInterner
     // fails to initialize at runtime -> "Could not initialize class org.apache.hadoop.util.StringInterner"
     // when any PXF Hadoop code path executes.
-    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.5.0") { transitive = false }
+    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava") { transitive = false }
     // Hadoop 3.4.x shades protobuf under org.apache.hadoop.thirdparty.protobuf.*
     // (formerly relied on the unshaded com.google.protobuf in 2.x). The IPC layer
     // — used by DFSClient and every other Hadoop RPC consumer — references the
@@ -54,7 +54,7 @@ dependencies {
     // from protobuf 3.7 to 3.25) — that's what Hadoop itself would resolve
     // transitively when shipped to a real node. Same finding-shape as
     // hadoop-shaded-guava above.
-    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_25:1.5.0") { transitive = false }
+    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_25") { transitive = false }
     // Hadoop 3.4.3's hadoop-common pulls com.google.re2j (a Java port of
     // Google's RE2 regex engine) for FileSystem glob path matching. We
     // already have re2j on the testRuntimeOnly classpath for pxf-hdfs /
@@ -70,25 +70,25 @@ dependencies {
     // what Hadoop ships in /opt/hadoop/share/hadoop/common/lib/re2j-1.1.jar
     // on a real node. Same finding-shape as hadoop-shaded-protobuf above.
     implementation("com.google.re2j:re2j:1.1") { transitive = false }
-    // Hadoop 3.x's Configuration parser uses
-    // org.apache.commons.text.StringLookupFactory to expand ${var}
-    // interpolations in core-site.xml / hdfs-site.xml / hbase-site.xml.
-    // Without this artifact, the first PXF query that triggers
-    // Configuration loading trips with
+    // ${var} interpolation in *-site.xml flows through
+    // commons-configuration2, whose lookups use
+    // org.apache.commons.text.StringLookupFactory (hadoop-common itself has
+    // no client-path commons-text references). Without this artifact, the
+    // first PXF query that triggers Configuration loading trips with
     //   "PXF server error : org/apache/commons/text/lookup/StringLookupFactory"
     // Surfaced by the packaging smoke run (csv profile, post-re2j fix).
-    // Version pinned to 1.14.0 to match Hadoop 3.4.3's parent pom
-    // (<commons-text.version>1.14.0</commons-text.version>) — same JAR
+    // Version managed centrally (tracks hadoop-project-3.4.3.pom) — same JAR
     // Hadoop ships in /opt/hadoop/share/hadoop/common/lib/commons-text-1.14.0.jar.
-    // Same finding-shape as re2j above.
-    implementation("org.apache.commons:commons-text:1.14.0") { transitive = false }
+    // Same finding-shape as re2j above. Its lang3 partner version matters:
+    // see the commons-lang3 pin in the root dependencyManagement.
+    implementation("org.apache.commons:commons-text") { transitive = false }
     // Hadoop 3.x bumped commons-configuration from v1 → v2 (different group/artifact).
     // The old commons-configuration:1.10 is still bundled but Hadoop 3.4.3 internals
     // reference org.apache.commons.configuration2.Configuration. Without this dep,
     // PXF errors at runtime with "PXF server error : org/apache/commons/configuration2/Configuration"
     // on any Hadoop-touching code path. Version pinned to 2.10.1 to match Hadoop
     // 3.4.3's parent pom (<commons-configuration2.version>2.10.1).
-    implementation("org.apache.commons:commons-configuration2:2.10.1") { transitive = false }
+    implementation("org.apache.commons:commons-configuration2") { transitive = false }
     // Hadoop 3.4 replaced commons-collections 3.x with commons-collections4
     // (<commons-collections4.version>4.4</commons-collections4.version> in
     // hadoop-project-3.4.3.pom; 3.3.6 used commons-collections 3.2.2).
@@ -101,7 +101,7 @@ dependencies {
     // Same finding-shape as commons-text / re2j above. Note the older
     // commons-collections:3.2.2 pin stays — Hive 2.x still needs it, and
     // the two artifacts have different coordinates so they coexist.
-    implementation("org.apache.commons:commons-collections4:4.4") { transitive = false }
+    implementation("org.apache.commons:commons-collections4") { transitive = false }
     implementation("org.apache.hadoop:hadoop-hdfs")                  { transitive = false }
     implementation("org.apache.hadoop:hadoop-hdfs-client")           { transitive = false }
     implementation("org.apache.parquet:parquet-format")              { transitive = false }

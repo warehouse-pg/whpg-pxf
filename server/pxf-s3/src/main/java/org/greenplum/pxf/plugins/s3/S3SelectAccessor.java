@@ -14,6 +14,7 @@ import com.amazonaws.services.s3.model.SelectObjectContentEvent;
 import com.amazonaws.services.s3.model.SelectObjectContentEventVisitor;
 import com.amazonaws.services.s3.model.SelectObjectContentRequest;
 import com.amazonaws.services.s3.model.SelectObjectContentResult;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.model.Accessor;
@@ -159,7 +160,7 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
         String fileHeaderInfo = context.getOption(FILE_HEADER_INFO);
         boolean usePositionToIdentifyColumn = inputSerialization.getCsv() != null &&
                 (StringUtils.isBlank(fileHeaderInfo) ||
-                        !StringUtils.equalsIgnoreCase(FILE_HEADER_INFO_USE, fileHeaderInfo));
+                        !Strings.CI.equals(FILE_HEADER_INFO_USE, fileHeaderInfo));
         String query = null;
         try {
             S3SelectQueryBuilder queryBuilder = new S3SelectQueryBuilder(context, usePositionToIdentifyColumn);
@@ -172,7 +173,7 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
 
         SelectObjectContentRequest request = new SelectObjectContentRequest();
         request.setBucketName(name.getHost());
-        request.setKey(StringUtils.removeStart(name.getPath(), "/"));
+        request.setKey(Strings.CS.removeStart(name.getPath(), "/"));
         request.setExpression(query);
         request.setExpressionType(ExpressionType.SQL);
 
@@ -226,18 +227,18 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
         String compressionType = context.getOption(COMPRESSION_TYPE);
 
         LOG.debug("With format {}", format);
-        if (StringUtils.equalsIgnoreCase(format, "parquet")) {
+        if (Strings.CI.equals(format, "parquet")) {
             inputSerialization.setParquet(new ParquetInput());
-        } else if (StringUtils.equalsIgnoreCase(format, "json")) {
+        } else if (Strings.CI.equals(format, "json")) {
             inputSerialization.setJson(getJSONInput(context));
         } else {
             inputSerialization.setCsv(getCSVInput(context));
         }
 
         LOG.debug("With compression type {}", compressionType);
-        if (StringUtils.equalsIgnoreCase(compressionType, "gzip")) {
+        if (Strings.CI.equals(compressionType, "gzip")) {
             inputSerialization.setCompressionType(CompressionType.GZIP);
-        } else if (StringUtils.equalsIgnoreCase(compressionType, "bzip2")) {
+        } else if (Strings.CI.equals(compressionType, "bzip2")) {
             inputSerialization.setCompressionType(CompressionType.BZIP2);
         } else {
             inputSerialization.setCompressionType(CompressionType.NONE);

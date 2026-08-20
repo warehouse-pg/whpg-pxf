@@ -62,7 +62,9 @@ public class WritableResolver extends BasePlugin implements Resolver {
     @Override
     public void afterPropertiesSet() {
         // DATA-SCHEMA option is deprecated in favor of DATA_SCHEMA to support FDW foreign table definitions
-        String schemaName = StringUtils.defaultString(context.getOption("DATA_SCHEMA"), context.getOption("DATA-SCHEMA"));
+        String schemaName = context.getOption("DATA_SCHEMA") != null
+                ? context.getOption("DATA_SCHEMA")
+                : context.getOption("DATA-SCHEMA");
 
         /* Testing that the schema name was supplied by the user - schema is an optional property. */
         if (schemaName == null) {

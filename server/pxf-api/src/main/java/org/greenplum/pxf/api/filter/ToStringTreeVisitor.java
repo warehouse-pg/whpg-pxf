@@ -1,5 +1,6 @@
 package org.greenplum.pxf.api.filter;
 
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.io.DataType;
 
@@ -40,7 +41,7 @@ public class ToStringTreeVisitor implements TreeVisitor {
                 ScalarOperandNode scalarOperand = (ScalarOperandNode) node;
                 // boolean does not need to be rendered when it's true
                 if (scalarOperand.getDataType() == DataType.BOOLEAN) {
-                    if (StringUtils.equals("true", scalarOperand.getValue())) {
+                    if (Strings.CS.equals("true", scalarOperand.getValue())) {
                         return node;
                     } else {
                         // when boolean is not true
