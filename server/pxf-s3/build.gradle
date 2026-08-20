@@ -47,9 +47,10 @@ dependencies {
     // shaded uber-jar, ~654 MB, which would dwarf the ~134 MB PXF fat-jar.
     // We instead pull the unbundled modules, mirroring the choice already
     // made for AWS SDK v1 (aws-java-sdk-core/kms/s3 rather than
-    // aws-java-sdk-bundle). The four entries below are the minimal set that
-    // lets S3AFileSystem load and initialise; verified by loading the class
-    // from the built fat-jar. Net cost ~12 MB.
+    // aws-java-sdk-bundle). The SDK modules below are the minimal set that
+    // lets S3AFileSystem load and initialise (verified by loading the class
+    // from the built fat-jar), plus kms for the encryption client. Net
+    // cost ~13 MB.
     //
     // SDK v1 stays alongside: S3SelectAccessor's S3 Select pipeline is
     // written against v1 API types. The two SDKs use disjoint packages and

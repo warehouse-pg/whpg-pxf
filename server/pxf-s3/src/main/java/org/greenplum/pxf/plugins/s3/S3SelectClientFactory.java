@@ -11,7 +11,8 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.util.AwsHostNameUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,10 @@ import static org.apache.hadoop.fs.s3a.Constants.PROXY_USERNAME;
 import static org.apache.hadoop.fs.s3a.Constants.PROXY_WORKSTATION;
 import static org.apache.hadoop.fs.s3a.Constants.S3_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
+import static org.apache.hadoop.fs.s3a.Constants.REQUEST_TIMEOUT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
+import static org.apache.hadoop.fs.s3a.Constants.SOCKET_RECV_BUFFER;
+import static org.apache.hadoop.fs.s3a.Constants.SOCKET_SEND_BUFFER;
 import static org.apache.hadoop.fs.s3a.Constants.SESSION_TOKEN;
 import static org.apache.hadoop.fs.s3a.Constants.SIGNING_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SOCKET_TIMEOUT;
@@ -86,6 +90,9 @@ final class S3SelectClientFactory {
     static final int DEFAULT_MAX_ERROR_RETRIES = 10;
     static final long DEFAULT_ESTABLISH_TIMEOUT_MS = 50_000L;
     static final long DEFAULT_SOCKET_TIMEOUT_MS = 200_000L;
+    static final long DEFAULT_REQUEST_TIMEOUT_MS = 0L;
+    static final int DEFAULT_SOCKET_SEND_BUFFER = 8192;
+    static final int DEFAULT_SOCKET_RECV_BUFFER = 8192;
 
     private S3SelectClientFactory() {
     }
@@ -124,7 +131,7 @@ final class S3SelectClientFactory {
     static void rejectClientSideEncryption(Configuration configuration) {
         String algorithm = configuration.getTrimmed(S3_ENCRYPTION_ALGORITHM,
                 configuration.getTrimmed(LEGACY_ENCRYPTION_ALGORITHM_KEY, ""));
-        if (StringUtils.startsWithIgnoreCase(algorithm, "CSE")) {
+        if (Strings.CI.startsWith(algorithm, "CSE")) {
             throw new UnsupportedOperationException(String.format(
                     "S3 Select does not support client-side encryption (%s=%s). "
                             + "Query the data without S3_SELECT, or disable client-side encryption.",
@@ -182,15 +189,33 @@ final class S3SelectClientFactory {
                 ESTABLISH_TIMEOUT, DEFAULT_ESTABLISH_TIMEOUT_MS, TimeUnit.MILLISECONDS));
         awsConf.setSocketTimeout((int) configuration.getTimeDuration(
                 SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        // request timeout: 0 (the 3.3.6 default) means no timeout; the SDK
+        // takes an int, so larger configured values are capped like
+        // S3AUtils did
+        long requestTimeout = configuration.getTimeDuration(
+                REQUEST_TIMEOUT, DEFAULT_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        if (requestTimeout > Integer.MAX_VALUE) {
+            LOG.debug("Request timeout is too high({} ms). Setting to {} ms instead",
+                    requestTimeout, Integer.MAX_VALUE);
+            requestTimeout = Integer.MAX_VALUE;
+        }
+        awsConf.setRequestTimeout((int) requestTimeout);
+        awsConf.setSocketBufferSizeHints(
+                configuration.getInt(SOCKET_SEND_BUFFER, DEFAULT_SOCKET_SEND_BUFFER),
+                configuration.getInt(SOCKET_RECV_BUFFER, DEFAULT_SOCKET_RECV_BUFFER));
 
         String signerOverride = configuration.getTrimmed(SIGNING_ALGORITHM, "");
         if (StringUtils.isNotBlank(signerOverride)) {
             awsConf.setSignerOverride(signerOverride);
         }
+        // User-Agent reproduces S3AUtils.initUserAgent: always "Hadoop
+        // <version>", with the configured prefix prepended when present
+        String userAgent = "Hadoop " + org.apache.hadoop.util.VersionInfo.getVersion();
         String userAgentPrefix = configuration.getTrimmed(USER_AGENT_PREFIX, "");
         if (StringUtils.isNotBlank(userAgentPrefix)) {
-            awsConf.setUserAgentPrefix(userAgentPrefix);
+            userAgent = userAgentPrefix + ", " + userAgent;
         }
+        awsConf.setUserAgentPrefix(userAgent);
 
         applyProxySettings(awsConf, configuration, secureConnections);
         return awsConf;

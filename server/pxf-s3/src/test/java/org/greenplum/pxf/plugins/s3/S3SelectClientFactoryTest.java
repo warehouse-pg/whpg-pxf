@@ -23,7 +23,10 @@ import static org.apache.hadoop.fs.s3a.Constants.PROXY_PORT;
 import static org.apache.hadoop.fs.s3a.Constants.PROXY_USERNAME;
 import static org.apache.hadoop.fs.s3a.Constants.S3_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
+import static org.apache.hadoop.fs.s3a.Constants.REQUEST_TIMEOUT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
+import static org.apache.hadoop.fs.s3a.Constants.SOCKET_RECV_BUFFER;
+import static org.apache.hadoop.fs.s3a.Constants.SOCKET_SEND_BUFFER;
 import static org.apache.hadoop.fs.s3a.Constants.SESSION_TOKEN;
 import static org.apache.hadoop.fs.s3a.Constants.SIGNING_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SOCKET_TIMEOUT;
@@ -105,6 +108,9 @@ public class S3SelectClientFactoryTest {
         assertEquals(S3SelectClientFactory.DEFAULT_MAX_ERROR_RETRIES, awsConf.getMaxErrorRetry());
         assertEquals(S3SelectClientFactory.DEFAULT_ESTABLISH_TIMEOUT_MS, awsConf.getConnectionTimeout());
         assertEquals(S3SelectClientFactory.DEFAULT_SOCKET_TIMEOUT_MS, awsConf.getSocketTimeout());
+        assertEquals(0, awsConf.getRequestTimeout());
+        // 3.3.6 always applies the "Hadoop <version>" user agent
+        assertTrue(awsConf.getUserAgentPrefix().startsWith("Hadoop "));
         assertNull(awsConf.getProxyHost());
     }
 
@@ -115,6 +121,9 @@ public class S3SelectClientFactoryTest {
         configuration.setInt(MAX_ERROR_RETRIES, 3);
         configuration.set(ESTABLISH_TIMEOUT, "5000");
         configuration.set(SOCKET_TIMEOUT, "30s");
+        configuration.set(REQUEST_TIMEOUT, "10s");
+        configuration.setInt(SOCKET_SEND_BUFFER, 4096);
+        configuration.setInt(SOCKET_RECV_BUFFER, 16384);
         configuration.set(SIGNING_ALGORITHM, "S3SignerType");
         configuration.set(USER_AGENT_PREFIX, "pxf-test");
 
@@ -124,8 +133,12 @@ public class S3SelectClientFactoryTest {
         assertEquals(3, awsConf.getMaxErrorRetry());
         assertEquals(5000, awsConf.getConnectionTimeout());
         assertEquals(30_000, awsConf.getSocketTimeout());
+        assertEquals(10_000, awsConf.getRequestTimeout());
+        assertEquals(4096, awsConf.getSocketBufferSizeHints()[0]);
+        assertEquals(16384, awsConf.getSocketBufferSizeHints()[1]);
         assertEquals("S3SignerType", awsConf.getSignerOverride());
-        assertEquals("pxf-test", awsConf.getUserAgentPrefix());
+        // reproduces S3AUtils.initUserAgent: "<prefix>, Hadoop <version>"
+        assertTrue(awsConf.getUserAgentPrefix().startsWith("pxf-test, Hadoop "));
     }
 
     @Test
