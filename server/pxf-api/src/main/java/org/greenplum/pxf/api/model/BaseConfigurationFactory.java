@@ -1,6 +1,7 @@
 package org.greenplum.pxf.api.model;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
@@ -74,7 +75,7 @@ public class BaseConfigurationFactory implements ConfigurationFactory {
                     .listFiles(f ->
                             f.isDirectory() &&
                                     f.canRead() &&
-                                    StringUtils.equalsIgnoreCase(configDirectory, f.getName()));
+                                    Strings.CI.equals(configDirectory, f.getName()));
         }
 
         if (ArrayUtils.isEmpty(serverDirectories)) {

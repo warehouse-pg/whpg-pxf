@@ -65,7 +65,11 @@ read_version() {
     printf '%s' "${value}"
 }
 
-HADOOP_VERSION=$(read_version hadoopVersion)
+# singleclusterHadoopVersion, not hadoopVersion: this script provisions the
+# test CLUSTER (a Hadoop server), whereas hadoopVersion pins the client jars
+# bundled into the PXF service jar. They are deliberately separate -- see the
+# comment on both keys in server/gradle.properties.
+HADOOP_VERSION=$(read_version singleclusterHadoopVersion)
 HBASE_VERSION=$(read_version hbaseVersion)
 HIVE_VERSION=$(read_version hiveVersion)
 ZOOKEEPER_VERSION=$(read_version zookeeperVersion)

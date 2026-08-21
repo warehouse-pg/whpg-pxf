@@ -31,12 +31,12 @@ dependencies {
 
     testCompileOnly("org.apache.hadoop:hadoop-annotations")
     testImplementation('org.springframework.boot:spring-boot-starter-test')
-    // Hadoop 3.3.6's hadoop-common pulls com.google.re2j (a Java port of
+    // Hadoop 3.4.3's hadoop-common pulls com.google.re2j (a Java port of
     // Google's RE2 regex engine) for FileSystem glob path matching. Tests in
     // pxf-json that touch the FileSystem layer trip with
     // NoClassDefFoundError: com/google/re2j/PatternSyntaxException without it.
-    // Hadoop 3.3.6's parent pom pins re2j to 1.1; match that version.
-    // Same finding-shape as pxf-hdfs.
+    // Hadoop 3.4.3's parent pom pins re2j to 1.1 (unchanged from 3.3.6);
+    // match that version. Same finding-shape as pxf-hdfs.
     testRuntimeOnly("com.google.re2j:re2j:1.1")
 }
 

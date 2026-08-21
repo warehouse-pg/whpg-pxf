@@ -10,9 +10,33 @@ CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
 ### Library bundle
 
 - HBase client **1.3.2 → 2.6.5** (current Apache release).
-- Hadoop **2.10.2 → 3.3.6**.
+- Hadoop **2.10.2 → 3.4.3**.
 - ZooKeeper **3.4.6 → 3.8.6** (matches HBase 2.6.5's declared ZooKeeper version).
-- Hive unchanged (2.3.8); AWS SDK stays at v1; Spring/Tomcat/Postgres-JDBC/Go unchanged.
+- AWS SDK v2 (**2.35.4**) bundled alongside v1, plus the S3 analytics
+  accelerator (**1.3.1**) — both required by hadoop-aws 3.4.x's
+  `S3AFileSystem` — and the S3 encryption client (**4.0.0**) required
+  for client-side encryption on the s3a path.
+- commons-lang3 pinned to **3.18.0** (the commons-text 1.14.0 partner
+  version from Hadoop's own dependency set); netty pinned to the AWS
+  SDK's **4.1.126.Final**.
+- Hive client unchanged (2.3.8); Spring/Tomcat/Postgres-JDBC/Go unchanged.
+
+### S3 Select behavior changes
+
+- S3 Select now honors `fs.s3a.endpoint`, `fs.s3a.path.style.access`,
+  and static credentials configured in the server definition
+  (`fs.s3a.access.key`/`fs.s3a.secret.key`, including
+  credential-provider storage and session tokens), matching how the
+  plain `s3a://` path resolves them. Previously S3 Select ignored all
+  of these and always used AWS endpoints with the SDK default
+  credential chain. Deployments that authenticate through instance
+  roles should remove stale keys from their S3 server configuration,
+  as configured keys now take precedence.
+- S3 Select connections now apply the s3a client tuning
+  (`fs.s3a.proxy.*`, connection/timeout/retry settings, signing
+  algorithm) that previously only affected the plain `s3a://` path.
+- S3 Select rejects client-side encryption configurations (`CSE-*`)
+  with an explicit error instead of returning undecrypted data.
 
 ### HBase 2.x client migration
 

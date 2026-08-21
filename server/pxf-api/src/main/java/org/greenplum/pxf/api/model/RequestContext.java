@@ -22,6 +22,7 @@ package org.greenplum.pxf.api.model;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
@@ -431,9 +432,9 @@ public class RequestContext {
         String value = options.get(option);
         if (value == null) {
             result = defaultValue;
-        } else if (StringUtils.equalsIgnoreCase(value, "true")) {
+        } else if (Strings.CI.equals(value, "true")) {
             result = true;
-        } else if (StringUtils.equalsIgnoreCase(value, "false")) {
+        } else if (Strings.CI.equals(value, "false")) {
             result = false;
         } else {
             throw new IllegalArgumentException(String.format(

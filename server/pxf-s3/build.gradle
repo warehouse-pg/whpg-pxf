@@ -15,8 +15,9 @@ dependencies {
      * Compile Only Dependencies
      *******************************/
 
-    // Provides org.apache.hadoop.classification.InterfaceAudience referenced by
-    // annotations on Hadoop 3.x's S3ClientFactory / DefaultS3ClientFactory.
+    // Provides org.apache.hadoop.classification.InterfaceAudience — referenced
+    // by @Public / @Private annotations on Hadoop public types that this
+    // module (and its tests) transitively touches via hadoop-common.
     compileOnly("org.apache.hadoop:hadoop-annotations")              { transitive = false }
 
     /*******************************
@@ -31,6 +32,57 @@ dependencies {
     implementation("org.apache.httpcomponents:httpclient")           { transitive = false }
     implementation("org.apache.httpcomponents:httpcore")             { transitive = false }
     implementation("org.apache.hadoop:hadoop-aws")                   { transitive = false }
+    // AWS SDK v2, required by hadoop-aws 3.4.x.
+    //
+    // Hadoop 3.4 migrated S3AFileSystem from AWS SDK v1 (com.amazonaws.*)
+    // to AWS SDK v2 (software.amazon.awssdk.*). Every s3:* profile in
+    // pxf-profiles-default.xml maps to the s3a protocol and therefore
+    // instantiates S3AFileSystem, so without these artifacts the first
+    // S3 query fails with
+    //   NoClassDefFoundError: software/amazon/awssdk/...
+    // hadoop-aws is declared { transitive = false } here (as everywhere in
+    // this build), so its SDK does not arrive on its own.
+    //
+    // hadoop-aws's own POM asks for software.amazon.awssdk:bundle — the
+    // shaded uber-jar, ~654 MB, which would dwarf the ~134 MB PXF fat-jar.
+    // We instead pull the unbundled modules, mirroring the choice already
+    // made for AWS SDK v1 (aws-java-sdk-core/kms/s3 rather than
+    // aws-java-sdk-bundle). The SDK modules below are the minimal set that
+    // lets S3AFileSystem load and initialise (verified by loading the class
+    // from the built fat-jar), plus kms for the encryption client. Net
+    // cost ~13 MB.
+    //
+    // SDK v1 stays alongside: S3SelectAccessor's S3 Select pipeline is
+    // written against v1 API types. The two SDKs use disjoint packages and
+    // coexist without conflict.
+    implementation("software.amazon.awssdk:s3:${awsJavaSdkV2}")
+    implementation("software.amazon.awssdk:apache-client:${awsJavaSdkV2}")
+    implementation("software.amazon.awssdk:sts:${awsJavaSdkV2}")
+    implementation("software.amazon.awssdk:s3-transfer-manager:${awsJavaSdkV2}")
+    // hadoop-aws 3.4.x's S3AFileSystem resolves its input-stream factory
+    // through org.apache.hadoop.fs.s3a.impl.streams, which references the
+    // S3 analytics accelerator classes while selecting a stream type. That
+    // reference is reached on the DEFAULT path, not only when
+    // fs.s3a.input.stream.type=analytics is set, so the artifact cannot be
+    // treated as opt-in: without it the first read through any s3a-backed
+    // profile fails with
+    //   "PXF server error : software/amazon/s3/analyticsaccelerator/request/ObjectClient"
+    // Surfaced by the packaging smoke run (parquet profile) after the
+    // Hadoop 3.4.3 bump. Version tracks hadoop-project-3.4.3.pom's
+    // <amazon-s3-analyticsaccelerator-s3.version>.
+    implementation("software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3:${analyticsAcceleratorVersion}")
+    // Client-side encryption (fs.s3a.encryption.algorithm=CSE-*) on the
+    // plain s3a path: hadoop-aws 3.4's EncryptionS3ClientFactory
+    // hard-references software.amazon.encryption.s3.S3EncryptionClient, but
+    // the artifact is provided-scope in hadoop-aws's pom and never arrives
+    // transitively — without it a CSE-enabled server fails its first s3a
+    // query with NoClassDefFoundError. Version tracks
+    // hadoop-project-3.4.3.pom's <amazon-s3-encryption-client-java.version>.
+    // The encryption client needs the SDK v2 kms module at runtime for
+    // CSE-KMS, hence the extra module below (its other runtime needs — s3,
+    // joda-time, commons-logging — are already on the classpath).
+    implementation("software.amazon.encryption.s3:amazon-s3-encryption-client-java:4.0.0") { transitive = false }
+    implementation("software.amazon.awssdk:kms:${awsJavaSdkV2}")
     implementation("com.amazonaws:aws-java-sdk-core")                { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-kms")                 { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-s3")                  { transitive = false }
@@ -42,16 +94,24 @@ dependencies {
      *******************************/
 
     testImplementation('org.springframework.boot:spring-boot-starter-test')
-    // Hadoop 3.3.6 split o.a.h.util.StringInterner's delegate into the shaded
+    // Hadoop 3.x split o.a.h.util.StringInterner's delegate into the shaded
     // hadoop-shaded-guava artifact. Without it on the test classpath, any test
-    // that touches Hadoop Configuration loading (S3SelectAccessorTest does
-    // via DefaultS3ClientFactory) trips with
+    // that touches Hadoop Configuration loading trips with
     // NoClassDefFoundError: org/apache/hadoop/thirdparty/com/google/common/collect/Interners.
-    // Same finding-shape as pxf-api / pxf-hdfs.
-    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0")
+    // S3SelectAccessorTest constructs org.apache.hadoop.conf.Configuration
+    // directly in its helpers, so it hits this cascade. Same finding-shape
+    // as pxf-api / pxf-hdfs. Pinned to 1.5.0 to match Hadoop 3.4.3's
+    // hadoop-thirdparty pom.
+    testRuntimeOnly("org.apache.hadoop.thirdparty:hadoop-shaded-guava")
     // Hadoop 3 also depends on commons-configuration2 for some Configuration
     // internals. Added preemptively to forestall a second-tier failure.
-    testRuntimeOnly("org.apache.commons:commons-configuration2:2.8.0")
+    testRuntimeOnly("org.apache.commons:commons-configuration2")
+    // Hadoop 3.4 moved Configuration's DeprecationContext onto
+    // commons-collections4 (3.3.x used commons-collections 3.x).
+    // S3SelectAccessorTest constructs Configuration in its helpers, so
+    // without this the clinit throws NoClassDefFoundError:
+    // org/apache/commons/collections4/map/UnmodifiableMap.
+    testRuntimeOnly("org.apache.commons:commons-collections4")
 }
 
 test {

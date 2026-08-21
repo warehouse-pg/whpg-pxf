@@ -69,7 +69,6 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.FILE_INPUT_FORMAT;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_COLUMNS;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_COLUMN_TYPES;
@@ -412,8 +411,9 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
 
         for (ColumnDescriptor cd : context.getTupleDescription()) {
             // The index of the column on the Hive schema
-            Integer index = defaultIfNull(columnNameToColsIndexMap.get(cd.columnName()),
-                    columnNameToColsIndexMap.get(cd.columnName().toLowerCase()));
+            Integer index = columnNameToColsIndexMap.containsKey(cd.columnName())
+                    ? columnNameToColsIndexMap.get(cd.columnName())
+                    : columnNameToColsIndexMap.get(cd.columnName().toLowerCase());
             indexes.add(index);
         }
         return indexes;

@@ -38,8 +38,8 @@ dependencies {
     // from o.a.h.util.StringInterner's static initializer. Without this artifact, StringInterner
     // fails to initialize at runtime -> "Could not initialize class org.apache.hadoop.util.StringInterner"
     // when any PXF Hadoop code path executes.
-    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.2.0") { transitive = false }
-    // Hadoop 3.3.x also shades protobuf under org.apache.hadoop.thirdparty.protobuf.*
+    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-guava") { transitive = false }
+    // Hadoop 3.4.x shades protobuf under org.apache.hadoop.thirdparty.protobuf.*
     // (formerly relied on the unshaded com.google.protobuf in 2.x). The IPC layer
     // — used by DFSClient and every other Hadoop RPC consumer — references the
     // shaded Message class from a static initializer. Without this artifact,
@@ -48,12 +48,14 @@ dependencies {
     //    org/apache/hadoop/thirdparty/protobuf/Message"
     // on the very first profile=hdfs:* query. Surfaced by the packaging
     // smoke run (hdfs:csv profile).
-    // Version pinned to 1.1.1 to match Hadoop 3.3.6's own hadoop-project pom
-    // (<hadoop-thirdparty.version>1.1.1</hadoop-thirdparty.version>) — that's
-    // what Hadoop itself would resolve transitively when shipped to a real
-    // node. Same finding-shape as hadoop-shaded-guava above.
-    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1") { transitive = false }
-    // Hadoop 3.3.6's hadoop-common pulls com.google.re2j (a Java port of
+    // Artifact & version pinned to Hadoop 3.4.3's own hadoop-project pom
+    // (<hadoop-thirdparty.version>1.5.0</hadoop-thirdparty.version>, with
+    // the shaded-protobuf artifactId renamed _3_7 -> _3_25 as Hadoop moved
+    // from protobuf 3.7 to 3.25) — that's what Hadoop itself would resolve
+    // transitively when shipped to a real node. Same finding-shape as
+    // hadoop-shaded-guava above.
+    implementation("org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_25") { transitive = false }
+    // Hadoop 3.4.3's hadoop-common pulls com.google.re2j (a Java port of
     // Google's RE2 regex engine) for FileSystem glob path matching. We
     // already have re2j on the testRuntimeOnly classpath for pxf-hdfs /
     // pxf-json tests, but the production fat-jar was missing it because
@@ -63,29 +65,43 @@ dependencies {
     //   "PXF server error : java.lang.NoClassDefFoundError:
     //    com/google/re2j/PatternSyntaxException"
     // Surfaced by the packaging smoke run (csv profile, post-protobuf-fix).
-    // Version pinned to 1.1 to match Hadoop 3.3.6's parent pom
-    // (<re2j.version>1.1</re2j.version>) — that's what Hadoop ships in
-    // /opt/hadoop/share/hadoop/common/lib/re2j-1.1.jar on a real node.
-    // Same finding-shape as hadoop-shaded-protobuf above.
+    // Version pinned to 1.1 to match Hadoop 3.4.3's parent pom
+    // (<re2j.version>1.1</re2j.version>, unchanged from 3.3.6) — that's
+    // what Hadoop ships in /opt/hadoop/share/hadoop/common/lib/re2j-1.1.jar
+    // on a real node. Same finding-shape as hadoop-shaded-protobuf above.
     implementation("com.google.re2j:re2j:1.1") { transitive = false }
-    // Hadoop 3.x's Configuration parser uses
-    // org.apache.commons.text.StringLookupFactory to expand ${var}
-    // interpolations in core-site.xml / hdfs-site.xml / hbase-site.xml.
-    // Without this artifact, the first PXF query that triggers
-    // Configuration loading trips with
+    // ${var} interpolation in *-site.xml flows through
+    // commons-configuration2, whose lookups use
+    // org.apache.commons.text.StringLookupFactory (hadoop-common itself has
+    // no client-path commons-text references). Without this artifact, the
+    // first PXF query that triggers Configuration loading trips with
     //   "PXF server error : org/apache/commons/text/lookup/StringLookupFactory"
     // Surfaced by the packaging smoke run (csv profile, post-re2j fix).
-    // Version pinned to 1.10.0 to match Hadoop 3.3.6's parent pom
-    // (<commons-text.version>1.10.0</commons-text.version>) — same JAR
-    // Hadoop ships in /opt/hadoop/share/hadoop/common/lib/commons-text-1.10.0.jar.
-    // Same finding-shape as re2j above.
-    implementation("org.apache.commons:commons-text:1.10.0") { transitive = false }
+    // Version managed centrally (tracks hadoop-project-3.4.3.pom) — same JAR
+    // Hadoop ships in /opt/hadoop/share/hadoop/common/lib/commons-text-1.14.0.jar.
+    // Same finding-shape as re2j above. Its lang3 partner version matters:
+    // see the commons-lang3 pin in the root dependencyManagement.
+    implementation("org.apache.commons:commons-text") { transitive = false }
     // Hadoop 3.x bumped commons-configuration from v1 → v2 (different group/artifact).
-    // The old commons-configuration:1.10 is still bundled but Hadoop 3.3.6 internals
+    // The old commons-configuration:1.10 is still bundled but Hadoop 3.4.3 internals
     // reference org.apache.commons.configuration2.Configuration. Without this dep,
     // PXF errors at runtime with "PXF server error : org/apache/commons/configuration2/Configuration"
-    // on any Hadoop-touching code path.
-    implementation("org.apache.commons:commons-configuration2:2.8.0") { transitive = false }
+    // on any Hadoop-touching code path. Version pinned to 2.10.1 to match Hadoop
+    // 3.4.3's parent pom (<commons-configuration2.version>2.10.1).
+    implementation("org.apache.commons:commons-configuration2") { transitive = false }
+    // Hadoop 3.4 replaced commons-collections 3.x with commons-collections4
+    // (<commons-collections4.version>4.4</commons-collections4.version> in
+    // hadoop-project-3.4.3.pom; 3.3.6 used commons-collections 3.2.2).
+    // Configuration's static initializer builds its DeprecationContext with
+    // org.apache.commons.collections4.map.UnmodifiableMap, so without this
+    // artifact the first PXF query that loads any *-site.xml trips with
+    //   "PXF server error : java.lang.NoClassDefFoundError:
+    //    org/apache/commons/collections4/map/UnmodifiableMap"
+    // and every later Configuration/UGI touch fails on the poisoned clinit.
+    // Same finding-shape as commons-text / re2j above. Note the older
+    // commons-collections:3.2.2 pin stays — Hive 2.x still needs it, and
+    // the two artifacts have different coordinates so they coexist.
+    implementation("org.apache.commons:commons-collections4") { transitive = false }
     implementation("org.apache.hadoop:hadoop-hdfs")                  { transitive = false }
     implementation("org.apache.hadoop:hadoop-hdfs-client")           { transitive = false }
     implementation("org.apache.parquet:parquet-format")              { transitive = false }
@@ -152,17 +168,18 @@ dependencies {
     testImplementation("io.airlift:aircompressor")       // for HcfsTypeTest for testing write URI with LzopCodec
     testImplementation("org.apache.parquet:parquet-pig") // for parquet tests
     testImplementation('org.springframework.boot:spring-boot-starter-test')
-    // Hadoop 3.3.6's hadoop-common pulls com.google.re2j:re2j (a Java port of
+    // Hadoop 3.4.3's hadoop-common pulls com.google.re2j:re2j (a Java port of
     // Google's RE2 regex engine) for glob path matching in FileSystem
     // implementations. Since pxf-hdfs depends on hadoop-common with
     // { transitive = false }, re2j doesn't come along — and any test that
     // exercises a FileSystem glob path (HdfsDataFragmenterTest +
     // HdfsFileFragmenterTest, ~10 tests) trips with
     // NoClassDefFoundError: com/google/re2j/PatternSyntaxException.
-    // Hadoop 3.3.6's parent pom pins re2j to 1.1 — match that version
-    // so the test classpath sees the same artifact the production runtime
-    // would resolve transitively when hadoop-common is shipped to a real
-    // node. Surfaced 2026-05-28 by the first packaging-CI dispatch.
+    // Hadoop 3.4.3's parent pom pins re2j to 1.1 (unchanged from 3.3.6)
+    // — match that version so the test classpath sees the same artifact
+    // the production runtime would resolve transitively when hadoop-common
+    // is shipped to a real node. Surfaced 2026-05-28 by the first
+    // packaging-CI dispatch.
     testRuntimeOnly("com.google.re2j:re2j:1.1")
 }
 

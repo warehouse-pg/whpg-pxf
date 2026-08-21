@@ -1,6 +1,7 @@
 package org.greenplum.pxf.plugins.s3;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.CSVInput;
 import com.amazonaws.services.s3.model.CSVOutput;
 import com.amazonaws.services.s3.model.CompressionType;
@@ -13,8 +14,8 @@ import com.amazonaws.services.s3.model.SelectObjectContentEvent;
 import com.amazonaws.services.s3.model.SelectObjectContentEventVisitor;
 import com.amazonaws.services.s3.model.SelectObjectContentRequest;
 import com.amazonaws.services.s3.model.SelectObjectContentResult;
+import org.apache.commons.lang3.Strings;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.s3a.DefaultS3ClientFactory;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.BasePlugin;
@@ -24,8 +25,8 @@ import org.greenplum.pxf.api.model.RequestContext;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
+import java.io.InputStreamReader;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -159,7 +160,7 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
         String fileHeaderInfo = context.getOption(FILE_HEADER_INFO);
         boolean usePositionToIdentifyColumn = inputSerialization.getCsv() != null &&
                 (StringUtils.isBlank(fileHeaderInfo) ||
-                        !StringUtils.equalsIgnoreCase(FILE_HEADER_INFO_USE, fileHeaderInfo));
+                        !Strings.CI.equals(FILE_HEADER_INFO_USE, fileHeaderInfo));
         String query = null;
         try {
             S3SelectQueryBuilder queryBuilder = new S3SelectQueryBuilder(context, usePositionToIdentifyColumn);
@@ -172,7 +173,7 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
 
         SelectObjectContentRequest request = new SelectObjectContentRequest();
         request.setBucketName(name.getHost());
-        request.setKey(StringUtils.removeStart(name.getPath(), "/"));
+        request.setKey(Strings.CS.removeStart(name.getPath(), "/"));
         request.setExpression(query);
         request.setExpressionType(ExpressionType.SQL);
 
@@ -226,18 +227,18 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
         String compressionType = context.getOption(COMPRESSION_TYPE);
 
         LOG.debug("With format {}", format);
-        if (StringUtils.equalsIgnoreCase(format, "parquet")) {
+        if (Strings.CI.equals(format, "parquet")) {
             inputSerialization.setParquet(new ParquetInput());
-        } else if (StringUtils.equalsIgnoreCase(format, "json")) {
+        } else if (Strings.CI.equals(format, "json")) {
             inputSerialization.setJson(getJSONInput(context));
         } else {
             inputSerialization.setCsv(getCSVInput(context));
         }
 
         LOG.debug("With compression type {}", compressionType);
-        if (StringUtils.equalsIgnoreCase(compressionType, "gzip")) {
+        if (Strings.CI.equals(compressionType, "gzip")) {
             inputSerialization.setCompressionType(CompressionType.GZIP);
-        } else if (StringUtils.equalsIgnoreCase(compressionType, "bzip2")) {
+        } else if (Strings.CI.equals(compressionType, "bzip2")) {
             inputSerialization.setCompressionType(CompressionType.BZIP2);
         } else {
             inputSerialization.setCompressionType(CompressionType.NONE);
@@ -303,28 +304,14 @@ public class S3SelectAccessor extends BasePlugin implements Accessor {
     }
 
     /**
-     * Returns a new AmazonS3 client with credentials from
-     * the configuration file.
-     *
-     * <p>{@code S3ClientFactory} is {@code @Deprecated} in Hadoop 3.3.x as part
-     * of the multi-release move to AWS SDK v2 (which completes in Hadoop 3.4).
-     * The corresponding non-deprecated path is the v2 {@code S3Client} API,
-     * which would require migrating this entire S3 Select pipeline off
-     * AWS SDK v1 (com.amazonaws.*). That migration is tracked separately;
-     * for now we accept the deprecation on a single call site.</p>
+     * Returns a new AmazonS3 client (AWS SDK v1) built from the Hadoop
+     * {@link org.apache.hadoop.conf.Configuration} using the standard
+     * {@code fs.s3a.*} property keys — see {@link S3SelectClientFactory}
+     * for the mapping and for how it relates to the pre-Hadoop-3.4
+     * {@code DefaultS3ClientFactory} behavior.
      */
-    @SuppressWarnings("deprecation")
     private AmazonS3 initS3Client() {
-        try {
-            DefaultS3ClientFactory factory = new DefaultS3ClientFactory();
-            factory.setConf(configuration);
-            org.apache.hadoop.fs.s3a.S3ClientFactory.S3ClientCreationParameters parameters =
-                    new org.apache.hadoop.fs.s3a.S3ClientFactory.S3ClientCreationParameters()
-                            .withPathUri(name);
-            return factory.createS3Client(name, parameters);
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to create S3 Client connection", e);
-        }
+        return S3SelectClientFactory.createClient(configuration);
     }
 
     @Override
