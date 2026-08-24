@@ -28,7 +28,12 @@ features (external cluster mode, CLI changes) are tracked separately and are
   **2.5.0 → 3.24.4** (orc-core 1.8.x needs a protobuf 3.x runtime;
   2.5.0 satisfied orc-core 1.6).
 - Hive JDBC driver bundled with the JDBC connector (`jdbc:hive2`
-  named servers): hive-jdbc/hive-service **1.1.0 → 4.0.1**.
+  named servers): hive-jdbc/hive-service **1.1.0 → 4.0.1**, plus the
+  Curator jars the 4.x driver requires (see below). This lifts the
+  1.1.0-era write limitation for NUMERIC columns of Hive tables
+  accessed through the `jdbc` profile (HIVE-13614; verified against a
+  Hive 2.3.8 server). TIMESTAMP and DATE writes remain unsupported
+  through this connector.
 - Dropped from the runtime: Jackson 1.x is no longer part of the Hive
   tree (still bundled for a legacy pxf-hdfs need), and the
   datanucleus/JDO server-side persistence jars that the old
