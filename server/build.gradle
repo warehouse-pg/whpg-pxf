@@ -203,6 +203,16 @@ configure(javaProjects) {
                 entry("hive-shims-common")
                 entry("hive-shims-0.23")
             }
+            // hive-jdbc 4.x references Apache Curator while PARSING any
+            // jdbc:hive2 URL (Utils.extractURLComponents loads a
+            // curator-typed helper even when ZooKeeper service discovery is
+            // not requested), so the driver is unusable without these.
+            // 5.2.0 is what apache-hive-4.0.1-bin ships in lib/.
+            dependencySet(group:"org.apache.curator", version:"5.2.0") {
+                entry("curator-client")
+                entry("curator-framework")
+                entry("curator-recipes")
+            }
 
             // Parquet dependencies
             dependency("org.apache.parquet:parquet-format:2.7.0")
