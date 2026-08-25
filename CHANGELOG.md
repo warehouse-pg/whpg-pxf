@@ -17,8 +17,9 @@ CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
   `S3AFileSystem` — and the S3 encryption client (**4.0.0**) required
   for client-side encryption on the s3a path.
 - commons-lang3 pinned to **3.18.0** (the commons-text 1.14.0 partner
-  version from Hadoop's own dependency set); netty pinned to the AWS
-  SDK's **4.1.126.Final**.
+  version from Hadoop's own dependency set); netty pinned to
+  **4.1.137.Final** (above the AWS SDK's own 4.1.126 pin — the current
+  netty 4.1.x release that clears the full published advisory set).
 - Hive client unchanged (2.3.8); Spring/Tomcat/Postgres-JDBC/Go unchanged.
 
 ### S3 Select behavior changes
