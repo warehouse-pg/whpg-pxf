@@ -214,7 +214,7 @@ configure(javaProjects) {
             }
 
             // Avro dependencies
-            dependencySet(group:"org.apache.avro", version:"1.10.2") {
+            dependencySet(group:"org.apache.avro", version:"1.11.4") {
                 entry("avro")
                 entry("avro-mapred")
             }
