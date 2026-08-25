@@ -84,7 +84,10 @@ configure(javaProjects) {
             dependency("com.esotericsoftware:kryo:3.0.3")
             dependency("com.esotericsoftware:minlog:1.3.0")
             dependency("com.esotericsoftware:reflectasm:1.11.6")
-            dependency("com.fasterxml.woodstox:woodstox-core:5.0.3")
+            // woodstox-core 6.x is the maintained line; 5.0.3 carries
+            // published advisories (fixed in 5.4.0/6.4.0). stax2-api 4.2.x
+            // is the pairing 6.x requires (below).
+            dependency("com.fasterxml.woodstox:woodstox-core:6.7.0")
             dependency("com.google.code.findbugs:annotations:1.3.9")
             dependency("com.google.guava:guava:20.0")
             dependency("com.google.protobuf:protobuf-java:2.5.0")
@@ -130,7 +133,7 @@ configure(javaProjects) {
             // ZK 3.6+ split wire-protocol serialization classes into zookeeper-jute.
             // Without this on runtime classpath, ZK client times out at wire layer.
             dependency("org.apache.zookeeper:zookeeper-jute:${zookeeperVersion}")
-            dependency("org.codehaus.woodstox:stax2-api:3.1.4")
+            dependency("org.codehaus.woodstox:stax2-api:4.2.2")
             dependency("org.datanucleus:datanucleus-api-jdo:4.2.4")
             dependency("org.datanucleus:datanucleus-core:4.1.17")
             dependency("org.jodd:jodd-core:3.5.2")
