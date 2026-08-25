@@ -67,6 +67,11 @@ configure(javaProjects) {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
+    // The Spring Boot 2.7 BOM manages snakeyaml at 1.30, which carries
+    // published advisories fixed only in the 2.x line. Boot 2.7.13+
+    // supports SnakeYAML 2.x at runtime.
+    ext['snakeyaml.version'] = '2.5'
+
     // Without this override the Spring Boot 2.7 BOM would downgrade netty
     // to 4.1.101.Final (Nov 2023) on the netty-nio-client runtime path that
     // S3AFileSystem's async client uses, reintroducing since-fixed CVEs.
