@@ -124,7 +124,7 @@ configure(javaProjects) {
             dependency("joda-time:joda-time:2.8.1")
             dependency("net.sf.opencsv:opencsv:2.3")
             dependency("org.antlr:antlr-runtime:3.5.2")
-            dependency("org.apache.commons:commons-compress:1.20")
+            dependency("org.apache.commons:commons-compress:1.28.0")
 
             dependency("org.apache.zookeeper:zookeeper:${zookeeperVersion}")
             // ZK 3.6+ split wire-protocol serialization classes into zookeeper-jute.
