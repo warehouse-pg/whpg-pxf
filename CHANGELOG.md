@@ -29,7 +29,7 @@ CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
   (via the jackson-bom property). The `json` profile explicitly keeps
   the pre-jackson-2.15 unconstrained read behavior (no 20MB
   single-string / 1000-level nesting limits on customer JSON).
-- Hive client unchanged (2.3.8); Spring/Tomcat/Postgres-JDBC/Go unchanged.
+- Hive client unchanged (2.3.8); Spring/Postgres-JDBC/Go unchanged.
 
 ### S3 Select behavior changes
 
