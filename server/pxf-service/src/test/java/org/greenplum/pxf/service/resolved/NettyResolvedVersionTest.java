@@ -3,7 +3,10 @@ package org.greenplum.pxf.service.resolved;
 import io.netty.util.Version;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 public class NettyResolvedVersionTest {
 
     private static final String EXPECTED = "4.1.137.Final";
+    private static final Set<String> SHADED_COPIES = Collections.unmodifiableSet(
+            new java.util.HashSet<>(Arrays.asList("netty-all")));
 
     @Test
     public void resolvedNettyMatchesTheSecurityOverride() {
@@ -32,7 +37,13 @@ public class NettyResolvedVersionTest {
             // resolved io.netty dependency. It is a separate bundled
             // copy, pinned by the hbase-thirdparty line — outside this
             // override's control and tracked separately.
-            if ("netty-all".equals(artifact)) {
+            //
+            // io.netty.util.Version only exposes an artifactId, not a
+            // Maven group id, so there is no way to distinguish "a real
+            // io.netty artifact" from "a differently-shaded bundled copy"
+            // other than by name. If a future dependency bundles another
+            // shaded netty copy under a new artifactId, add it here too.
+            if (SHADED_COPIES.contains(artifact)) {
                 return;
             }
             assertEquals(EXPECTED, version.artifactVersion(),
