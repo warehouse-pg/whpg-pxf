@@ -18,8 +18,18 @@ features (external cluster mode, CLI changes) are tracked separately and are
   `S3AFileSystem` — and the S3 encryption client (**4.0.0**) required
   for client-side encryption on the s3a path.
 - commons-lang3 pinned to **3.18.0** (the commons-text 1.14.0 partner
-  version from Hadoop's own dependency set); netty pinned to the AWS
-  SDK's **4.1.126.Final**.
+  version from Hadoop's own dependency set); netty pinned to
+  **4.1.137.Final** (above the AWS SDK's own 4.1.126 pin — the current
+  netty 4.1.x release that clears the full published advisory set).
+- Security floor bumps on independent libraries: Avro **1.10.2 →
+  1.11.4**, commons-compress **1.20 → 1.28.0**, woodstox-core **5.0.3
+  → 6.7.0** (with stax2-api 3.1.4 → 4.2.2), and SnakeYAML **1.30 →
+  2.5** (overriding the Spring Boot 2.7 BOM's managed version).
+- Boot-BOM-managed overrides raised for security: embedded Tomcat
+  **9.0.87 → 9.0.121** and the jackson family **2.13.5 → 2.22.2**
+  (via the jackson-bom property). The `json` profile explicitly keeps
+  the pre-jackson-2.15 unconstrained read behavior (no 20MB
+  single-string / 1000-level nesting limits on customer JSON).
 - Hive client **2.3.8 → 4.0.1**, and with it the hand-maintained Hive
   transitive tree re-derived from Hive 4.0.1's POMs: Thrift
   (libthrift) **0.9.3 → 0.16.0**, Kryo **3.0.3 → 5.5.0**, ORC
@@ -38,7 +48,7 @@ features (external cluster mode, CLI changes) are tracked separately and are
   tree (still bundled for a legacy pxf-hdfs need), and the
   datanucleus/JDO server-side persistence jars that the old
   hive-metastore artifact mixed in are gone.
-- Spring/Tomcat/Postgres-JDBC/Go unchanged.
+- Spring/Postgres-JDBC/Go unchanged.
 
 ### S3 Select behavior changes
 
@@ -98,8 +108,14 @@ features (external cluster mode, CLI changes) are tracked separately and are
   matches what the read side deserializes across kryo versions. The
   standalone kryo pool wrapper in pxf-api was removed.
 - Hive 4.x object inspectors return Hive's proleptic `Date`/`Timestamp`
-  types; PXF converts through their string form so resolvers keep
-  emitting `java.sql.Date`/`Timestamp` exactly as before.
+  types; PXF converts them via `java.time` (not a string round-trip,
+  which threw for a proleptic year <= 0 and was zone-sensitive through
+  Hive's own `toSqlTimestamp()`) so resolvers keep emitting
+  `java.sql.Date`/`Timestamp` exactly as before.
+- The metastore-side integral-partition JDO pushdown check now uses
+  `MetastoreConf.getBoolVar`, which falls back to the legacy
+  `hive.metastore.integral.jdo.pushdown` key when the new
+  `metastore.integral.jdo.pushdown` key isn't set.
 - A new metastore compatibility client falls back to the legacy
   positional partition RPCs when an older (2.x) metastore rejects the
   request-object calls the 4.x client issues — verified live against
