@@ -65,8 +65,13 @@ CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
 
 ### Dev / test cluster
 
-- `singlecluster/` rebuilt on vanilla Apache HBase 2.6.5 + Hadoop 3.3.6 +
-  ZooKeeper 3.8.6 (CDH/HDP download paths retired).
+- `singlecluster/` rebuilt on vanilla Apache Hadoop 3.4.3 + HBase 2.6.5 +
+  ZooKeeper 3.8.6 + Hive 4.0.1 (CDH/HDP download paths retired).
+- The test cluster's Hive is pinned separately (`singleclusterHiveVersion`,
+  4.0.1) from the bundled Hive client libraries (`hiveVersion`, 2.3.8): a
+  newer Hive server under an older client is the direction real deployments
+  skew. Hive 4.x is also what allows the test cluster to run Hadoop 3.4.x —
+  Hive 2.3.8 cannot execute MapReduce jobs on a Hadoop 3.4 cluster.
 
 ### Breaking changes
 

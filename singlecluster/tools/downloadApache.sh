@@ -19,10 +19,10 @@
 #   - Hive      (archive.apache.org, .sha256 checksum — see note)
 #
 # Note on Hive: dlcdn.apache.org carries only current Apache releases.
-# The 2.3.x line (last release 2021-01) has been moved to
+# Superseded lines (2.3.x, and 4.0.x since 4.1 shipped) live on
 # archive.apache.org, which publishes .sha256 sidecars but NOT .sha512
-# (verified via HTTP HEAD). Per-component checksum algorithm is
-# therefore configurable below.
+# (verified via HTTP HEAD for both 2.3.8 and 4.0.1). Per-component
+# checksum algorithm is therefore configurable below.
 #
 # Output: tars/<component>.tar.gz + tars/<component>.tar.gz.<sha512|sha256>
 # Flat layout (one entry per file), consumed directly by the Makefile's
@@ -65,13 +65,13 @@ read_version() {
     printf '%s' "${value}"
 }
 
-# singleclusterHadoopVersion, not hadoopVersion: this script provisions the
-# test CLUSTER (a Hadoop server), whereas hadoopVersion pins the client jars
-# bundled into the PXF service jar. They are deliberately separate -- see the
-# comment on both keys in server/gradle.properties.
-HADOOP_VERSION=$(read_version singleclusterHadoopVersion)
+HADOOP_VERSION=$(read_version hadoopVersion)
 HBASE_VERSION=$(read_version hbaseVersion)
-HIVE_VERSION=$(read_version hiveVersion)
+# singleclusterHiveVersion, not hiveVersion: this script provisions the
+# test CLUSTER's Hive service, whereas hiveVersion pins the Hive client
+# jars PXF compiles against. See the comment on both keys in
+# server/gradle.properties.
+HIVE_VERSION=$(read_version singleclusterHiveVersion)
 ZOOKEEPER_VERSION=$(read_version zookeeperVersion)
 
 echo "Resolved component versions from ${gradle_props}:"
