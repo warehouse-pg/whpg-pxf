@@ -32,7 +32,15 @@ plugins {
 // override Spring Framework version to pick the Spring MVC 5.3.33 with the async race condition fix
 // https://github.com/spring-projects/spring-framework/issues/32342
 ext['spring-framework.version'] = '5.3.33'
-ext['tomcat.version'] = '9.0.87'
+// embedded Tomcat: 9.0.121 is the current 9.0.x release with no
+// published advisories (the previous 9.0.87 accumulated several);
+// Tomcat 9 stays on the Java 8 / javax.servlet baseline.
+ext['tomcat.version'] = '9.0.121'
+// jackson: the Boot 2.7 BOM manages 2.13.5, which carries published
+// advisories; 2.22.2 is the current 2.x release with none, still Java 8
+// class files. Overridden via the jackson-bom property so core,
+// databind, annotations, datatypes and modules all move together.
+ext['jackson-bom.version'] = '2.22.2'
 
 def javaProjects = subprojects.findAll {
     it.name.startsWith("pxf-")

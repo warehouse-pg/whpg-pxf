@@ -24,7 +24,12 @@ CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
   1.11.4**, commons-compress **1.20 → 1.28.0**, woodstox-core **5.0.3
   → 6.7.0** (with stax2-api 3.1.4 → 4.2.2), and SnakeYAML **1.30 →
   2.5** (overriding the Spring Boot 2.7 BOM's managed version).
-- Hive client unchanged (2.3.8); Spring/Tomcat/Postgres-JDBC/Go unchanged.
+- Boot-BOM-managed overrides raised for security: embedded Tomcat
+  **9.0.87 → 9.0.121** and the jackson family **2.13.5 → 2.22.2**
+  (via the jackson-bom property). The `json` profile explicitly keeps
+  the pre-jackson-2.15 unconstrained read behavior (no 20MB
+  single-string / 1000-level nesting limits on customer JSON).
+- Hive client unchanged (2.3.8); Spring/Postgres-JDBC/Go unchanged.
 
 ### S3 Select behavior changes
 
