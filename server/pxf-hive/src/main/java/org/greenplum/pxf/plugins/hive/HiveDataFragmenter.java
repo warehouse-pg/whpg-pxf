@@ -166,9 +166,14 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
 
             // canPushDownIntegral represents hive.metastore.integral.jdo.pushdown property in hive-site.xml
             // (HiveConf's copy of the var is deprecated in Hive 4.x; the
-            // metastore-side definition is the canonical one)
-            boolean canPushDownIntegral = configuration
-                    .getBoolean(MetastoreConf.ConfVars.INTEGER_JDO_PUSHDOWN.getVarname(), false);
+            // metastore-side definition is the canonical one). Use
+            // MetastoreConf.getBoolVar rather than a plain
+            // configuration.getBoolean call on the new metastore.* key --
+            // getBoolVar falls back to the legacy hive.metastore.* key
+            // when the new one isn't set, which existing deployments'
+            // hive-site.xml still uses.
+            boolean canPushDownIntegral = MetastoreConf
+                    .getBoolVar(configuration, MetastoreConf.ConfVars.INTEGER_JDO_PUSHDOWN);
 
             List<ColumnDescriptor> columnDescriptors = context.getTupleDescription();
 

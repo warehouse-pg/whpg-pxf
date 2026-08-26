@@ -73,6 +73,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -649,20 +650,32 @@ public class HiveResolver extends BasePlugin implements Resolver {
             }
             case TIMESTAMP: {
                 // Hive 4.x object inspectors return Hive's own proleptic
-                // Timestamp type; convert through its yyyy-MM-dd HH:mm:ss[.f]
-                // string form to keep emitting java.sql.Timestamp exactly as
-                // before
+                // Timestamp type; convert via java.time.LocalDateTime
+                // rather than a string round-trip. This avoids the
+                // avoidable per-row format/parse cost, and
+                // java.sql.Timestamp.valueOf(String) can't parse the
+                // signed year Timestamp.toString() prints for a proleptic
+                // year <= 0 (e.g. "-0001-01-01 ...") and throws
+                // IllegalArgumentException. Note: Hive's own
+                // toSqlTimestamp() is NOT a safe substitute here -- it
+                // converts through epoch millis, which is zone-sensitive,
+                // whereas valueOf(LocalDateTime) copies the wall-clock
+                // fields directly with no zone conversion, matching the
+                // previous string-based behavior exactly.
                 val = (o != null)
-                        ? java.sql.Timestamp.valueOf(((TimestampObjectInspector) oi).getPrimitiveJavaObject(o).toString())
+                        ? java.sql.Timestamp.valueOf(toLocalDateTime((TimestampObjectInspector) oi, o))
                         : null;
                 addOneFieldToRecord(record, DataType.TIMESTAMP, val);
                 break;
             }
             case DATE:
-                // same for Hive 4.x's Date type: convert via its yyyy-MM-dd
-                // string form to keep emitting java.sql.Date
+                // Same rationale as TIMESTAMP above; Hive's Date type has
+                // no toSqlDate(), so go through its int accessors and
+                // java.time.LocalDate rather than a string round-trip.
+                // Date.valueOf(LocalDate) has no zone dimension, so it is
+                // safe here (unlike Timestamp above).
                 val = (o != null)
-                        ? java.sql.Date.valueOf(((DateObjectInspector) oi).getPrimitiveJavaObject(o).toString())
+                        ? java.sql.Date.valueOf(toLocalDate((DateObjectInspector) oi, o))
                         : null;
                 addOneFieldToRecord(record, DataType.DATE, val);
                 break;
@@ -678,6 +691,18 @@ public class HiveResolver extends BasePlugin implements Resolver {
                         + getClass().getSimpleName());
             }
         }
+    }
+
+    static LocalDate toLocalDate(DateObjectInspector oi, Object o) {
+        org.apache.hadoop.hive.common.type.Date hiveDate = oi.getPrimitiveJavaObject(o);
+        return LocalDate.of(hiveDate.getYear(), hiveDate.getMonth(), hiveDate.getDay());
+    }
+
+    static java.time.LocalDateTime toLocalDateTime(TimestampObjectInspector oi, Object o) {
+        org.apache.hadoop.hive.common.type.Timestamp hiveTimestamp = oi.getPrimitiveJavaObject(o);
+        return LocalDate.of(hiveTimestamp.getYear(), hiveTimestamp.getMonth(), hiveTimestamp.getDay())
+                .atTime(hiveTimestamp.getHours(), hiveTimestamp.getMinutes(), hiveTimestamp.getSeconds(),
+                        hiveTimestamp.getNanos());
     }
 
     private void addOneFieldToRecord(List<OneField> record,

@@ -172,6 +172,64 @@ public class HiveResolverTest {
     }
 
     @Test
+    public void testToLocalDateTimeCopiesWallClockFieldsWithNoTimeZoneConversion() {
+        // Regression test: an earlier version of the TIMESTAMP conversion
+        // used Hive Timestamp's toSqlTimestamp(), which converts through
+        // epoch millis and silently shifts the value by the JVM's default
+        // time zone offset. toLocalDateTime must copy the wall-clock
+        // fields directly instead.
+        org.apache.hadoop.hive.common.type.Timestamp hiveTimestamp =
+                org.apache.hadoop.hive.common.type.Timestamp.valueOf("2013-07-14 06:00:00.123456789");
+        org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector oi =
+                org.mockito.Mockito.mock(org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector.class);
+        org.mockito.Mockito.when(oi.getPrimitiveJavaObject(hiveTimestamp)).thenReturn(hiveTimestamp);
+
+        java.time.LocalDateTime localDateTime = HiveResolver.toLocalDateTime(oi, hiveTimestamp);
+
+        assertEquals(java.time.LocalDateTime.of(2013, 7, 14, 6, 0, 0, 123456789), localDateTime);
+        assertEquals(java.sql.Timestamp.valueOf("2013-07-14 06:00:00.123456789"),
+                java.sql.Timestamp.valueOf(localDateTime));
+    }
+
+    @Test
+    public void testToLocalDateTimeHandlesYearZeroAndBelowWithoutThrowing() {
+        // The string round-trip this replaced (Timestamp.toString() then
+        // java.sql.Timestamp.valueOf(String)) threw IllegalArgumentException
+        // for a proleptic year <= 0, because java.sql.Timestamp.valueOf(String)
+        // can't parse the signed year Timestamp.toString() prints (e.g.
+        // "-0001-01-01 ..."). Going through the int accessors avoids any
+        // string parsing, so this must not throw.
+        org.apache.hadoop.hive.common.type.Timestamp hiveTimestamp =
+                new org.apache.hadoop.hive.common.type.Timestamp(java.time.LocalDateTime.of(-1, 1, 1, 0, 0, 0));
+        org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector oi =
+                org.mockito.Mockito.mock(org.apache.hadoop.hive.serde2.objectinspector.primitive.TimestampObjectInspector.class);
+        org.mockito.Mockito.when(oi.getPrimitiveJavaObject(hiveTimestamp)).thenReturn(hiveTimestamp);
+
+        java.time.LocalDateTime localDateTime = HiveResolver.toLocalDateTime(oi, hiveTimestamp);
+
+        assertEquals(java.time.LocalDateTime.of(-1, 1, 1, 0, 0, 0), localDateTime);
+        // java.sql.Timestamp itself can't faithfully display a BC-era
+        // LocalDateTime (a java.util.Date/Calendar heritage limitation,
+        // not something this connector's conversion can fix) -- the point
+        // of this test is only that no exception is thrown getting there.
+        assertThat(java.sql.Timestamp.valueOf(localDateTime)).isNotNull();
+    }
+
+    @Test
+    public void testToLocalDateCopiesFieldsWithoutStringRoundTrip() {
+        org.apache.hadoop.hive.common.type.Date hiveDate =
+                org.apache.hadoop.hive.common.type.Date.valueOf("2013-07-14");
+        org.apache.hadoop.hive.serde2.objectinspector.primitive.DateObjectInspector oi =
+                org.mockito.Mockito.mock(org.apache.hadoop.hive.serde2.objectinspector.primitive.DateObjectInspector.class);
+        org.mockito.Mockito.when(oi.getPrimitiveJavaObject(hiveDate)).thenReturn(hiveDate);
+
+        java.time.LocalDate localDate = HiveResolver.toLocalDate(oi, hiveDate);
+
+        assertEquals(java.time.LocalDate.of(2013, 7, 14), localDate);
+        assertEquals(java.sql.Date.valueOf("2013-07-14"), java.sql.Date.valueOf(localDate));
+    }
+
+    @Test
     public void testSetFieldsIsNotSupported() {
         resolver = new HiveResolver(mockHiveUtilities);
 
