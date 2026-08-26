@@ -155,12 +155,12 @@ pxf restart
 ## How to demonstrate Hadoop Integration
 In order to demonstrate end to end functionality you will need Hadoop installed. All the related Hadoop components (HDFS, Hive, HBase, ZooKeeper) are bundled into a single self-contained artifact named `singlecluster`.
 
-Build the bundle from a vanilla-Apache stack (Hadoop 3.3.6, HBase 2.6.5, ZooKeeper 3.8.6, Hive 2.3.8) and extract it. See [`singlecluster/README.md`](singlecluster/README.md) for the full build, layout, and startup instructions.
+Build the bundle from a vanilla-Apache stack (Hadoop 3.4.3, HBase 2.6.5, ZooKeeper 3.8.6, Hive 4.0.1) and extract it. See [`singlecluster/README.md`](singlecluster/README.md) for the full build, layout, and startup instructions.
 
 ```bash
 cd ~/workspace/pxf/singlecluster
 tools/downloadApache.sh
-make HADOOP_VERSION=3.3.6 HADOOP_DISTRO=Apache
+make HADOOP_VERSION=3.4.3 HADOOP_DISTRO=Apache
 
 mv singlecluster-Apache.tar.gz ~/workspace/
 cd ~/workspace
@@ -170,7 +170,7 @@ ln -sfn ~/workspace/singlecluster-Apache ~/workspace/singlecluster
 
 Then follow the steps in [Setup Hadoop](#Setup-Hadoop).
 
-JDK 8 is the validated runtime for the singlecluster stack (HBase 2.6.5 and Hive 2.3.8 are verified on Java 8 only). The PXF server JVM itself may run on Java 8 or Java 11. Set `JAVA_HOME` to a JDK 8 install before starting the Hadoop components.
+JDK 8 or 11 can run the singlecluster stack (HBase 2.6.5 supports both; Hive 4.0.1 targets Java 8 class files and runs on either). The PXF server JVM itself may run on Java 8 or Java 11. Set `JAVA_HOME` to a JDK 8 or 11 install before starting the Hadoop components.
 
 On a Mac, you can set your Java version using `JAVA_HOME` like so:
 ```
