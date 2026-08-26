@@ -168,6 +168,10 @@ tar xzf singlecluster-Apache.tar.gz
 ln -sfn ~/workspace/singlecluster-Apache ~/workspace/singlecluster
 ```
 
+`HADOOP_VERSION` above is informational only -- the Makefile doesn't
+read it; the actual version is controlled by `hadoopVersion` in
+`server/gradle.properties` (see [`singlecluster/README.md`](singlecluster/README.md) for details).
+
 Then follow the steps in [Setup Hadoop](#Setup-Hadoop).
 
 JDK 8 or 11 can run the singlecluster stack (HBase 2.6.5 supports both; Hive 4.0.1 targets Java 8 class files and runs on either). The PXF server JVM itself may run on Java 8 or Java 11. Set `JAVA_HOME` to a JDK 8 or 11 install before starting the Hadoop components.

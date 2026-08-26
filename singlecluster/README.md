@@ -42,6 +42,11 @@ tools/downloadApache.sh                          # one-time per version
 make HADOOP_VERSION=3.4.3 HADOOP_DISTRO=Apache   # produces the tarball
 ```
 
+`HADOOP_VERSION` above is informational only (documents which version
+`downloadApache.sh` already fetched) -- the Makefile doesn't read it;
+only `HADOOP_DISTRO` (must be `Apache`) affects the build. The actual
+version is controlled by `hadoopVersion` in `server/gradle.properties`.
+
 `tools/downloadApache.sh` is idempotent — re-running with all tarballs
 already present + their checksum sidecars verified is a no-op. Pass
 `--force` to re-download everything.
