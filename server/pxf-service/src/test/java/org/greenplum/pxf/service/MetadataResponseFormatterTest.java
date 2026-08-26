@@ -26,7 +26,9 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -72,6 +74,31 @@ public class MetadataResponseFormatterTest {
 
         String expected = "{\"PXFMetadata\":[{" + "\"item\":{\"path\":\"default\",\"name\":\"table1\"}," +
                 "\"fields\":[{\"name\":\"field1\",\"type\":\"int8\",\"sourceType\":\"bigint\",\"complexType\":false},{\"name\":\"field2\",\"type\":\"text\",\"sourceType\":\"string\",\"complexType\":false}]}]}";
+        assertEquals(expected, convertResponseToString(response));
+    }
+
+    @Test
+    public void formatResponseStringDropsNullValueInsideOutputParametersMap() throws Exception {
+        // contentInclusion=NON_EMPTY must drop a null-valued entry inside
+        // the outputParameters map -- this pins the equivalent of the old
+        // serializationInclusion(NON_EMPTY) behavior for content inside
+        // Map properties.
+        List<Metadata> metadataList = new ArrayList<>();
+        List<Metadata.Field> fields = new ArrayList<>();
+        Metadata.Item itemName = new Metadata.Item("default", "table1");
+        Metadata metadata = new Metadata(itemName, fields);
+        fields.add(new Metadata.Field("field1", EnumGpdbType.Int8Type, "bigint"));
+        Map<String, String> outputParameters = new LinkedHashMap<>();
+        outputParameters.put("keep", "value");
+        outputParameters.put("drop", null);
+        metadata.setOutputParameters(outputParameters);
+        metadataList.add(metadata);
+
+        response = MetadataResponseFormatter.formatResponse(metadataList, "path.file");
+
+        String expected = "{\"PXFMetadata\":[{" + "\"item\":{\"path\":\"default\",\"name\":\"table1\"}," +
+                "\"fields\":[{\"name\":\"field1\",\"type\":\"int8\",\"sourceType\":\"bigint\",\"complexType\":false}]," +
+                "\"outputParameters\":{\"keep\":\"value\"}}]}";
         assertEquals(expected, convertResponseToString(response));
     }
 

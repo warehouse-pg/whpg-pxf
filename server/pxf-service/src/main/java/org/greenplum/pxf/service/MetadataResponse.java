@@ -63,8 +63,12 @@ public class MetadataResponse implements StreamingResponseBody {
         ObjectMapper mapper = JsonMapper.builder()
                 .configure(MapperFeature.USE_ANNOTATIONS, true) // enable annotations for serialization
                 // ignore empty fields (defaultPropertyInclusion replaces the
-                // serializationInclusion(Include) form deprecated in jackson 2.2x)
-                .defaultPropertyInclusion(JsonInclude.Value.construct(Include.NON_EMPTY, Include.ALWAYS))
+                // serializationInclusion(Include) form deprecated in jackson
+                // 2.2x; NON_EMPTY for both value and content inclusion
+                // reproduces serializationInclusion(Include.NON_EMPTY)'s
+                // exact semantics, including dropping empty/null entries
+                // inside Map/Collection properties)
+                .defaultPropertyInclusion(JsonInclude.Value.construct(Include.NON_EMPTY, Include.NON_EMPTY))
                 .build();
 
         if (metadataList == null || metadataList.isEmpty()) {

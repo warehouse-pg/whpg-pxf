@@ -38,6 +38,26 @@ public class JsonStreamConstraintsTest {
     }
 
     @Test
+    public void fieldNameLongerThanJacksonDefaultLimitParses() throws Exception {
+        // jackson's default max field name is 50_000 chars; exceed it
+        int size = 50_001;
+        StringBuilder name = new StringBuilder(size);
+        for (int i = 0; i < size; i++) {
+            name.append('n');
+        }
+        String json = "{\"" + name + "\":1}";
+
+        JsonFactory factory = JsonAccessor.newUnconstrainedFactory();
+        try (JsonParser parser = factory.createParser(json)) {
+            assertEquals(JsonToken.START_OBJECT, parser.nextToken());
+            assertEquals(JsonToken.FIELD_NAME, parser.nextToken());
+            assertEquals(size, parser.currentName().length());
+            assertEquals(JsonToken.VALUE_NUMBER_INT, parser.nextToken());
+            assertEquals(JsonToken.END_OBJECT, parser.nextToken());
+        }
+    }
+
+    @Test
     public void nestingDeeperThanJacksonDefaultLimitParses() throws Exception {
         // jackson's default max nesting depth is 1000; exceed it
         int depth = 1200;

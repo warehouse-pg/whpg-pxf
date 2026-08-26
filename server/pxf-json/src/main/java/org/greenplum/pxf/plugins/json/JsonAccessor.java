@@ -93,22 +93,6 @@ public class JsonAccessor extends LineBreakAccessor {
     // silent functional regression (a >20MB text field used to load).
     // Restore the unconstrained pre-2.15 behavior explicitly.
     private static final JsonFactory COMMON_JSON_FACTORY = newUnconstrainedFactory();
-
-    /**
-     * A JsonFactory with the pre-jackson-2.15 unconstrained read behavior
-     * (see the comment above). Shared as configuration, not as an instance,
-     * so the resolver's ObjectMapper does not attach its codec to the
-     * accessor's streaming parsers.
-     */
-    static JsonFactory newUnconstrainedFactory() {
-        return JsonFactory.builder()
-                .streamReadConstraints(com.fasterxml.jackson.core.StreamReadConstraints.builder()
-                        .maxStringLength(Integer.MAX_VALUE)
-                        .maxNestingDepth(Integer.MAX_VALUE)
-                        .maxNumberLength(Integer.MAX_VALUE)
-                        .build())
-                .build();
-    }
     private static final String NEWLINE = "\n"; //TODO: this can be made configurable
 
     /**
@@ -133,6 +117,23 @@ public class JsonAccessor extends LineBreakAccessor {
     private boolean isFirstRecord;
 
     private final JsonUtilities jsonUtilities;
+
+    /**
+     * A JsonFactory with the pre-jackson-2.15 unconstrained read behavior
+     * (see the comment on {@link #COMMON_JSON_FACTORY}). Shared as
+     * configuration, not as an instance, so the resolver's ObjectMapper
+     * does not attach its codec to the accessor's streaming parsers.
+     */
+    static JsonFactory newUnconstrainedFactory() {
+        return JsonFactory.builder()
+                .streamReadConstraints(com.fasterxml.jackson.core.StreamReadConstraints.builder()
+                        .maxStringLength(Integer.MAX_VALUE)
+                        .maxNestingDepth(Integer.MAX_VALUE)
+                        .maxNumberLength(Integer.MAX_VALUE)
+                        .maxNameLength(Integer.MAX_VALUE)
+                        .build())
+                .build();
+    }
 
     /**
      * Constructs a new instance of the JsonAccessor
