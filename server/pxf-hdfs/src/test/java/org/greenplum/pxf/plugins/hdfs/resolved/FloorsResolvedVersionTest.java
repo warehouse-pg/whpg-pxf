@@ -39,16 +39,33 @@ public class FloorsResolvedVersionTest {
 
     @Test
     public void woodstoxAndStax2PairLinkAndParse() throws Exception {
-        // linkage smoke for the fragile pair: the StAX service loader must
-        // select woodstox (proving it is the active provider), which
-        // class-inits it against the resolved stax2-api; then parse a
-        // document end to end. Loaded via the service loader rather than
-        // a direct reference because woodstox 6.x class files carry a
-        // class-retention bnd annotation that trips -Werror when compiled
-        // against directly.
-        XMLInputFactory factory = XMLInputFactory.newFactory();
-        assertEquals("com.ctc.wstx.stax.WstxInputFactory", factory.getClass().getName(),
-                "woodstox is not the active StAX provider");
+        // linkage smoke for the fragile pair: class-init woodstox against
+        // the resolved stax2-api, then parse a document end to end. The
+        // JAXP factory-id system property forces this specific provider
+        // through the standard XMLInputFactory.newFactory() lookup path,
+        // rather than relying on whichever XMLInputFactory provider the
+        // ServiceLoader happens to enumerate first -- with only one
+        // provider on the classpath today that's the same outcome, but a
+        // future dependency (e.g. one not declared transitive = false)
+        // could add a second provider and make plain service-loader
+        // selection order-dependent. The property is a String, so this
+        // avoids a direct reference to the woodstox class: its 6.x class
+        // files carry a class-retention bnd annotation that trips
+        // -Werror when compiled against directly.
+        final String factoryIdProperty = "javax.xml.stream.XMLInputFactory";
+        final String previous = System.getProperty(factoryIdProperty);
+        System.setProperty(factoryIdProperty, "com.ctc.wstx.stax.WstxInputFactory");
+        XMLInputFactory factory;
+        try {
+            factory = XMLInputFactory.newFactory();
+        } finally {
+            if (previous == null) {
+                System.clearProperty(factoryIdProperty);
+            } else {
+                System.setProperty(factoryIdProperty, previous);
+            }
+        }
+        assertEquals("com.ctc.wstx.stax.WstxInputFactory", factory.getClass().getName());
         XMLStreamReader reader = factory
                 .createXMLStreamReader(new StringReader("<a><b>ok</b></a>"));
         int events = 0;
