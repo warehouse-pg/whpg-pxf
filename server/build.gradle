@@ -67,14 +67,11 @@ configure(javaProjects) {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 
-    // Without this override the Spring Boot 2.7 BOM would downgrade netty
-    // to 4.1.101.Final (Nov 2023) on the netty-nio-client runtime path that
-    // S3AFileSystem's async client uses, reintroducing since-fixed CVEs.
-    // 4.1.137 goes deliberately ABOVE the AWS SDK v2 (2.35.4) pin of
-    // 4.1.126: the 2025-26 netty advisory wave (28 GHSAs against 4.1.126,
-    // 13 rated high) is only fully fixed at 4.1.137, and netty 4.1.x
-    // patch releases are drop-in for the SDK's usage.
-    ext['netty.version'] = '4.1.137.Final'
+    // The AWS SDK v2 (2.35.4) pins netty 4.1.126.Final; without this
+    // override the Spring Boot 2.7 BOM would downgrade it to 4.1.101.Final
+    // (Nov 2023) on the netty-nio-client runtime path that S3AFileSystem's
+    // async client uses, reintroducing since-fixed netty CVEs.
+    ext['netty.version'] = '4.1.126.Final'
 
     dependencyManagement {
         imports {
