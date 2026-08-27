@@ -57,8 +57,6 @@ dependencies {
     implementation("org.datanucleus:datanucleus-core")               { transitive = false }
     implementation("org.xerial.snappy:snappy-java")                  { transitive = false }
     implementation("javax.jdo:jdo-api")                              { transitive = false }
-    implementation("org.codehaus.jackson:jackson-core-asl")          { transitive = false }
-    implementation("org.codehaus.jackson:jackson-mapper-asl")        { transitive = false }
     implementation("org.jodd:jodd-core")                             { transitive = false }
 
     // transitive dependency for reading Hive tables with SerDe 'org.apache.hadoop.hive.serde2.OpenCSVSerde'

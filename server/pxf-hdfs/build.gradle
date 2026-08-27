@@ -113,9 +113,6 @@ dependencies {
     implementation("org.apache.parquet:parquet-jackson")             { transitive = false }
     implementation("org.apache.hive:hive-storage-api")               { transitive = false } // for parquet writing
 
-    implementation("org.codehaus.jackson:jackson-core-asl")          { transitive = false }
-    implementation("org.codehaus.jackson:jackson-mapper-asl")        { transitive = false }
-
     implementation("org.apache.avro:avro")                           { transitive = false }
 
     // Dependencies for writing Avro files with compression
