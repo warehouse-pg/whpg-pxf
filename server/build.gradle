@@ -267,14 +267,6 @@ configure(javaProjects) {
                 entry("avro-mapred")
             }
 
-            // Jackson 1.x: no longer part of the Hive tree as of Hive 4.x;
-            // only pxf-hdfs still declares it (legacy runtime need, exact
-            // consumer unverified). Candidate for removal in its own change.
-            dependencySet(group:"org.codehaus.jackson", version:"1.9.13") {
-                entry("jackson-core-asl")
-                entry("jackson-mapper-asl")
-            }
-
             // AWS SDK dependencies
             dependencySet(group:"com.amazonaws", version:"${awsJavaSdk}") {
                 entry("aws-java-sdk-core")
@@ -344,6 +336,8 @@ configure(javaProjects) {
         all*.exclude group: 'javax.servlet', module: 'servlet-api'
         all*.exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
         all*.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        all*.exclude group: 'org.codehaus.jackson', module: 'jackson-core-asl'
+        all*.exclude group: 'org.codehaus.jackson', module: 'jackson-mapper-asl'
     }
 
     test {
