@@ -126,9 +126,12 @@ features (external cluster mode, CLI changes) are tracked separately and are
 - This release targets **HBase 2.x**. HBase 1.x support is maintained on a
   separate branch.
 - **Hive 1.x metastores are no longer supported** by the Hive
-  connector; supported metastores are Hive 2.x and later. The Hive
-  1.x get_table compatibility fallback no longer exists in the Hive
-  4.x thrift bindings.
+  connector; supported metastores are Hive 2.3 and later (the request-
+  object `getTable(GetTableRequest)` call `getHiveTable` uses issues
+  `get_table_req`, which first appears in the thrift IDL in 2.3.0 --
+  checked against the 2.1.1/2.2.0/2.3.0 IDLs). The Hive 1.x get_table
+  compatibility fallback no longer exists in the Hive 4.x thrift
+  bindings.
 
 ### Compatibility notes
 

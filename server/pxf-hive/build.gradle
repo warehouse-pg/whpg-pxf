@@ -74,7 +74,15 @@ dependencies {
     implementation("org.apache.thrift:libthrift")                    { transitive = false }
     implementation("org.antlr:antlr-runtime")                        { transitive = false }
     implementation("org.xerial.snappy:snappy-java")                  { transitive = false }
-    // hive-common 4.x reads JSON through com.tdunning:json
+    // hive-common 4.x reads JSON through com.tdunning:json. This jar and
+    // org.json:json below (kept for MapR, see its own comment) both ship
+    // classes under the same org.json.* package names (JSONObject,
+    // JSONArray, JSONException, JSONTokener, etc.) with different
+    // implementations -- verified by listing both jars' contents.
+    // Whichever one the classpath happens to load first wins for any
+    // caller of those classes; this repo's own code doesn't reference
+    // org.json.* directly, so nothing here is currently affected, but a
+    // future direct usage should be aware of the collision.
     implementation("com.tdunning:json")                              { transitive = false }
     implementation("org.jodd:jodd-util")                             { transitive = false }
 

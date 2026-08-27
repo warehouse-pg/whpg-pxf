@@ -71,6 +71,12 @@ use the PXF JDBC connector to operate on a Hive table:
 | TIMESTAMPTZ | Read, Write |
 | BYTEA     | Read, Write |
 
+A `jdbc:hive2://` connection URL using `serviceDiscoveryMode=zooKeeper`
+(a single ZooKeeper-registered HiveServer2) is supported. A URL using
+`serviceDiscoveryMode=zooKeeperHA` (HiveServer2 in an HA configuration
+behind ZooKeeper) is not: it requires `hive-llap-client` and
+`hadoop-yarn-registry`, which the PXF JDBC connector does not bundle.
+
 ## <a id="queryextdata"></a>Accessing an External SQL Database
 The PXF JDBC connector supports a single profile named `jdbc`. You can both read data from and write data to an external SQL database table with this profile. You can also use the connector to run a static, named query in external SQL database and read the results.
 

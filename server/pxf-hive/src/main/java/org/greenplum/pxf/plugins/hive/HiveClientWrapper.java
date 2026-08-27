@@ -114,7 +114,18 @@ public class HiveClientWrapper {
 
     public Table getHiveTable(IMetaStoreClient client, Metadata.Item itemName) throws Exception {
         // the two-string getTable overload is deprecated in Hive 4.x in
-        // favor of the request-object form
+        // favor of the request-object form. Unlike getDatabases/getTables
+        // (see HiveMetaStoreClientCompatibility2x, which bypasses their
+        // catalog-prefixed modern RPCs entirely), getTable(GetTableRequest)
+        // never sets catName client-side (bytecode-verified: it calls
+        // getTableInternal(request) directly with no
+        // MetaStoreUtils.getDefaultCatalog(conf)/setCatName call), so an
+        // unset catName here means "whatever the server treats as the
+        // default for a missing catName" rather than an explicitly
+        // resolved one. PXF has no multi-catalog support anywhere else in
+        // this codebase (see the getDatabases/getTables rationale above),
+        // so this only matters if metastore.catalog.default is configured
+        // away from the true default -- an unsupported deployment shape.
         Table tbl = client.getTable(new GetTableRequest(itemName.getPath(), itemName.getName()));
         String tblType = tbl.getTableType();
 

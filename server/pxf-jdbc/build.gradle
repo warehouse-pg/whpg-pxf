@@ -33,6 +33,12 @@ dependencies {
 
     implementation("org.apache.hive:hive-jdbc")                      { transitive = false }
     implementation("org.apache.hive:hive-service")                   { transitive = false }
+    // Hive 4.x moved the TCLIService thrift RPC types (HiveConnection
+    // references them directly) out of hive-service into hive-service-rpc;
+    // hive-service 4.0.1 itself has zero rpc/thrift classes. Declared here
+    // rather than relying on pxf-hive's own copy merging in via the boot
+    // fat jar -- the same module-ordering coupling avoided elsewhere.
+    implementation("org.apache.hive:hive-service-rpc")               { transitive = false }
     // Curator is a hard runtime need of hive-jdbc 4.x URL parsing (see the
     // dependencyManagement comment); zookeeper itself is already bundled.
     implementation("org.apache.curator:curator-client")              { transitive = false }

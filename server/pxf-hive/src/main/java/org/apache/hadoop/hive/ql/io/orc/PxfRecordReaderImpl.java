@@ -29,7 +29,32 @@ public class PxfRecordReaderImpl extends RecordReaderImpl
      */
     public PxfRecordReaderImpl(ReaderImpl fileReader, Reader.Options options, Configuration conf)
             throws IOException {
-        super(fileReader, options, conf);
+        super(fileReader, options, forceOriginalRowBatchLayout(conf));
+    }
+
+    /**
+     * The superclass constructor reads hive.vectorized.input.format.supports.enabled
+     * from the given Configuration to decide the batch layout: "decimal_64"
+     * (the Hive 4.x default) selects TypeDescription#createRowBatchV2(),
+     * which represents DECIMAL columns as Decimal64ColumnVector; anything
+     * else selects createRowBatch(), which uses DecimalColumnVector (the
+     * ORIGINAL layout, the only one the pre-4.x 2-arg constructor ever
+     * produced). copyColumn's dispatch below -- like the superclass's own,
+     * which it delegates to -- has no branch for Decimal64ColumnVector, so
+     * with the decimal_64 default it silently copies nothing, corrupting
+     * every DECIMAL(precision &lt;= 18) column read through this class.
+     * The Configuration is only consulted here for this one decision (the
+     * superclass constructor does not retain it), so overriding the key on
+     * a copy -- rather than the caller's original Configuration -- is
+     * side-effect-free and forces the ORIGINAL layout unconditionally.
+     */
+    private static Configuration forceOriginalRowBatchLayout(Configuration conf) {
+        if (conf == null) {
+            return null;
+        }
+        Configuration copy = new Configuration(conf);
+        copy.set("hive.vectorized.input.format.supports.enabled", "none");
+        return copy;
     }
 
     /**

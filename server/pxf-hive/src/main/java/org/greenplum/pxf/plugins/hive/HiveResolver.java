@@ -180,9 +180,18 @@ public class HiveResolver extends BasePlugin implements Resolver {
         Class<?> c = Class.forName(serdeClassName, true, JavaUtils.getClassLoader());
         deserializer = (Deserializer) c.getDeclaredConstructor().newInstance();
         // Hive 4.x removed Deserializer.initialize(Configuration, Properties);
-        // every Hive serde extends AbstractSerDe, whose initialize takes the
-        // table properties plus optional partition properties (null here --
-        // PXF folds partition info into the table properties it builds)
+        // every Hive-provided serde extends AbstractSerDe, whose initialize
+        // takes the table properties plus optional partition properties
+        // (null here -- PXF folds partition info into the table properties
+        // it builds). A third-party serde implementing only Deserializer
+        // (never AbstractSerDe) was already unsupported pre-4.x, but used
+        // to fail with initialize's own NoSuchMethodError; name the actual
+        // requirement instead of a bare ClassCastException.
+        if (!(deserializer instanceof AbstractSerDe)) {
+            throw new UnsupportedOperationException(
+                    "Hive serde " + serdeClassName + " must extend org.apache.hadoop.hive.serde2.AbstractSerDe; "
+                            + "PXF's Hive connector does not support serdes implementing only Deserializer");
+        }
         ((AbstractSerDe) deserializer).initialize(getJobConf(), getSerdeProperties(), null);
     }
 
@@ -754,7 +763,26 @@ public class HiveResolver extends BasePlugin implements Resolver {
     }
 
     protected Properties getSerdeProperties() {
-        return metadata.getProperties();
+        Properties properties = metadata.getProperties();
+        // A table created against a pre-3.0 (2.x/3.x) metastore stores this
+        // setting under the historical typo key "colelction.delim" (fixed
+        // upstream by HIVE-16922); Hive 4.x serdes read only the corrected
+        // "collection.delim" key. PXF passes these properties through
+        // verbatim, so without this normalization a
+        // COLLECTION ITEMS TERMINATED BY setting from such a table is
+        // silently ignored -- the serde falls back to its \002 default,
+        // and multi-valued fields resolve as one element instead of
+        // several. Only copy the value across when the corrected key
+        // isn't already present, so an explicitly-set collection.delim
+        // (e.g. from a table created directly against a 4.x metastore)
+        // always wins.
+        if (properties.containsKey("colelction.delim") && !properties.containsKey(serdeConstants.COLLECTION_DELIM)) {
+            Properties normalized = new Properties();
+            normalized.putAll(properties);
+            normalized.setProperty(serdeConstants.COLLECTION_DELIM, properties.getProperty("colelction.delim"));
+            properties = normalized;
+        }
+        return properties;
     }
 
     private boolean columnDescriptorContainsColumn(String columnName) {
