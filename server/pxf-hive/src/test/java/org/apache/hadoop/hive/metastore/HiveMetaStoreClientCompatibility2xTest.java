@@ -252,6 +252,8 @@ public class HiveMetaStoreClientCompatibility2xTest {
 
         @Override
         public List<String> filterTableNames(String catName, String dbName, List<String> tableList) {
+            assertEquals("hive", catName, "catName and dbName must not be swapped");
+            assertEquals("db", dbName, "catName and dbName must not be swapped");
             return tableList.stream().filter(n -> !"deny".equals(n)).collect(java.util.stream.Collectors.toList());
         }
     }

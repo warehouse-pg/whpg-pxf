@@ -160,8 +160,8 @@ public class HiveMetaStoreClientCompatibility2x extends HiveMetaStoreClient impl
         // same catch-and-rethrow-as-MetaException convention for the raw
         // TException the thrift call can throw.
         try {
-            return FilterUtils.filterTableNamesIfEnabled(isClientFilterEnabled(), filterHook(), dbName, tablePattern,
-                    client.get_tables(dbName, tablePattern));
+            return FilterUtils.filterTableNamesIfEnabled(isClientFilterEnabled(), filterHook(),
+                    MetaStoreUtils.getDefaultCatalog(conf), dbName, client.get_tables(dbName, tablePattern));
         } catch (TException e) {
             MetaStoreUtils.throwMetaException(e);
             return null; // unreachable -- throwMetaException always throws
