@@ -102,7 +102,12 @@ configure(javaProjects) {
             // is the pairing 6.x requires (below).
             dependency("com.fasterxml.woodstox:woodstox-core:6.7.0")
             dependency("com.google.code.findbugs:annotations:1.3.9")
-            dependency("com.google.guava:guava:20.0")
+            // Overrides Hive 2.3.8's own guava.version pin (14.0.1, which
+            // itself was already being overridden here at 20.0 -- both carry
+            // published CVEs). 32.0.1-jre matches hadoop-project-3.4.3.pom's
+            // own <guava.version>, so it's already exercised by the
+            // hadoop-common/hdfs stack PXF links against.
+            dependency("com.google.guava:guava:32.0.1-jre")
             dependency("com.google.protobuf:protobuf-java:2.5.0")
             dependency("com.google.cloud.bigdataoss:gcs-connector:hadoop2-1.9.17")
             dependency("com.microsoft.azure:azure-storage:5.5.0")
