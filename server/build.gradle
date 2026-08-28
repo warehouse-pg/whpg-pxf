@@ -29,9 +29,13 @@ plugins {
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
 }
 
-// override Spring Framework version to pick the Spring MVC 5.3.33 with the async race condition fix
-// https://github.com/spring-projects/spring-framework/issues/32342
-ext['spring-framework.version'] = '5.3.33'
+// override Spring Framework version: the Boot 2.7 BOM itself only manages 5.3.31.
+// 5.3.39 is the last version published to Maven Central before free/OSS security
+// support for the 5.3.x line ended 2024-08-31 (later fixes are commercial-only,
+// not resolvable from this build). It still includes the async race condition
+// fix (https://github.com/spring-projects/spring-framework/issues/32342, landed
+// in 5.3.33) plus everything patched through the OSS support window.
+ext['spring-framework.version'] = '5.3.39'
 // embedded Tomcat: 9.0.121 is the current 9.0.x release with no
 // published advisories (the previous 9.0.87 accumulated several);
 // Tomcat 9 stays on the Java 8 / javax.servlet baseline.
@@ -104,7 +108,12 @@ configure(javaProjects) {
             // stax2-api 4.2.x is the pairing 6.x requires (below).
             dependency("com.fasterxml.woodstox:woodstox-core:6.7.0")
             dependency("com.google.code.findbugs:annotations:1.3.9")
-            dependency("com.google.guava:guava:20.0")
+            // Overrides Hive 2.3.8's own guava.version pin (14.0.1, which
+            // itself was already being overridden here at 20.0 -- both carry
+            // published CVEs). 32.0.1-jre matches hadoop-project-3.4.3.pom's
+            // own <guava.version>, so it's already exercised by the
+            // hadoop-common/hdfs stack PXF links against.
+            dependency("com.google.guava:guava:32.0.1-jre")
             // orc-core 1.8.x generates OrcProto with protoc 3.x, so it needs
             // a protobuf-java 3.x runtime on the classpath (the previous
             // 2.5.0 pin satisfied orc-core 1.6). 3.24.4 is Hive 4.0.1's own
@@ -162,7 +171,6 @@ configure(javaProjects) {
             // are gone from the Hive 4.0.1 tree (dropped, not replaced).
             dependency("org.jodd:jodd-util:6.0.0")
             dependency("org.json:json:20090211")
-            dependency("org.mortbay.jetty:jetty-util:6.1.26")
             dependency("org.objenesis:objenesis:3.3")
 
             // revert once springboot provided postgresql is upgraded to bundle postgresql:42.7.2+
