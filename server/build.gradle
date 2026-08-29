@@ -153,7 +153,15 @@ configure(javaProjects) {
                 entry("hadoop-shaded-guava")
                 entry("hadoop-shaded-protobuf_3_25")
             }
-            dependency("io.airlift:aircompressor:0.21")
+            // aircompressor 2.x is the latest Java-8-compatible line
+            // (<air.java.version>1.8</air.java.version>; 3.x requires Java
+            // 11+). 2.0.3 fixes both GHSA-973x-65j7-xcf4 (JVM crash / memory
+            // leak, fixed 0.27) and GHSA-vx9q-rhv9-3jvg (Snappy/LZ4
+            // output-buffer info leak, fixed 2.0.3) -- orc-core 1.8.5's own
+            // pom pins this GAV to 0.21, itself vulnerable to both; this
+            // stays a version override of that same coordinate, no
+            // groupId/artifactId change.
+            dependency("io.airlift:aircompressor:2.0.3")
             dependency("joda-time:joda-time:2.9.9")
             dependency("net.sf.opencsv:opencsv:2.3")
             dependency("org.antlr:antlr-runtime:3.5.2")
