@@ -9,7 +9,6 @@ import org.greenplum.pxf.api.model.Accessor;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.model.Resolver;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
-import org.greenplum.pxf.api.utilities.SerializationService;
 import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -92,7 +91,7 @@ public class HiveParquetFilterPushDownTest {
 
         HiveUtilities hiveUtilities = new HiveUtilities();
 
-        accessor = new HiveAccessor(null, hiveUtilities, new SerializationService());
+        accessor = new HiveAccessor(null, hiveUtilities);
         resolver = new HiveResolver(hiveUtilities);
         context = new RequestContext();
 
@@ -435,13 +434,20 @@ public class HiveParquetFilterPushDownTest {
     }
 
     @Test
-    public void testUnsupportedCharPushDownWithWhitespaces() throws Exception {
+    public void testCharPushDownWithWhitespaces() throws Exception {
+        // Hive 4.x's Parquet predicate pushdown handles trailing-whitespace
+        // padding in CHAR comparisons correctly (a padded literal matches the
+        // stored CHAR value), so these now behave exactly like their
+        // unpadded counterparts in testCharPushDown. Hive 2.x compared the
+        // raw padded string and matched nothing on equality.
+
         // a12 = 'EUR '
+        int[] expectedRows = {8, 12, 17, 22, 23};
         context.setFilterString("a12c1042s4dEUR o5");
-        assertRowsReturned(NONE);
+        assertRowsReturned(expectedRows);
 
         // a12 > 'EUR '
-        int[] expectedRows = new int[]{1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 14, 15, 16, 18, 19, 20, 21, 25};
+        expectedRows = new int[]{1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 14, 15, 16, 18, 19, 20, 21, 25};
         context.setFilterString("a12c1042s4dEUR o2");
         assertRowsReturned(expectedRows);
 
@@ -451,12 +457,14 @@ public class HiveParquetFilterPushDownTest {
         assertRowsReturned(expectedRows);
 
         // a12 >= 'USD '
+        expectedRows = new int[]{1, 2, 3, 4, 5, 6, 7, 10, 13, 15, 16, 18, 19, 21, 25};
         context.setFilterString("a12c1042s4dUSD o4");
-        assertRowsReturned(NONE);
+        assertRowsReturned(expectedRows);
 
         // a12 <> 'USD '
+        expectedRows = new int[]{8, 9, 11, 12, 14, 17, 20, 22, 23, 24};
         context.setFilterString("a12c1042s4dUSD o6");
-        assertRowsReturned(ALL);
+        assertRowsReturned(expectedRows);
     }
 
     @Test

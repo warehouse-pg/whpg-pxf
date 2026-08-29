@@ -26,6 +26,7 @@ import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.io.ByteWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
@@ -72,6 +73,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -123,7 +125,7 @@ public class HiveResolver extends BasePlugin implements Resolver {
     public void afterPropertiesSet() {
         super.afterPropertiesSet();
 
-        hiveDefaultPartName = HiveConf.getVar(configuration, HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+        hiveDefaultPartName = HiveConf.getVar(configuration, HiveConf.ConfVars.DEFAULT_PARTITION_NAME);
 
         try {
             parseUserData(context);
@@ -177,7 +179,20 @@ public class HiveResolver extends BasePlugin implements Resolver {
     void initSerde() throws Exception {
         Class<?> c = Class.forName(serdeClassName, true, JavaUtils.getClassLoader());
         deserializer = (Deserializer) c.getDeclaredConstructor().newInstance();
-        deserializer.initialize(getJobConf(), getSerdeProperties());
+        // Hive 4.x removed Deserializer.initialize(Configuration, Properties);
+        // every Hive-provided serde extends AbstractSerDe, whose initialize
+        // takes the table properties plus optional partition properties
+        // (null here -- PXF folds partition info into the table properties
+        // it builds). A third-party serde implementing only Deserializer
+        // (never AbstractSerDe) was already unsupported pre-4.x, but used
+        // to fail with initialize's own NoSuchMethodError; name the actual
+        // requirement instead of a bare ClassCastException.
+        if (!(deserializer instanceof AbstractSerDe)) {
+            throw new UnsupportedOperationException(
+                    "Hive serde " + serdeClassName + " must extend org.apache.hadoop.hive.serde2.AbstractSerDe; "
+                            + "PXF's Hive connector does not support serdes implementing only Deserializer");
+        }
+        ((AbstractSerDe) deserializer).initialize(getJobConf(), getSerdeProperties(), null);
     }
 
     protected JobConf getJobConf() {
@@ -643,13 +658,33 @@ public class HiveResolver extends BasePlugin implements Resolver {
                 break;
             }
             case TIMESTAMP: {
-                val = (o != null) ? ((TimestampObjectInspector) oi).getPrimitiveJavaObject(o)
+                // Hive 4.x object inspectors return Hive's own proleptic
+                // Timestamp type; convert via java.time.LocalDateTime
+                // rather than a string round-trip. This avoids the
+                // avoidable per-row format/parse cost, and
+                // java.sql.Timestamp.valueOf(String) can't parse the
+                // signed year Timestamp.toString() prints for a proleptic
+                // year <= 0 (e.g. "-0001-01-01 ...") and throws
+                // IllegalArgumentException. Note: Hive's own
+                // toSqlTimestamp() is NOT a safe substitute here -- it
+                // converts through epoch millis, which is zone-sensitive,
+                // whereas valueOf(LocalDateTime) copies the wall-clock
+                // fields directly with no zone conversion, matching the
+                // previous string-based behavior exactly.
+                val = (o != null)
+                        ? java.sql.Timestamp.valueOf(toLocalDateTime((TimestampObjectInspector) oi, o))
                         : null;
                 addOneFieldToRecord(record, DataType.TIMESTAMP, val);
                 break;
             }
             case DATE:
-                val = (o != null) ? ((DateObjectInspector) oi).getPrimitiveJavaObject(o)
+                // Same rationale as TIMESTAMP above; Hive's Date type has
+                // no toSqlDate(), so go through its int accessors and
+                // java.time.LocalDate rather than a string round-trip.
+                // Date.valueOf(LocalDate) has no zone dimension, so it is
+                // safe here (unlike Timestamp above).
+                val = (o != null)
+                        ? java.sql.Date.valueOf(toLocalDate((DateObjectInspector) oi, o))
                         : null;
                 addOneFieldToRecord(record, DataType.DATE, val);
                 break;
@@ -665,6 +700,18 @@ public class HiveResolver extends BasePlugin implements Resolver {
                         + getClass().getSimpleName());
             }
         }
+    }
+
+    static LocalDate toLocalDate(DateObjectInspector oi, Object o) {
+        org.apache.hadoop.hive.common.type.Date hiveDate = oi.getPrimitiveJavaObject(o);
+        return LocalDate.of(hiveDate.getYear(), hiveDate.getMonth(), hiveDate.getDay());
+    }
+
+    static java.time.LocalDateTime toLocalDateTime(TimestampObjectInspector oi, Object o) {
+        org.apache.hadoop.hive.common.type.Timestamp hiveTimestamp = oi.getPrimitiveJavaObject(o);
+        return LocalDate.of(hiveTimestamp.getYear(), hiveTimestamp.getMonth(), hiveTimestamp.getDay())
+                .atTime(hiveTimestamp.getHours(), hiveTimestamp.getMinutes(), hiveTimestamp.getSeconds(),
+                        hiveTimestamp.getNanos());
     }
 
     private void addOneFieldToRecord(List<OneField> record,
@@ -716,7 +763,26 @@ public class HiveResolver extends BasePlugin implements Resolver {
     }
 
     protected Properties getSerdeProperties() {
-        return metadata.getProperties();
+        Properties properties = metadata.getProperties();
+        // A table created against a pre-3.0 (2.x/3.x) metastore stores this
+        // setting under the historical typo key "colelction.delim" (fixed
+        // upstream by HIVE-16922); Hive 4.x serdes read only the corrected
+        // "collection.delim" key. PXF passes these properties through
+        // verbatim, so without this normalization a
+        // COLLECTION ITEMS TERMINATED BY setting from such a table is
+        // silently ignored -- the serde falls back to its \002 default,
+        // and multi-valued fields resolve as one element instead of
+        // several. Only copy the value across when the corrected key
+        // isn't already present, so an explicitly-set collection.delim
+        // (e.g. from a table created directly against a 4.x metastore)
+        // always wins.
+        if (properties.containsKey("colelction.delim") && !properties.containsKey(serdeConstants.COLLECTION_DELIM)) {
+            Properties normalized = new Properties();
+            normalized.putAll(properties);
+            normalized.setProperty(serdeConstants.COLLECTION_DELIM, properties.getProperty("colelction.delim"));
+            properties = normalized;
+        }
+        return properties;
     }
 
     private boolean columnDescriptorContainsColumn(String columnName) {

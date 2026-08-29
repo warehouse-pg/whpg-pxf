@@ -19,9 +19,6 @@ package org.greenplum.pxf.plugins.hive;
  * under the License.
  */
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Output;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -47,7 +44,6 @@ import org.greenplum.pxf.api.filter.TreeTraverser;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
-import org.greenplum.pxf.api.utilities.SerializationService;
 import org.greenplum.pxf.api.utilities.SpringContext;
 import org.greenplum.pxf.plugins.hdfs.HdfsSplittableDataAccessor;
 import org.greenplum.pxf.plugins.hdfs.filter.SearchArgumentBuilder;
@@ -100,7 +96,6 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
 
     private List<HivePartition> partitions;
     private int skipHeaderCount;
-    private final SerializationService serializationService;
     private String hiveColumnsString;
     private String hiveColumnTypesString;
     private boolean isPredicatePushdownAllowed;
@@ -185,21 +180,18 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
      * Constructs a HiveAccessor
      */
     public HiveAccessor() {
-        this(null, SpringContext.getBean(HiveUtilities.class),
-                SpringContext.getBean(SerializationService.class));
+        this(null, SpringContext.getBean(HiveUtilities.class));
     }
 
     /**
      * Creates an instance of HiveAccessor using specified input format and hive utilities
      *
-     * @param inputFormat          input format
-     * @param hiveUtilities        the hive utilities
-     * @param serializationService the service that provides kryo objects
+     * @param inputFormat   input format
+     * @param hiveUtilities the hive utilities
      */
-    HiveAccessor(InputFormat<?, ?> inputFormat, HiveUtilities hiveUtilities, SerializationService serializationService) {
+    HiveAccessor(InputFormat<?, ?> inputFormat, HiveUtilities hiveUtilities) {
         super(inputFormat);
         this.hiveUtilities = hiveUtilities;
-        this.serializationService = serializationService;
     }
 
     /**
@@ -645,7 +637,10 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
                 new SupportedOperatorPruner(getSupportedOperatorsForPushdown()),
                 searchArgumentBuilder);
 
-        String kryoString = toKryoString(searchArgumentBuilder.getFilterBuilder().build());
+        // Serialize with Hive's own kryo configuration so the string is
+        // guaranteed to round-trip through ConvertAstToSearchArg on the read
+        // side (same custom serializers, reference and registration settings)
+        String kryoString = ConvertAstToSearchArg.sargToKryo(searchArgumentBuilder.getFilterBuilder().build());
         jobConf.set(ConvertAstToSearchArg.SARG_PUSHDOWN, kryoString);
         LOG.debug("Added SARG={}", kryoString);
     }
@@ -668,22 +663,4 @@ public class HiveAccessor extends HdfsSplittableDataAccessor {
     }
 
 
-    /**
-     * Serializes an object into a Base64 encoded String using Kryo serialization
-     *
-     * @param object the object to serialize
-     * @return the serialized object as a String
-     */
-    private String toKryoString(Object object) {
-        Output out = new Output(4 * 1024, 10 * 1024 * 1024);
-
-        Kryo kryo = serializationService.borrowKryo();
-        try {
-            kryo.writeObject(out, object);
-        } finally {
-            serializationService.releaseKryo(kryo);
-        }
-        out.close();
-        return Base64.encodeBase64String(out.toBytes());
-    }
 }

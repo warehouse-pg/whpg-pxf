@@ -27,7 +27,6 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.greenplum.pxf.api.filter.Operator;
 import org.greenplum.pxf.api.io.DataType;
-import org.greenplum.pxf.api.utilities.SerializationService;
 import org.greenplum.pxf.api.utilities.SpringContext;
 import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 
@@ -46,8 +45,7 @@ public class HiveRCFileAccessor extends HiveAccessor {
      */
     public HiveRCFileAccessor() {
         super(new RCFileInputFormat(),
-                SpringContext.getBean(HiveUtilities.class),
-                SpringContext.getBean(SerializationService.class));
+                SpringContext.getBean(HiveUtilities.class));
     }
 
     @Override

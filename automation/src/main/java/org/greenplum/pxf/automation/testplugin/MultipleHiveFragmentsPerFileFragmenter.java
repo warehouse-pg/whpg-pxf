@@ -3,7 +3,6 @@ package org.greenplum.pxf.automation.testplugin;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.FileInputFormat;
@@ -19,7 +18,9 @@ import org.greenplum.pxf.plugins.hive.HiveFragmentMetadata;
 import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -83,8 +84,41 @@ public class MultipleHiveFragmentsPerFileFragmenter extends BaseFragmenter {
     }
 
 
-    private static Properties getSchema(Table table) {
-        return MetaStoreUtils.getSchema(table.getSd(), table.getSd(),
+    // MetaStoreUtils.getSchema moved from org.apache.hadoop.hive.metastore to
+    // org.apache.hadoop.hive.metastore.utils in Hive's standalone-metastore
+    // split (Hive 3.0+) and no longer exists at the old location on Hive
+    // 4.x. This class is compiled against automation's own Hive dependency
+    // (a separate, older pin from the PXF server's), but it is deployed as
+    // a plugin class loaded by the live PXF server -- so it needs to
+    // resolve MetaStoreUtils against whichever metastore artifact is on
+    // *that* classpath, not automation's compile-time one. Resolving the
+    // method via reflection at each of the two possible locations (rather
+    // than adding a second, conflicting Hive-version dependency to
+    // automation's own build) makes the same compiled class work either
+    // way.
+    private static final String[] META_STORE_UTILS_CLASS_NAMES = {
+            "org.apache.hadoop.hive.metastore.utils.MetaStoreUtils", // Hive 3.0+
+            "org.apache.hadoop.hive.metastore.MetaStoreUtils",       // pre-3.0
+    };
+
+    private static Properties getSchema(Table table) throws ReflectiveOperationException {
+        Method getSchema = null;
+        ReflectiveOperationException lastFailure = null;
+        for (String className : META_STORE_UTILS_CLASS_NAMES) {
+            try {
+                Class<?> metaStoreUtils = Class.forName(className);
+                getSchema = metaStoreUtils.getMethod("getSchema",
+                        StorageDescriptor.class, StorageDescriptor.class,
+                        Map.class, String.class, String.class, List.class);
+                break;
+            } catch (ReflectiveOperationException e) {
+                lastFailure = e;
+            }
+        }
+        if (getSchema == null) {
+            throw lastFailure;
+        }
+        return (Properties) getSchema.invoke(null, table.getSd(), table.getSd(),
                 table.getParameters(), table.getDbName(), table.getTableName(),
                 table.getPartitionKeys());
     }

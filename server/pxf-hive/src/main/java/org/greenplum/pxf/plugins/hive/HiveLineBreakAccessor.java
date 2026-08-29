@@ -25,7 +25,6 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.LineRecordReader;
 import org.apache.hadoop.mapred.TextInputFormat;
-import org.greenplum.pxf.api.utilities.SerializationService;
 import org.greenplum.pxf.api.utilities.SpringContext;
 import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 
@@ -42,8 +41,7 @@ public class HiveLineBreakAccessor extends HiveAccessor {
      */
     public HiveLineBreakAccessor() {
         super(new TextInputFormat(),
-                SpringContext.getBean(HiveUtilities.class),
-                SpringContext.getBean(SerializationService.class));
+                SpringContext.getBean(HiveUtilities.class));
     }
 
     @Override
