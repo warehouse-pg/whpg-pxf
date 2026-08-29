@@ -150,7 +150,6 @@ dependencies {
     implementation("org.apache.hadoop:hadoop-azure-datalake")        { transitive = false }
     implementation("com.microsoft.azure:azure-data-lake-store-sdk")  { transitive = false }
     implementation("org.wildfly.openssl:wildfly-openssl")            { transitive = false }
-    implementation("org.mortbay.jetty:jetty-util")                   { transitive = false }
 
     // GCS jars and dependencies
     implementation("com.google.cloud.bigdataoss:gcs-connector:hadoop2-1.9.17:shaded")

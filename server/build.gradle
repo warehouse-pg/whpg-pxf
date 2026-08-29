@@ -29,9 +29,13 @@ plugins {
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
 }
 
-// override Spring Framework version to pick the Spring MVC 5.3.33 with the async race condition fix
-// https://github.com/spring-projects/spring-framework/issues/32342
-ext['spring-framework.version'] = '5.3.33'
+// override Spring Framework version: the Boot 2.7 BOM itself only manages 5.3.31.
+// 5.3.39 is the last version published to Maven Central before free/OSS security
+// support for the 5.3.x line ended 2024-08-31 (later fixes are commercial-only,
+// not resolvable from this build). It still includes the async race condition
+// fix (https://github.com/spring-projects/spring-framework/issues/32342, landed
+// in 5.3.33) plus everything patched through the OSS support window.
+ext['spring-framework.version'] = '5.3.39'
 // embedded Tomcat: 9.0.121 is the current 9.0.x release with no
 // published advisories (the previous 9.0.87 accumulated several);
 // Tomcat 9 stays on the Java 8 / javax.servlet baseline.
@@ -94,16 +98,30 @@ configure(javaProjects) {
             mavenBom("org.springframework.boot:spring-boot-dependencies:${springBootVersion}")
         }
         dependencies {
-            dependency("com.esotericsoftware:kryo:3.0.3")
-            dependency("com.esotericsoftware:minlog:1.3.0")
-            dependency("com.esotericsoftware:reflectasm:1.11.6")
-            // woodstox-core 6.x is the maintained line; 5.0.3 carries
-            // published advisories (fixed in 5.4.0/6.4.0). stax2-api 4.2.x
-            // is the pairing 6.x requires (below).
+            // Kryo family per Hive 4.0.1's POM (kryo 5.5.0's own dependency
+            // versions for objenesis/minlog/reflectasm)
+            dependency("com.esotericsoftware:kryo:5.5.0")
+            dependency("com.esotericsoftware:minlog:1.3.1")
+            dependency("com.esotericsoftware:reflectasm:1.11.9")
+            // woodstox-core 6.x is the maintained line; Hive 4.0.1's own POM
+            // pin (5.0.3) carries published advisories (fixed in 5.4.0/6.4.0).
+            // stax2-api 4.2.x is the pairing 6.x requires (below).
             dependency("com.fasterxml.woodstox:woodstox-core:6.7.0")
             dependency("com.google.code.findbugs:annotations:1.3.9")
-            dependency("com.google.guava:guava:20.0")
-            dependency("com.google.protobuf:protobuf-java:2.5.0")
+            // Overrides Hive 2.3.8's own guava.version pin (14.0.1, which
+            // itself was already being overridden here at 20.0 -- both carry
+            // published CVEs). 32.0.1-jre matches hadoop-project-3.4.3.pom's
+            // own <guava.version>, so it's already exercised by the
+            // hadoop-common/hdfs stack PXF links against.
+            dependency("com.google.guava:guava:32.0.1-jre")
+            // orc-core 1.8.x generates OrcProto with protoc 3.x, so it needs
+            // a protobuf-java 3.x runtime on the classpath (the previous
+            // 2.5.0 pin satisfied orc-core 1.6). 3.24.4 is Hive 4.0.1's own
+            // pin and is proto2-compatible; the HBase legacy-PB paths are
+            // covered by the L2 hbase group.
+            dependency("com.google.protobuf:protobuf-java:3.24.4")
+            // Hive 4.0.1's replacement for org.json in hive-common
+            dependency("com.tdunning:json:1.8")
             dependency("com.google.cloud.bigdataoss:gcs-connector:hadoop2-1.9.17")
             dependency("com.microsoft.azure:azure-storage:5.5.0")
             dependency("com.microsoft.azure:azure-data-lake-store-sdk:2.3.9")
@@ -135,18 +153,16 @@ configure(javaProjects) {
                 entry("hadoop-shaded-guava")
                 entry("hadoop-shaded-protobuf_3_25")
             }
-            // 0.8 predates the airlift/aircompressor 2.x branch split (which
-            // kept Java 8 support, <air.java.version>1.8</air.java.version>,
-            // alongside a separate 3.x/Java 11+ line). 2.0.3 is the latest
-            // release on that Java-8-compatible branch and fixes both
-            // GHSA-973x-65j7-xcf4 (JVM crash / memory leak, fixed 0.27) and
-            // GHSA-vx9q-rhv9-3jvg (Snappy/LZ4 output-buffer info leak, fixed
-            // 2.0.3) -- ORC 1.6.13's own pom already pins this GAV to 0.21,
-            // itself vulnerable to the first; this stays a version override
-            // of that same coordinate, no groupId/artifactId change.
+            // aircompressor 2.x is the latest Java-8-compatible line
+            // (<air.java.version>1.8</air.java.version>; 3.x requires Java
+            // 11+). 2.0.3 fixes both GHSA-973x-65j7-xcf4 (JVM crash / memory
+            // leak, fixed 0.27) and GHSA-vx9q-rhv9-3jvg (Snappy/LZ4
+            // output-buffer info leak, fixed 2.0.3) -- orc-core 1.8.5's own
+            // pom pins this GAV to 0.21, itself vulnerable to both; this
+            // stays a version override of that same coordinate, no
+            // groupId/artifactId change.
             dependency("io.airlift:aircompressor:2.0.3")
-            dependency("javax.jdo:jdo-api:3.0.1")
-            dependency("joda-time:joda-time:2.8.1")
+            dependency("joda-time:joda-time:2.9.9")
             dependency("net.sf.opencsv:opencsv:2.3")
             dependency("org.antlr:antlr-runtime:3.5.2")
             dependency("org.apache.commons:commons-compress:1.28.0")
@@ -155,19 +171,21 @@ configure(javaProjects) {
             // ZK 3.6+ split wire-protocol serialization classes into zookeeper-jute.
             // Without this on runtime classpath, ZK client times out at wire layer.
             dependency("org.apache.zookeeper:zookeeper-jute:${zookeeperVersion}")
+            // stax2-api 4.2.x is the pairing woodstox-core 6.x requires
+            // (above); Hive 4.0.1's own POM pins the older 3.1.4.
             dependency("org.codehaus.woodstox:stax2-api:4.2.2")
-            dependency("org.datanucleus:datanucleus-api-jdo:4.2.4")
-            dependency("org.datanucleus:datanucleus-core:4.1.17")
-            dependency("org.jodd:jodd-core:3.5.2")
+            // Hive 4.0.1 moved from jodd-core to jodd-util; the datanucleus
+            // JDO persistence jars the old hive-metastore artifact pulled in
+            // are gone from the Hive 4.0.1 tree (dropped, not replaced).
+            dependency("org.jodd:jodd-util:6.0.0")
             dependency("org.json:json:20090211")
-            dependency("org.mortbay.jetty:jetty-util:6.1.26")
-            dependency("org.objenesis:objenesis:2.1")
+            dependency("org.objenesis:objenesis:3.3")
 
             // revert once springboot provided postgresql is upgraded to bundle postgresql:42.7.2+
             dependency("org.postgresql:postgresql:42.7.2")
 
             dependency("org.simplify4u:slf4j-mock:2.3.0")
-            dependency("org.threeten:threeten-extra:1.5.0")
+            dependency("org.threeten:threeten-extra:1.7.1")
             dependency("org.tukaani:xz:1.8")
             dependency("org.wildfly.openssl:wildfly-openssl:1.0.7.Final")
             dependency("org.xerial.snappy:snappy-java:1.1.10.4")
@@ -203,15 +221,37 @@ configure(javaProjects) {
                 entry("hive-metastore")
                 entry("hive-serde")
                 entry("hive-common")
+                // On modern Hive lines the metastore thrift client and the
+                // HiveServer2 RPC types live in their own artifacts (split
+                // upstream in Hive 3.0 and 2.1 respectively; new to this
+                // block because it was derived from Hive 2.3.8)
+                entry("hive-standalone-metastore-common")
+                entry("hive-service-rpc")
+                entry("hive-classification")
+                // UDF base classes (UDFArgumentException etc.) split out of
+                // hive-exec in Hive 4.x
+                entry("hive-udf")
             }
-            // 1.2.2 breaks on CDH-5.x
-            dependencySet(group:"org.apache.hive", version:"1.1.0") {
+            // hive-jdbc/hive-service move with the Hive line: they share the
+            // libthrift pin, and hive-jdbc 2.x-3.x still needs the thrift 0.9
+            // API, so there is no halfway version once libthrift is 0.16
+            dependencySet(group:"org.apache.hive", version:"${hiveVersion}") {
                 entry("hive-jdbc")
                 entry("hive-service")
             }
             dependencySet(group:"org.apache.hive.shims", version:"${hiveVersion}") {
                 entry("hive-shims-common")
                 entry("hive-shims-0.23")
+            }
+            // hive-jdbc 4.x references Apache Curator while PARSING any
+            // jdbc:hive2 URL (Utils.extractURLComponents loads a
+            // curator-typed helper even when ZooKeeper service discovery is
+            // not requested), so the driver is unusable without these.
+            // 5.2.0 is what apache-hive-4.0.1-bin ships in lib/.
+            dependencySet(group:"org.apache.curator", version:"5.2.0") {
+                entry("curator-client")
+                entry("curator-framework")
+                entry("curator-recipes")
             }
 
             // Parquet dependencies
@@ -226,11 +266,10 @@ configure(javaProjects) {
                 entry("parquet-pig")
             }
 
-            // Thrift dependencies
-            dependencySet(group:"org.apache.thrift", version:"0.9.3") {
-                entry("libfb303")
-                entry("libthrift")
-            }
+            // Thrift dependencies: libthrift per Hive 4.0.1's POM; libfb303's
+            // line ended at 0.9.3 and Hive 4.0.1 itself still pins it there
+            dependency("org.apache.thrift:libthrift:0.16.0")
+            dependency("org.apache.thrift:libfb303:0.9.3")
 
             // ORC dependencies
             dependencySet(group:"org.apache.orc", version:"${orcVersion}") {

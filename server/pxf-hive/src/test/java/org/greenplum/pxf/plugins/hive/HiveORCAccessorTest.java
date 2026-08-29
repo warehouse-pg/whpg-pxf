@@ -19,16 +19,13 @@ package org.greenplum.pxf.plugins.hive;
  * under the License.
  */
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Output;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
+import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentFactory;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
-import org.greenplum.pxf.api.utilities.SerializationService;
 import org.greenplum.pxf.plugins.hive.utilities.HiveUtilities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,7 +61,7 @@ class HiveORCAccessorTest {
         context.setAccessor(HiveORCAccessor.class.getName());
         context.setConfiguration(configuration);
 
-        accessor = new HiveORCAccessor(new HiveUtilities(), new SerializationService());
+        accessor = new HiveORCAccessor(new HiveUtilities());
         accessor.setRequestContext(context);
         accessor.afterPropertiesSet();
     }
@@ -128,9 +125,7 @@ class HiveORCAccessorTest {
     }
 
     private String toKryo(SearchArgument sarg) {
-        Output out = new Output(4 * 1024, 10 * 1024 * 1024);
-        new Kryo().writeObject(out, sarg);
-        out.close();
-        return Base64.encodeBase64String(out.toBytes());
+        // use Hive's own serialization path, mirroring what HiveAccessor does
+        return ConvertAstToSearchArg.sargToKryo(sarg);
     }
 }

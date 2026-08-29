@@ -2,10 +2,11 @@
 
 ## 7.0.0 (unreleased)
 
-Major release: PXF now targets the **HBase 2.x** client stack on WarehousePG
-(runs on WHPG 6 and 7). This release covers the HBase/Hadoop/ZooKeeper library
-modernization; the remaining PXF 7.0 features (Hive 3.x, external cluster mode,
-CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
+Major release: PXF now targets the **HBase 2.x** and **Hive 4.x** client
+stacks on WarehousePG (runs on WHPG 6 and 7). This release covers the
+HBase/Hadoop/ZooKeeper/Hive library modernization; the remaining PXF 7.0
+features (external cluster mode, CLI changes) are tracked separately and are
+**not** part of this cut.
 
 ### Library bundle
 
@@ -29,7 +30,25 @@ CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
   (via the jackson-bom property). The `json` profile explicitly keeps
   the pre-jackson-2.15 unconstrained read behavior (no 20MB
   single-string / 1000-level nesting limits on customer JSON).
-- Hive client unchanged (2.3.8); Spring/Postgres-JDBC/Go unchanged.
+- Hive client **2.3.8 → 4.0.1**, and with it the hand-maintained Hive
+  transitive tree re-derived from Hive 4.0.1's POMs: Thrift
+  (libthrift) **0.9.3 → 0.16.0**, Kryo **3.0.3 → 5.5.0**, ORC
+  **1.6.13 → 1.8.5** (with aircompressor 0.21 and threeten-extra
+  1.7.1), hive-storage-api **2.7.2 → 4.0.1**, protobuf-java
+  **2.5.0 → 3.24.4** (orc-core 1.8.x needs a protobuf 3.x runtime;
+  2.5.0 satisfied orc-core 1.6).
+- Hive JDBC driver bundled with the JDBC connector (`jdbc:hive2`
+  named servers): hive-jdbc/hive-service **1.1.0 → 4.0.1**, plus the
+  Curator jars the 4.x driver requires (see below). This lifts the
+  1.1.0-era write limitation for NUMERIC columns of Hive tables
+  accessed through the `jdbc` profile (HIVE-13614; verified against a
+  Hive 2.3.8 server). TIMESTAMP and DATE writes remain unsupported
+  through this connector.
+- Dropped from the runtime: Jackson 1.x is no longer part of the Hive
+  tree (still bundled for a legacy pxf-hdfs need), and the
+  datanucleus/JDO server-side persistence jars that the old
+  hive-metastore artifact mixed in are gone.
+- Spring/Postgres-JDBC/Go unchanged.
 
 ### S3 Select behavior changes
 
@@ -78,10 +97,41 @@ CVE bumps, CLI changes) are tracked separately and are **not** part of this cut.
   skew. Hive 4.x is also what allows the test cluster to run Hadoop 3.4.x —
   Hive 2.3.8 cannot execute MapReduce jobs on a Hadoop 3.4 cluster.
 
+### Hive 4.x client migration
+
+- The Hive plugin now compiles against the Hive 4.x client APIs:
+  metastore utility/constant relocations, the request-object
+  `getTable` form, `AbstractSerDe`-based serde initialization, and
+  the `Configuration`-based metastore client constructors.
+- Pushed-down ORC SearchArguments are serialized with Hive's own
+  `ConvertAstToSearchArg.sargToKryo`, guaranteeing the wire format
+  matches what the read side deserializes across kryo versions. The
+  standalone kryo pool wrapper in pxf-api was removed.
+- Hive 4.x object inspectors return Hive's proleptic `Date`/`Timestamp`
+  types; PXF converts them via `java.time` (not a string round-trip,
+  which threw for a proleptic year <= 0 and was zone-sensitive through
+  Hive's own `toSqlTimestamp()`) so resolvers keep emitting
+  `java.sql.Date`/`Timestamp` exactly as before.
+- The metastore-side integral-partition JDO pushdown check now uses
+  `MetastoreConf.getBoolVar`, which falls back to the legacy
+  `hive.metastore.integral.jdo.pushdown` key when the new
+  `metastore.integral.jdo.pushdown` key isn't set.
+- A new metastore compatibility client falls back to the legacy
+  positional partition RPCs when an older (2.x) metastore rejects the
+  request-object calls the 4.x client issues — verified live against
+  Hive 2.3.8 and 4.0.1 metastores.
+
 ### Breaking changes
 
 - This release targets **HBase 2.x**. HBase 1.x support is maintained on a
   separate branch.
+- **Hive 1.x metastores are no longer supported** by the Hive
+  connector; supported metastores are Hive 2.3 and later (the request-
+  object `getTable(GetTableRequest)` call `getHiveTable` uses issues
+  `get_table_req`, which first appears in the thrift IDL in 2.3.0 --
+  checked against the 2.1.1/2.2.0/2.3.0 IDLs). The Hive 1.x get_table
+  compatibility fallback no longer exists in the Hive 4.x thrift
+  bindings.
 
 ### Compatibility notes
 

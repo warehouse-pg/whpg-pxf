@@ -23,7 +23,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -164,8 +165,15 @@ public class HiveDataFragmenter extends HdfsDataFragmenter {
             LOG.debug("setPartitions: {}", setPartitions);
 
             // canPushDownIntegral represents hive.metastore.integral.jdo.pushdown property in hive-site.xml
-            boolean canPushDownIntegral = configuration
-                    .getBoolean(HiveConf.ConfVars.METASTORE_INTEGER_JDO_PUSHDOWN.varname, false);
+            // (HiveConf's copy of the var is deprecated in Hive 4.x; the
+            // metastore-side definition is the canonical one). Use
+            // MetastoreConf.getBoolVar rather than a plain
+            // configuration.getBoolean call on the new metastore.* key --
+            // getBoolVar falls back to the legacy hive.metastore.* key
+            // when the new one isn't set, which existing deployments'
+            // hive-site.xml still uses.
+            boolean canPushDownIntegral = MetastoreConf
+                    .getBoolVar(configuration, MetastoreConf.ConfVars.INTEGER_JDO_PUSHDOWN);
 
             List<ColumnDescriptor> columnDescriptors = context.getTupleDescription();
 
