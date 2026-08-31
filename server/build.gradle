@@ -45,6 +45,16 @@ ext['tomcat.version'] = '9.0.121'
 // class files. Overridden via the jackson-bom property so core,
 // databind, annotations, datatypes and modules all move together.
 ext['jackson-bom.version'] = '2.22.2'
+// log4j2: the Boot 2.7 BOM manages 2.17.2, which carries five published
+// advisories (CVE-2025-68161, CVE-2026-34477, CVE-2026-34479,
+// CVE-2026-34480, CVE-2026-34481 -- TLS hostname verification on the
+// Socket Appender, plus XmlLayout / Log4j1XmlLayout / JsonTemplateLayout
+// output-integrity issues). OSV puts the last of those fixed at 2.25.4;
+// 2.26.0 is the current release with none, and log4j-core stays Java 8
+// class files. Overridden via the log4j2 property so api, core, the JUL
+// adapter, the SLF4J binding, the 1.x compatibility API and
+// log4j-spring-boot all move together.
+ext['log4j2.version'] = '2.26.0'
 
 def javaProjects = subprojects.findAll {
     it.name.startsWith("pxf-")
@@ -290,18 +300,15 @@ configure(javaProjects) {
                 entry("aws-java-sdk-s3")
             }
 
-            // currently imported BOM spring-boot-dependencies:2.5.12 includes log4j-bom:2.17.2 and
-            // importing a module log4j-spring-boot:2.17.2 results in its transitive Junit dependencies
-            // being put into compileClasspath so we have to exclude them here so they are not shipped with PXF
-            // this is fixed in log4j-spring-boot:2.19.0, which is used by spring-boot-dependencies:3.0.0+
-            // so when we upgrade to Spring Boot version 3.0.0+ we should remove this fix
-            // alternatively we can bump log4j-spring-boot to 2.19.0 and not use excludes
-            // dependency("org.apache.logging.log4j:log4j-spring-boot:2.19.0")
-            dependency("org.apache.logging.log4j:log4j-spring-boot:2.17.2") {
-                exclude("org.junit.vintage:junit-vintage-engine")
-                exclude("org.junit.jupiter:junit-jupiter-engine")
-                exclude("org.junit.jupiter:junit-jupiter-api")
-            }
+            // log4j-spring-boot needs no entry here: it is part of log4j-bom
+            // and so tracks the log4j2.version override at the top of this
+            // file. The JUnit excludes that used to live here are gone with
+            // it -- log4j-spring-boot:2.17.2 declared junit-vintage-engine,
+            // junit-jupiter-engine, junit-jupiter-api and junit-pioneer at
+            // COMPILE scope, which leaked them onto compileClasspath and into
+            // the shipped jar. That was fixed upstream in 2.19.0 (the previous
+            // comment here anticipated exactly this cleanup); at 2.26.0 every
+            // JUnit dependency is test-scoped.
 
         }
     }
