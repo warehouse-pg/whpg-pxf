@@ -39,10 +39,18 @@ dependencies {
     // HBase 2.5+ added OpenTelemetry client-side tracing (HBASE-26125 family).
     // HBase client code references io.opentelemetry.api.trace.Span via invokedynamic;
     // without this dep, any HBase operation throws BootstrapMethodError:
-    // NoClassDefFoundError: io/opentelemetry/api/trace/Span. Version pinned to
-    // match hbase-client-2.6.5.pom (1.49.0). Surfaced during HBase 2.x runtime bring-up.
-    implementation("io.opentelemetry:opentelemetry-api:1.49.0") { transitive = false }
-    implementation("io.opentelemetry:opentelemetry-context:1.49.0") { transitive = false }
+    // NoClassDefFoundError: io/opentelemetry/api/trace/Span. Surfaced during
+    // HBase 2.x runtime bring-up.
+    //
+    // 1.49.0 was hbase-client-2.6.5.pom's own version, but it carries
+    // BDSA-2026-13566 (unbounded memory allocation -> DoS), which Black Duck
+    // puts fixed at 1.62.0. Deliberately above HBase's declared version, the
+    // same way protobuf-java and aircompressor sit above their upstream pins
+    // here: the OpenTelemetry 1.x API line is stable, and PXF only needs the
+    // Span type to resolve at class-load for HBase's no-op tracing path.
+    // 1.62.0 is still Java 8 class files.
+    implementation("io.opentelemetry:opentelemetry-api:1.62.0") { transitive = false }
+    implementation("io.opentelemetry:opentelemetry-context:1.62.0") { transitive = false }
     implementation("io.opentelemetry.semconv:opentelemetry-semconv:1.25.0-alpha") { transitive = false }
     // HBase 2.x uses its shaded Netty for the async RPC client (referenced even
     // when using the sync API; ConnectionImplementation:346 reflectively loads

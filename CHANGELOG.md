@@ -79,17 +79,28 @@ bundle.
     above Hive 4.0.1's own 3.24.4 pin, which is itself affected; 3.25.x
     also aligns the unshaded runtime with the protobuf major Hadoop 3.4.3
     shades.
-  - log4j2 **2.17.2 → 2.26.0** via the Boot BOM property, so api, core,
+  - log4j2 **2.17.2 → 2.26.1** via the Boot BOM property, so api, core,
     the JUL adapter, the SLF4J binding, the 1.x compatibility API and
-    log4j-spring-boot all move together. Clears five advisories
-    (CVE-2025-68161, CVE-2026-34477/34479/34480/34481). The JUnit
-    excludes previously needed on `log4j-spring-boot` are removed with
-    it — 2.17.2 declared them at compile scope, 2.26.0 does not.
+    log4j-spring-boot all move together. Clears six advisories: the five
+    against 2.17.2 (CVE-2025-68161, CVE-2026-34477/34479/34480/34481)
+    plus CVE-2026-49844 against 2.26.0 (improper serialization of
+    non-finite floating-point values in `MapMessage.asJson()`). The
+    JUnit excludes previously needed on `log4j-spring-boot` are removed
+    with it — 2.17.2 declared them at compile scope, 2.26.x does not.
   - `commons-io` **2.7 → 2.16.1**, matching
     `hadoop-project-3.4.3.pom`'s own `<commons-io.version>` rather than
     the newest release, so it lands on the JAR the Hadoop client stack
     already exercises.
   - PostgreSQL JDBC **42.7.2 → 42.7.13**.
+  - `org.wildfly.openssl:wildfly-openssl` **1.0.7.Final → 2.2.5.Final**
+    (BDSA-2020-3250, memory leak on HTTP session creation). Fixed
+    upstream in 1.0.11.Final, but 2.2.5.Final is what
+    `hadoop-project-3.4.3.pom` itself pins, so it is the release the
+    hadoop-aws S3A openssl channel mode is built against.
+  - OpenTelemetry (`opentelemetry-api`, `opentelemetry-context`)
+    **1.49.0 → 1.62.0** (BDSA-2026-13566, unbounded memory allocation).
+    Above hbase-client-2.6.5's own declared 1.49.0; PXF needs these only
+    so HBase's no-op tracing path resolves at class-load.
 
 #### Behavior note
 
