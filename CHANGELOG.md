@@ -33,7 +33,7 @@ features (external cluster mode, CLI changes) are tracked separately and are
 - Hive client **2.3.8 → 4.0.1**, and with it the hand-maintained Hive
   transitive tree re-derived from Hive 4.0.1's POMs: Thrift
   (libthrift) **0.9.3 → 0.16.0**, Kryo **3.0.3 → 5.5.0**, ORC
-  **1.6.13 → 1.8.5** (with aircompressor **0.8 → 2.0.3** and
+  **1.6.13 → 1.8.10** (with aircompressor **0.8 → 2.0.3** and
   threeten-extra 1.7.1), hive-storage-api **2.7.2 → 4.0.1**,
   protobuf-java **2.5.0 → 3.25.8** (orc-core 1.8.x needs a protobuf 3.x
   runtime; 2.5.0 satisfied orc-core 1.6).
@@ -90,6 +90,13 @@ bundle.
     the newest release, so it lands on the JAR the Hadoop client stack
     already exercises.
   - PostgreSQL JDBC **42.7.2 → 42.7.13**.
+  - Apache ORC **1.8.5 → 1.8.10** (CVE-2025-47436, fixed in 1.8.9). A
+    few patches above Hive 4.0.1's own `<orc.version>` of 1.8.5, staying
+    inside the same minor line — orc-core 2.x is compiled for Java 17.
+    Note the advisory itself does not reach this bundle: it is a heap
+    buffer overflow in the ORC **C++** LZO decompressor, and only the
+    pure-Java `orc-core`/`orc-shims` jars ship here. The patch bump was
+    taken anyway because it is free.
 
 #### Behavior note
 
