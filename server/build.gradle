@@ -116,10 +116,19 @@ configure(javaProjects) {
             dependency("com.google.guava:guava:32.0.1-jre")
             // orc-core 1.8.x generates OrcProto with protoc 3.x, so it needs
             // a protobuf-java 3.x runtime on the classpath (the previous
-            // 2.5.0 pin satisfied orc-core 1.6). 3.24.4 is Hive 4.0.1's own
-            // pin and is proto2-compatible; the HBase legacy-PB paths are
-            // covered by the L2 hbase group.
-            dependency("com.google.protobuf:protobuf-java:3.24.4")
+            // 2.5.0 pin satisfied orc-core 1.6). Still proto2-compatible; the
+            // HBase legacy-PB paths are covered by the L2 hbase group.
+            //
+            // Deliberately ABOVE Hive 4.0.1's own pin of 3.24.4, which carries
+            // CVE-2024-7254 (8.7 high: unbounded recursion parsing nested
+            // groups / SGROUP tags -> StackOverflowError). OSV puts the fix at
+            // 3.25.5 for the 3.x line, so no 3.24.x release resolves it.
+            // 3.25.8 is the current 3.25.x patch and it also aligns the
+            // unshaded runtime with the protobuf major Hadoop 3.4.3 itself
+            // shades (hadoop-shaded-protobuf_3_25). protobuf-java 3.x patch
+            // releases are wire- and API-compatible, so Hive/HBase/ORC keep
+            // working against it.
+            dependency("com.google.protobuf:protobuf-java:3.25.8")
             // Hive 4.0.1's replacement for org.json in hive-common
             dependency("com.tdunning:json:1.8")
             dependency("com.google.cloud.bigdataoss:gcs-connector:hadoop2-1.9.17")
