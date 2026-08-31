@@ -149,7 +149,6 @@ configure(javaProjects) {
             dependency("com.zaxxer:HikariCP:3.4.5")
             dependency("commons-codec:commons-codec:1.14")
             dependency("commons-collections:commons-collections:3.2.2")
-            dependency("commons-configuration:commons-configuration:1.10")
             dependency("commons-io:commons-io:2.7")
             dependency("commons-lang:commons-lang:2.6")
             dependency("commons-logging:commons-logging:1.1.3")
