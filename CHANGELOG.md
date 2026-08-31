@@ -85,22 +85,25 @@ bundle.
     (CVE-2025-68161, CVE-2026-34477/34479/34480/34481). The JUnit
     excludes previously needed on `log4j-spring-boot` are removed with
     it — 2.17.2 declared them at compile scope, 2.26.0 does not.
-  - `commons-io` **2.7 → 2.16.1**, matching
-    `hadoop-project-3.4.3.pom`'s own `<commons-io.version>` rather than
-    the newest release, so it lands on the JAR the Hadoop client stack
-    already exercises.
+  - `commons-io` **2.7 → 2.20.0** (CVE-2024-47554, uncontrolled resource
+    consumption in `XmlStreamReader`, fixed in 2.14.0). This sat at
+    2.16.1 to match `hadoop-project-3.4.3.pom`'s own
+    `<commons-io.version>`; it had to leave that pin for a non-security
+    reason — see the `commons-configuration2` entry below.
   - PostgreSQL JDBC **42.7.2 → 42.7.13**.
   - `commons-configuration2` **2.10.1 → 2.15.1** (CVE-2026-45205,
     `StackOverflowError` on YAML input containing cycles). Upstream fixed
     it in 2.15.0 and lists 2.2 through 2.14.x as affected, so no 2.10.x
     release resolves it — this is deliberately above
-    `hadoop-project-3.4.3.pom`'s own 2.10.1 pin. Linkage was verified in
-    both directions at bytecode level rather than assumed: all 91
-    commons-lang3/commons-text symbols 2.15.1 references resolve against
-    the 3.18.0/1.14.0 pinned here (its POM asks for lang3 3.20.0 and text
-    1.15.0 but uses nothing they added), and all 23
-    commons-configuration2 symbols hadoop-common 3.4.3 references resolve
-    against 2.15.1.
+    `hadoop-project-3.4.3.pom`'s own 2.10.1 pin. It forces
+    **`commons-io` 2.16.1 → 2.20.0** with it: the 2.15.x line moved its
+    file-location strategies onto commons-io's `build.AbstractSupplier`,
+    and `FileLocatorUtils` calls
+    `HomeDirectoryLocationStrategy$Builder.getUnchecked()`, inherited from
+    commons-io's `IOSupplier`, which only gained that method in 2.17.0.
+    Against 2.16.1 this compiles and passes every unit test, then throws
+    `NoSuchMethodError` the first time Hadoop resolves a configuration
+    file — caught only by the L2 parquet smoke test.
 
 #### Behavior note
 
