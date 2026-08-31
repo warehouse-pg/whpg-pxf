@@ -97,10 +97,6 @@ bundle.
     upstream in 1.0.11.Final, but 2.2.5.Final is what
     `hadoop-project-3.4.3.pom` itself pins, so it is the release the
     hadoop-aws S3A openssl channel mode is built against.
-  - OpenTelemetry (`opentelemetry-api`, `opentelemetry-context`)
-    **1.49.0 → 1.62.0** (BDSA-2026-13566, unbounded memory allocation).
-    Above hbase-client-2.6.5's own declared 1.49.0; PXF needs these only
-    so HBase's no-op tracing path resolves at class-load.
 
 #### Behavior note
 
@@ -121,6 +117,13 @@ the upgrade and no longer depends on the library's wording.
   the Java `libthrift`).
 - Spring Framework 5.3.x and Spring Boot 2.7.x have no further OSS
   releases; their remaining advisories need the Boot 3.x / Java 17 move.
+- OpenTelemetry **1.49.0** carries BDSA-2026-13566 (1 low). The fix is
+  1.62.0, but OpenTelemetry 1.5x split `io.opentelemetry.common.*` into a
+  separate `opentelemetry-common` artifact, and these jars are bundled
+  `transitive = false`, so the bump produced a `NoClassDefFoundError` on
+  the first HBase query in the packaging smoke run. Left at the version
+  hbase-client 2.6.5 itself declares; see the note in
+  `server/pxf-hbase/build.gradle`.
 - `org.json:json` **20090211** is still bundled for MapR. Note it ships
   the same `org.json.*` classes as `com.tdunning:json` with a different
   implementation, so classpath order decides which wins.

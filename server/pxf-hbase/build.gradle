@@ -42,15 +42,28 @@ dependencies {
     // NoClassDefFoundError: io/opentelemetry/api/trace/Span. Surfaced during
     // HBase 2.x runtime bring-up.
     //
-    // 1.49.0 was hbase-client-2.6.5.pom's own version, but it carries
-    // BDSA-2026-13566 (unbounded memory allocation -> DoS), which Black Duck
-    // puts fixed at 1.62.0. Deliberately above HBase's declared version, the
-    // same way protobuf-java and aircompressor sit above their upstream pins
-    // here: the OpenTelemetry 1.x API line is stable, and PXF only needs the
-    // Span type to resolve at class-load for HBase's no-op tracing path.
-    // 1.62.0 is still Java 8 class files.
-    implementation("io.opentelemetry:opentelemetry-api:1.62.0") { transitive = false }
-    implementation("io.opentelemetry:opentelemetry-context:1.62.0") { transitive = false }
+    // Stays at hbase-client-2.6.5.pom's own version. 1.49.0 carries
+    // BDSA-2026-13566 (unbounded memory allocation -> DoS, LOW) with the fix
+    // at 1.62.0, and that bump was tried and REVERTED -- do not retry it
+    // without reading this first. OpenTelemetry 1.5x split
+    // io.opentelemetry.common.* into a new artifact,
+    // io.opentelemetry:opentelemetry-common. Because these are declared
+    // transitive = false, nothing pulled it in, and the packaging smoke run
+    // failed on the first HBase query with
+    //   "PXF server error : java.lang.NoClassDefFoundError:
+    //    io/opentelemetry/common/ComponentLoader"
+    // exactly the same finding-shape as the Span error above. The unit suites
+    // do not catch it: they never load HBase's tracing path.
+    //
+    // Adding opentelemetry-common would close it -- ComponentLoader and
+    // io/opentelemetry/common/impl/ApiUsageLogger are the only two classes
+    // api/context reference and do not bundle, and hbase 2.6.5's 50 OpenTelemetry
+    // symbols all still resolve against 1.62.0. It was not worth it for one LOW:
+    // it adds a third jar to the bundle and puts us 13 minors above the version
+    // HBase itself declares, in a spot that has now produced two runtime
+    // NoClassDefFoundErrors. Revisit only with a smoke run attached.
+    implementation("io.opentelemetry:opentelemetry-api:1.49.0") { transitive = false }
+    implementation("io.opentelemetry:opentelemetry-context:1.49.0") { transitive = false }
     implementation("io.opentelemetry.semconv:opentelemetry-semconv:1.25.0-alpha") { transitive = false }
     // HBase 2.x uses its shaded Netty for the async RPC client (referenced even
     // when using the sync API; ConnectionImplementation:346 reflectively loads
