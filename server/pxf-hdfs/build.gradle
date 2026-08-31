@@ -24,7 +24,6 @@ dependencies {
 
     implementation("com.google.guava:guava")
     implementation("commons-codec:commons-codec")
-    implementation("commons-configuration:commons-configuration")
     implementation("commons-io:commons-io")
     implementation("commons-lang:commons-lang")
     implementation("org.apache.commons:commons-lang3")
@@ -82,12 +81,15 @@ dependencies {
     // Same finding-shape as re2j above. Its lang3 partner version matters:
     // see the commons-lang3 pin in the root dependencyManagement.
     implementation("org.apache.commons:commons-text") { transitive = false }
-    // Hadoop 3.x bumped commons-configuration from v1 → v2 (different group/artifact).
-    // The old commons-configuration:1.10 is still bundled but Hadoop 3.4.3 internals
-    // reference org.apache.commons.configuration2.Configuration. Without this dep,
-    // PXF errors at runtime with "PXF server error : org/apache/commons/configuration2/Configuration"
+    // Hadoop 3.x bumped commons-configuration from v1 → v2 (different group/artifact),
+    // and Hadoop 3.4.3 internals reference org.apache.commons.configuration2.Configuration.
+    // Without this dep, PXF errors at runtime with
+    // "PXF server error : org/apache/commons/configuration2/Configuration"
     // on any Hadoop-touching code path. Version pinned to 2.10.1 to match Hadoop
     // 3.4.3's parent pom (<commons-configuration2.version>2.10.1).
+    // The pre-split commons-configuration:1.10 jar was dropped in PTT-1553: nothing
+    // on the Hadoop 3.4.3 client path or in PXF's own sources referenced
+    // org.apache.commons.configuration.* (v1), and BDSA-2025-4006 has no 1.x fix.
     implementation("org.apache.commons:commons-configuration2") { transitive = false }
     // Hadoop 3.4 replaced commons-collections 3.x with commons-collections4
     // (<commons-collections4.version>4.4</commons-collections4.version> in
