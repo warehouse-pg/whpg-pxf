@@ -34,8 +34,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.NoSuchFileException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -353,12 +355,21 @@ public class JdbcAccessor extends JdbcBasePlugin implements Accessor {
         }
 
         String queryText;
+        File queryFile = new File(serverDirectory, queryName + ".sql");
         try {
-            File queryFile = new File(serverDirectory, queryName + ".sql");
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Reading text of query={} from {}", queryName, queryFile.getCanonicalPath());
             }
             queryText = FileUtils.readFileToString(queryFile, Charset.defaultCharset());
+        } catch (FileNotFoundException | NoSuchFileException e) {
+            // Build the "does not exist" text ourselves rather than relying on
+            // the library's exception message. commons-io <= 2.7 threw
+            // FileNotFoundException("File '<path>' does not exist"); from 2.8
+            // onwards readFileToString goes through java.nio and throws
+            // NoSuchFileException, whose getMessage() is the bare path with no
+            // explanation. Interpolating that verbatim silently degraded a
+            // user-facing error into just a filename.
+            throw new RuntimeException(String.format("Failed to read text of query %s : File '%s' does not exist", queryName, queryFile), e);
         } catch (IOException e) {
             throw new RuntimeException(String.format("Failed to read text of query %s : %s", queryName, e.getMessage()), e);
         }

@@ -33,10 +33,10 @@ features (external cluster mode, CLI changes) are tracked separately and are
 - Hive client **2.3.8 → 4.0.1**, and with it the hand-maintained Hive
   transitive tree re-derived from Hive 4.0.1's POMs: Thrift
   (libthrift) **0.9.3 → 0.16.0**, Kryo **3.0.3 → 5.5.0**, ORC
-  **1.6.13 → 1.8.5** (with aircompressor 0.21 and threeten-extra
-  1.7.1), hive-storage-api **2.7.2 → 4.0.1**, protobuf-java
-  **2.5.0 → 3.24.4** (orc-core 1.8.x needs a protobuf 3.x runtime;
-  2.5.0 satisfied orc-core 1.6).
+  **1.6.13 → 1.8.5** (with aircompressor **0.8 → 2.0.3** and
+  threeten-extra 1.7.1), hive-storage-api **2.7.2 → 4.0.1**,
+  protobuf-java **2.5.0 → 3.25.8** (orc-core 1.8.x needs a protobuf 3.x
+  runtime; 2.5.0 satisfied orc-core 1.6).
 - Hive JDBC driver bundled with the JDBC connector (`jdbc:hive2`
   named servers): hive-jdbc/hive-service **1.1.0 → 4.0.1**, plus the
   Curator jars the 4.x driver requires (see below). This lifts the
@@ -44,11 +44,77 @@ features (external cluster mode, CLI changes) are tracked separately and are
   accessed through the `jdbc` profile (HIVE-13614; verified against a
   Hive 2.3.8 server). TIMESTAMP and DATE writes remain unsupported
   through this connector.
-- Dropped from the runtime: Jackson 1.x is no longer part of the Hive
-  tree (still bundled for a legacy pxf-hdfs need), and the
-  datanucleus/JDO server-side persistence jars that the old
-  hive-metastore artifact mixed in are gone.
-- Spring/Postgres-JDBC/Go unchanged.
+- Dropped from the runtime: Jackson 1.x is gone entirely — it left the
+  Hive tree with the 4.0.1 migration and the last legacy pxf-hdfs/pxf-hive
+  usages were removed afterwards, so no `org.codehaus.jackson` artifact
+  ships any more. The datanucleus/JDO server-side persistence jars that
+  the old hive-metastore artifact mixed in are gone too.
+- Go unchanged. Spring Framework and the PostgreSQL JDBC driver both
+  moved for security — see *Security remediation* below.
+
+### Security remediation (Black Duck)
+
+Advisory-driven changes on top of the library modernization above. Each
+line notes the component's state in the Black Duck scan of the PXF 7.0.0
+bundle.
+
+- **Removed, not upgraded** — these jars were bundle leftovers with no
+  code behind them on the shipped classpath:
+  - `org.mortbay.jetty:jetty-util` **6.1.26** dropped (1 critical,
+    5 high). Nothing on the server classpath referenced it.
+  - `org.codehaus.jackson` (Jackson 1.x) **1.9.13** dropped (1 critical,
+    1 high), plus an `all*.exclude` so it cannot return transitively.
+  - `commons-configuration:commons-configuration` **1.10** dropped
+    (BDSA-2025-4006). Hadoop 3.x moved to the v2 groupId/artifact and
+    `commons-configuration2` covers the client path; the pre-split jar
+    was a Hadoop-2.x-era leftover. Upstream states no 1.x fix will be
+    issued, so removal was the only remediation.
+- **Version floors raised for published advisories:**
+  - `com.google.guava:guava` **20.0 → 32.0.1-jre**.
+  - Spring Framework **5.3.33 → 5.3.39** (the last release published to
+    Maven Central before OSS support for the 5.3.x line ended).
+  - `io.airlift:aircompressor` **0.8 → 2.0.3**.
+  - `com.google.protobuf:protobuf-java` **3.24.4 → 3.25.8**
+    (CVE-2024-7254, unbounded recursion on nested groups). Deliberately
+    above Hive 4.0.1's own 3.24.4 pin, which is itself affected; 3.25.x
+    also aligns the unshaded runtime with the protobuf major Hadoop 3.4.3
+    shades.
+  - log4j2 **2.17.2 → 2.26.0** via the Boot BOM property, so api, core,
+    the JUL adapter, the SLF4J binding, the 1.x compatibility API and
+    log4j-spring-boot all move together. Clears five advisories
+    (CVE-2025-68161, CVE-2026-34477/34479/34480/34481). The JUnit
+    excludes previously needed on `log4j-spring-boot` are removed with
+    it — 2.17.2 declared them at compile scope, 2.26.0 does not.
+  - `commons-io` **2.7 → 2.16.1**, matching
+    `hadoop-project-3.4.3.pom`'s own `<commons-io.version>` rather than
+    the newest release, so it lands on the JAR the Hadoop client stack
+    already exercises.
+  - PostgreSQL JDBC **42.7.2 → 42.7.13**.
+
+#### Behavior note
+
+`JdbcAccessor` used to interpolate the caught exception's message into
+the "Failed to read text of query" error. commons-io 2.7 and earlier threw
+`FileNotFoundException("File '<path>' does not exist")`; from 2.8 onwards
+`readFileToString` goes through `java.nio` and throws
+`NoSuchFileException`, whose message is the bare path. The not-found
+message is now constructed locally, so the error text is unchanged by
+the upgrade and no longer depends on the library's wording.
+
+#### Known remaining exposure
+
+- Apache Thrift **0.16.0** still carries advisories published after the
+  0.9.3 → 0.16.0 migration. The upstream fix line is 0.24.0, which is
+  not released; the two criticals and several highs affect the C++,
+  c_glib, Rust and Node bindings, which this bundle does not ship (only
+  the Java `libthrift`).
+- Spring Framework 5.3.x and Spring Boot 2.7.x have no further OSS
+  releases; their remaining advisories need the Boot 3.x / Java 17 move.
+- `org.json:json` **20090211** is still bundled for MapR. Note it ships
+  the same `org.json.*` classes as `com.tdunning:json` with a different
+  implementation, so classpath order decides which wins.
+- `commons-lang` **2.6** is end-of-life (2.6 is the final release); the
+  fix is migration to `commons-lang3`, which is not yet done.
 
 ### S3 Select behavior changes
 
