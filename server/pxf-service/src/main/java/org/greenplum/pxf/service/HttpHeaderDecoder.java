@@ -1,7 +1,8 @@
 package org.greenplum.pxf.service;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 
@@ -32,8 +33,8 @@ public class HttpHeaderDecoder {
     public boolean areHeadersEncoded(MultiValueMap<String, String> requestHeaders) {
         boolean headersEncoded = false;
         for (Map.Entry<String, List<String>> entry : requestHeaders.entrySet()) {
-            if (StringUtils.equalsIgnoreCase(ENCODED_HEADER_VALUES_NAME, entry.getKey())) {
-                headersEncoded = StringUtils.equalsIgnoreCase(flatten(entry.getValue()), "true");
+            if (Strings.CI.equals(ENCODED_HEADER_VALUES_NAME, entry.getKey())) {
+                headersEncoded = Strings.CI.equals(flatten(entry.getValue()), "true");
                 break;
             }
         }
@@ -47,7 +48,7 @@ public class HttpHeaderDecoder {
      * @return true if the header values are expected to be encoded, false otherwise
      */
     public boolean areHeadersEncoded(HttpServletRequest request) {
-        return StringUtils.equalsIgnoreCase(flatten(Collections.list(request.getHeaders(ENCODED_HEADER_VALUES_NAME))), "true");
+        return Strings.CI.equals(flatten(Collections.list(request.getHeaders(ENCODED_HEADER_VALUES_NAME))), "true");
     }
 
     /**
@@ -60,7 +61,7 @@ public class HttpHeaderDecoder {
      */
     public String getHeaderValue(String name, List<String> values, boolean headersEncoded) {
         String value = flatten(values);
-        if (value != null && headersEncoded && StringUtils.startsWithIgnoreCase(name, PROP_PREFIX)) {
+        if (value != null && headersEncoded && Strings.CI.startsWith(name, PROP_PREFIX)) {
             try {
                 return URLDecoder.decode(value, UTF8_NAME);
             } catch (UnsupportedEncodingException e) {

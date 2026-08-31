@@ -1,7 +1,8 @@
 package org.greenplum.pxf.plugins.s3;
 
 import com.google.common.collect.Sets;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.ProtocolHandler;
 import org.greenplum.pxf.api.model.RequestContext;
@@ -14,7 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import static org.apache.commons.lang.StringUtils.isNotEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.greenplum.pxf.plugins.s3.S3SelectAccessor.FILE_HEADER_INFO_IGNORE;
 import static org.greenplum.pxf.plugins.s3.S3SelectAccessor.FILE_HEADER_INFO_USE;
 
@@ -137,7 +138,7 @@ public class S3ProtocolHandler implements ProtocolHandler {
      * @return true if the HdfsFileFragmenter should be used, false otherwise
      */
     private boolean useFileReadForJson(RequestContext context) {
-        boolean JsonFormat = StringUtils.equalsIgnoreCase("JSON", context.getFormat());
+        boolean JsonFormat = Strings.CI.equals("JSON", context.getFormat());
         boolean splitByFile = context.getOption("split_by_file", false);
         return JsonFormat && splitByFile;
     }
@@ -149,15 +150,15 @@ public class S3ProtocolHandler implements ProtocolHandler {
      * @return true if the CSV/TEXT file has headers, false otherwise
      */
     private boolean fileHasHeaderLine(String format, RequestContext context) {
-        if (StringUtils.equals("CSV", format) || StringUtils.equals("TEXT", format)) {
+        if (Strings.CS.equals("CSV", format) || Strings.CS.equals("TEXT", format)) {
             // Currently, when you create a PXF external table,
             // you cannot use the HEADER option in your formatter
             // specification
             String fileHeaderInfo = StringUtils.upperCase(
                     context.getOption(S3SelectAccessor.FILE_HEADER_INFO));
 
-            return StringUtils.equals(FILE_HEADER_INFO_IGNORE, fileHeaderInfo) ||
-                    StringUtils.equals(FILE_HEADER_INFO_USE, fileHeaderInfo);
+            return Strings.CS.equals(FILE_HEADER_INFO_IGNORE, fileHeaderInfo) ||
+                    Strings.CS.equals(FILE_HEADER_INFO_USE, fileHeaderInfo);
         }
 
         return false;

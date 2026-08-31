@@ -28,7 +28,6 @@ dependencies {
 
     implementation("com.google.guava:guava")
     implementation("commons-codec:commons-codec")
-    implementation("commons-lang:commons-lang")
     implementation("org.apache.hive:hive-exec:${hiveVersion}:core")  { transitive = false }
     implementation("org.apache.hive:hive-metastore")                 { transitive = false }
     implementation("org.apache.hive:hive-serde")                     { transitive = false }
@@ -58,6 +57,12 @@ dependencies {
     implementation("org.apache.hive.shims:hive-shims-common")        { transitive = false }
     implementation("org.apache.hive.shims:hive-shims-0.23")          { transitive = false }
     implementation("org.apache.commons:commons-lang3")               { transitive = false }
+    // HiveResolver escapes Java string literals through
+    // org.apache.commons.text.StringEscapeUtils: the lang3 class of that
+    // name is deprecated upstream, and this build compiles with
+    // -Xlint:deprecation -Werror, so commons-text is the only usable home
+    // for it. pxf-hdfs already bundles the same artifact.
+    implementation("org.apache.commons:commons-text")                 { transitive = false }
     implementation("org.apache.hive:hive-storage-api")               { transitive = false }
     implementation("org.apache.orc:orc-core")                        { transitive = false }
     // a declared runtime dependency of orc-core (already bundled for the

@@ -1,7 +1,7 @@
 package org.greenplum.pxf.plugins.json;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.greenplum.pxf.api.io.DataType;
@@ -148,7 +148,7 @@ public final class JsonUtilities {
                 // convert each element to a corresponding Java object
                 data.add(decodeString(split, primitiveType));
             } catch (Exception e) {
-                String hint = createErrorHintFromValue(StringUtils.startsWith(split, "{"), val);
+                String hint = createErrorHintFromValue(Strings.CS.startsWith(split, "{"), val);
                 throw new PxfRuntimeException(String.format("Error parsing array element: %s was not of expected type %s", split, primitiveType), hint, e);
             }
         }

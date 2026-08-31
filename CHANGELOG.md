@@ -69,6 +69,13 @@ bundle.
     `commons-configuration2` covers the client path; the pre-split jar
     was a Hadoop-2.x-era leftover. Upstream states no 1.x fix will be
     issued, so removal was the only remediation.
+  - `commons-lang:commons-lang` **2.6** dropped (BDSA-2025-6881), plus an
+    `all*.exclude` so it cannot return transitively. 2.6 (2011) is the
+    final release of the pre-lang3 groupId and no 2.x fix exists —
+    upstream's answer is `commons-lang3`, which PXF already bundled at
+    3.18.0, the very version that fixes this advisory. All 68 PXF source
+    files that used the old package moved to `org.apache.commons.lang3`.
+    See the migration note below.
 - **Version floors raised for published advisories:**
   - `com.google.guava:guava` **20.0 → 32.0.1-jre**.
   - Spring Framework **5.3.33 → 5.3.39** (the last release published to
@@ -101,6 +108,48 @@ the "Failed to read text of query" error. commons-io 2.7 and earlier threw
 message is now constructed locally, so the error text is unchanged by
 the upgrade and no longer depends on the library's wording.
 
+#### commons-lang3 migration note
+
+Moving off `commons-lang` 2.6 was not a package rename alone.
+commons-lang3 **3.18.0** deprecates the `CharSequence`-based comparison
+and edit methods in favour of the `Strings.CS` / `Strings.CI` instances
+introduced in 3.18, and this build compiles with `-Xlint:deprecation
+-Werror`, so the deprecated forms could not simply be carried over.
+The mapping used:
+
+| commons-lang 2.6 | now |
+| --- | --- |
+| `StringUtils.equals` | `Strings.CS.equals` |
+| `StringUtils.equalsIgnoreCase` | `Strings.CI.equals` |
+| `StringUtils.startsWith` / `endsWith` / `contains` | `Strings.CS.*` |
+| `StringUtils.startsWithIgnoreCase` | `Strings.CI.startsWith` |
+| `StringUtils.removeStart` / `removeEnd` / `replace` | `Strings.CS.*` |
+| `StringUtils.defaultString(s, d)` | `java.util.Objects.toString(s, d)` |
+| `StringEscapeUtils` | `org.apache.commons.text.StringEscapeUtils` |
+| `ObjectUtils.toString(o, d)` | `java.util.Objects.toString(o, d)` |
+
+`StringUtils.isBlank`, `isNotBlank`, `isEmpty`, `isNotEmpty`,
+`defaultIfBlank`, `repeat`, `join`, `trim`, `lowerCase`, `upperCase`,
+`stripEnd`, `rightPad`, `isNumeric` and the `ArrayUtils`, `BooleanUtils`,
+`CharUtils`, `NumberUtils` and `builder` classes are unchanged apart from
+the package.
+
+Two things deliberately did **not** move:
+
+- `StringUtils.containsAny` stays on `StringUtils`. Only the
+  `(CharSequence, CharSequence...)` varargs overload is deprecated; PXF's
+  three call sites use the `(CharSequence, char...)` and
+  `(CharSequence, CharSequence)` overloads, which are not. The
+  distinction matters: those overloads treat the second argument as a
+  *set of characters*, while `Strings.CS.containsAny` treats each
+  argument as a *substring*. Both call sites are forbidden-character
+  checks (`Utilities.isValidRestrictedDirectoryName` and
+  `JdbcBasePlugin`'s session-property validation), so switching would
+  have silently weakened them.
+- `HdfsSplittableDataAccessor` and three assertions in `ParquetWriteTest`
+  call `org.apache.hadoop.util.StringUtils`, which is Hadoop's own class
+  and unrelated to commons-lang. They are untouched.
+
 #### Known remaining exposure
 
 - Apache Thrift **0.16.0** still carries advisories published after the
@@ -113,8 +162,6 @@ the upgrade and no longer depends on the library's wording.
 - `org.json:json` **20090211** is still bundled for MapR. Note it ships
   the same `org.json.*` classes as `com.tdunning:json` with a different
   implementation, so classpath order decides which wins.
-- `commons-lang` **2.6** is end-of-life (2.6 is the final release); the
-  fix is migration to `commons-lang3`, which is not yet done.
 
 ### S3 Select behavior changes
 

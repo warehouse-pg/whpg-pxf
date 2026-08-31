@@ -20,7 +20,7 @@ package org.greenplum.pxf.api.utilities;
  */
 
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.greenplum.pxf.api.io.DataType;
 
 /**

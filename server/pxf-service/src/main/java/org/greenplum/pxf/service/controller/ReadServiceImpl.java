@@ -2,7 +2,8 @@ package org.greenplum.pxf.service.controller;
 
 import com.google.common.io.CountingOutputStream;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.greenplum.pxf.api.io.Writable;
 import org.greenplum.pxf.api.model.ConfigurationFactory;
 import org.greenplum.pxf.api.model.Fragment;
@@ -89,7 +90,7 @@ public class ReadServiceImpl extends BaseServiceImpl<OperationStats> implements 
                 String profile = fragment.getProfile();
                 restoreOriginalValues = false;
                 if (StringUtils.isNotBlank(profile) &&
-                        !StringUtils.equalsIgnoreCase(profile, context.getProfile())) {
+                        !Strings.CI.equals(profile, context.getProfile())) {
                     restoreOriginalValues = true;
                     log.debug("Fragment {} of resource {} will be using profile: {}",
                             fragment.getIndex(), fragment.getSourceName(), profile);

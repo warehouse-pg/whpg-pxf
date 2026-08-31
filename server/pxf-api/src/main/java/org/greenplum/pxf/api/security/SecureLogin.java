@@ -19,7 +19,8 @@ package org.greenplum.pxf.api.security;
  * under the License.
  */
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.net.DNS;
 import org.apache.hadoop.security.LoginSession;
@@ -249,7 +250,7 @@ public class SecureLogin {
      */
     String getServicePrincipal(String serverName, Configuration configuration) {
         // use system property as default for backward compatibility when only 1 Kerberized cluster was supported
-        String defaultPrincipal = StringUtils.equalsIgnoreCase(serverName, "default") ?
+        String defaultPrincipal = Strings.CI.equals(serverName, "default") ?
                 System.getProperty(CONFIG_KEY_SERVICE_PRINCIPAL) :
                 null;
         String principal = configuration.get(CONFIG_KEY_SERVICE_PRINCIPAL, defaultPrincipal);
@@ -274,7 +275,7 @@ public class SecureLogin {
      */
     String getServiceKeytab(String serverName, Configuration configuration) {
         // use system property as default for backward compatibility when only 1 Kerberized cluster was supported
-        String defaultKeytab = StringUtils.equalsIgnoreCase(serverName, "default") ?
+        String defaultKeytab = Strings.CI.equals(serverName, "default") ?
                 System.getProperty(CONFIG_KEY_SERVICE_KEYTAB) :
                 null;
         return configuration.get(CONFIG_KEY_SERVICE_KEYTAB, defaultKeytab);

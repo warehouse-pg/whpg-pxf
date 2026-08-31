@@ -19,7 +19,7 @@ package org.greenplum.pxf.plugins.jdbc;
  * under the License.
  */
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.greenplum.pxf.api.filter.ColumnPredicateBuilder;
 import org.greenplum.pxf.api.filter.Node;
 import org.greenplum.pxf.api.filter.ToStringTreeVisitor;
@@ -76,7 +76,7 @@ public class JdbcPredicateBuilder extends ColumnPredicateBuilder {
             case VARCHAR:
             case BPCHAR:
                 return String.format("'%s'",
-                        StringUtils.replace(value, "'", "''"));
+                        Strings.CS.replace(value, "'", "''"));
             case DATE:
                 // Date field has different format in different databases
                 return dbProduct.wrapDate(value);

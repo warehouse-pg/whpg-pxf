@@ -1,6 +1,6 @@
 package org.greenplum.pxf.plugins.hdfs;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.InvalidInputException;
@@ -39,7 +39,7 @@ public class HdfsFileFragmenter extends HdfsDataFragmenter {
         try {
             fileStatusArray = pxfInputFormat.listStatus(jobConf);
         } catch (InvalidInputException e) {
-            if (StringUtils.equalsIgnoreCase("true", context.getOption(IGNORE_MISSING_PATH_OPTION))) {
+            if (Strings.CI.equals("true", context.getOption(IGNORE_MISSING_PATH_OPTION))) {
                 LOG.debug("Ignoring InvalidInputException", e);
                 return fragments;
             }

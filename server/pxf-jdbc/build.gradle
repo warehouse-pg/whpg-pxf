@@ -24,7 +24,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP")
     implementation("commons-collections:commons-collections")
     implementation("commons-io:commons-io")
-    implementation("commons-lang:commons-lang")
+    implementation("org.apache.commons:commons-lang3")
     implementation("org.postgresql:postgresql")                      { transitive = false }
 
     /*******************************

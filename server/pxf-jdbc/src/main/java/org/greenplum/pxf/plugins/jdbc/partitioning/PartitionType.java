@@ -19,7 +19,7 @@ package org.greenplum.pxf.plugins.jdbc.partitioning;
  * under the License.
  */
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.plugins.jdbc.Interval;
 import org.greenplum.pxf.plugins.jdbc.IntervalType;
 

@@ -1,6 +1,6 @@
 package org.greenplum.pxf.service.utilities;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.model.Plugin;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.springframework.stereotype.Component;

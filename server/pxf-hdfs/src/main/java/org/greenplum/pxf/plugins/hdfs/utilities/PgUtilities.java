@@ -21,8 +21,9 @@ package org.greenplum.pxf.plugins.hdfs.utilities;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
+import org.apache.commons.text.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.springframework.stereotype.Component;
 
@@ -137,7 +138,7 @@ public class PgUtilities {
      * @return string representing Postgres array
      */
     public String unescapeArrayElement(String str) {
-        if (StringUtils.equals(str, "NULL")) {
+        if (Strings.CS.equals(str, "NULL")) {
             return null;
         }
 
@@ -170,7 +171,7 @@ public class PgUtilities {
     public String escapeArrayElement(String str) {
         if (str == null) {
             return "NULL";
-        } else if (StringUtils.equalsIgnoreCase(str, "NULL")) {
+        } else if (Strings.CI.equals(str, "NULL")) {
             // force quotes for literal NULL
             return "\"" + str + "\"";
         } else if (StringUtils.isEmpty(str)) {
@@ -233,9 +234,9 @@ public class PgUtilities {
      * @throws {@link PxfRuntimeException} if the input is not a valid text format Postgres boolean
      */
     public boolean parseBoolLiteral(final String value) {
-        if (StringUtils.equals(value, "t")) {
+        if (Strings.CS.equals(value, "t")) {
             return true;
-        } else if (StringUtils.equals(value, "f")) {
+        } else if (Strings.CS.equals(value, "f")) {
             return false;
         }
 

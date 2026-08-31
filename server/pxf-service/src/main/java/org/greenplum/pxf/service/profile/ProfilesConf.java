@@ -20,7 +20,7 @@ package org.greenplum.pxf.service.profile;
  */
 
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.model.PluginConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

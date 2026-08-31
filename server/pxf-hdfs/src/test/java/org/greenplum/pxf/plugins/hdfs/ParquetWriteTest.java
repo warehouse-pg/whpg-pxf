@@ -1,7 +1,8 @@
 package org.greenplum.pxf.plugins.hdfs;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.math.NumberUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -2372,11 +2373,11 @@ public class ParquetWriteTest {
     }
 
     private void writeNumericValues(String[] values, String configurationOption, String columnName, int precision, int scale) throws Exception {
-        if (StringUtils.equalsIgnoreCase("error", configurationOption)) {
+        if (Strings.CI.equals("error", configurationOption)) {
             writeNumericValuesErrorFlag(values, columnName, precision, scale);
-        } else if (StringUtils.equalsIgnoreCase("ignore", configurationOption)) {
+        } else if (Strings.CI.equals("ignore", configurationOption)) {
             writeNumericValuesIgnoreFlag(values);
-        } else if (StringUtils.equalsIgnoreCase("round", configurationOption)) {
+        } else if (Strings.CI.equals("round", configurationOption)) {
             writeNumericValuesRoundFlag(values, columnName, precision, scale);
         }
     }
