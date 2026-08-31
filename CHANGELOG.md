@@ -69,6 +69,16 @@ bundle.
     `commons-configuration2` covers the client path; the pre-split jar
     was a Hadoop-2.x-era leftover. Upstream states no 1.x fix will be
     issued, so removal was the only remediation.
+  - `org.json:json` **20090211** dropped (2 medium). The oldest artifact
+    in the tree: a 2009 snapshot of the reference implementation, carried
+    as a companion jar for MapR deployments. Nothing in this repo imports
+    `org.json.*`, PXF ships no MapR client jars for it to pair with, and
+    Hive 4.0.1 reads JSON through `com.tdunning:json`, which supplies the
+    same `org.json.*` class names — so the two jars were shadowing each
+    other's classes on every classpath that had both. That ambiguity goes
+    away with the removal. No release under this coordinate fixes the
+    findings. A MapR deployment that needs the reference implementation
+    should place it on its own classpath.
 - **Version floors raised for published advisories:**
   - `com.google.guava:guava` **20.0 → 32.0.1-jre**.
   - Spring Framework **5.3.33 → 5.3.39** (the last release published to
@@ -110,9 +120,6 @@ the upgrade and no longer depends on the library's wording.
   the Java `libthrift`).
 - Spring Framework 5.3.x and Spring Boot 2.7.x have no further OSS
   releases; their remaining advisories need the Boot 3.x / Java 17 move.
-- `org.json:json` **20090211** is still bundled for MapR. Note it ships
-  the same `org.json.*` classes as `com.tdunning:json` with a different
-  implementation, so classpath order decides which wins.
 - `commons-lang` **2.6** is end-of-life (2.6 is the final release); the
   fix is migration to `commons-lang3`, which is not yet done.
 

@@ -201,7 +201,19 @@ configure(javaProjects) {
             // JDO persistence jars the old hive-metastore artifact pulled in
             // are gone from the Hive 4.0.1 tree (dropped, not replaced).
             dependency("org.jodd:jodd-util:6.0.0")
-            dependency("org.json:json:20090211")
+            // No org.json:json entry: the 20090211 release that used to be
+            // pinned here (and declared by pxf-hive as a MapR companion jar)
+            // is gone. It was the oldest artifact in the tree -- a 2009
+            // snapshot of the reference implementation, unmaintained under
+            // that coordinate for years and carrying Black Duck findings
+            // with no fix in its own line. Nothing in this repo imports
+            // org.json.*, PXF ships no MapR client jars for it to pair
+            // with, and Hive 4.0.1 reads JSON through com.tdunning:json
+            // (above), which supplies the same org.json.* class names --
+            // so the two jars were shadowing each other's classes on every
+            // classpath that had both. Should a MapR deployment ever need
+            // the reference implementation back, it belongs in that
+            // deployment's own classpath, not in the PXF RPM.
             dependency("org.objenesis:objenesis:3.3")
 
             // Overrides the older release the Boot 2.7 BOM manages (the pin
