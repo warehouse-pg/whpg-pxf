@@ -158,9 +158,11 @@ configure(javaProjects) {
             dependency("commons-lang:commons-lang:2.6")
             dependency("commons-logging:commons-logging:1.1.3")
 
-            // The next five track hadoop-project-3.4.3.pom in lockstep with
-            // hadoopVersion and are declared (transitive=false) by several
-            // modules; the versions live only here.
+            // The next five are declared (transitive=false) by several
+            // modules and their versions live only here. All but
+            // commons-configuration2 track hadoop-project-3.4.3.pom in
+            // lockstep with hadoopVersion -- see that one's own note below
+            // for why it is deliberately ahead.
             dependency("org.apache.commons:commons-text:1.14.0")
             // commons-text 1.14.0's escaper classes call commons-lang3
             // Range.of(), which only exists from lang3 3.13; the Spring Boot
@@ -170,7 +172,22 @@ configure(javaProjects) {
             // with NoSuchMethodError. 3.18.0 is the lang3 version
             // hadoop-project-3.4.3.pom itself pairs with text 1.14.0.
             dependency("org.apache.commons:commons-lang3:3.18.0")
-            dependency("org.apache.commons:commons-configuration2:2.10.1")
+            // Deliberately ahead of hadoop-project-3.4.3.pom's own pin of
+            // 2.10.1, which carries CVE-2026-45205 (StackOverflowError on
+            // YAML input containing cycles). Upstream fixed it in 2.15.0 and
+            // states 2.2 through 2.14.x are affected, so no 2.10.x release
+            // resolves it; 2.15.1 is the current patch of the fixed line and
+            // is still Java 8 class files.
+            //
+            // Linkage was checked in both directions rather than assumed,
+            // because this is the same jar the commons-text/lang3 note above
+            // describes going wrong: every one of the 91 commons-lang3 and
+            // commons-text symbols 2.15.1 references resolves against the
+            // 3.18.0 / 1.14.0 pinned here (2.15.1's own POM asks for lang3
+            // 3.20.0 and text 1.15.0, but needs nothing they added), and all
+            // 23 commons-configuration2 symbols hadoop-common 3.4.3
+            // references resolve against 2.15.1.
+            dependency("org.apache.commons:commons-configuration2:2.15.1")
             dependency("org.apache.commons:commons-collections4:4.4")
             dependencySet(group:"org.apache.hadoop.thirdparty", version:"1.5.0") {
                 entry("hadoop-shaded-guava")

@@ -85,8 +85,11 @@ dependencies {
     // and Hadoop 3.4.3 internals reference org.apache.commons.configuration2.Configuration.
     // Without this dep, PXF errors at runtime with
     // "PXF server error : org/apache/commons/configuration2/Configuration"
-    // on any Hadoop-touching code path. Version pinned to 2.10.1 to match Hadoop
-    // 3.4.3's parent pom (<commons-configuration2.version>2.10.1).
+    // on any Hadoop-touching code path. The version is managed centrally and now
+    // sits deliberately ABOVE Hadoop 3.4.3's parent pom
+    // (<commons-configuration2.version>2.10.1), which carries CVE-2026-45205 —
+    // see the note on the pin in the root dependencyManagement, including the
+    // linkage check against hadoop-common's own use of this artifact.
     // The pre-split commons-configuration:1.10 jar was dropped in PTT-1553: nothing
     // on the Hadoop 3.4.3 client path or in PXF's own sources referenced
     // org.apache.commons.configuration.* (v1), and BDSA-2025-4006 has no 1.x fix.
