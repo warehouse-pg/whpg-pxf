@@ -305,8 +305,15 @@ configure(javaProjects) {
                 entry("orc-shims")
             }
 
-            // Avro dependencies
-            dependencySet(group:"org.apache.avro", version:"1.11.4") {
+            // Avro dependencies. 1.11.4 carries BDSA-2026-2029 (8.1 high:
+            // remote code execution via code injection in the Java SDK);
+            // Black Duck puts the 1.11.x fix at 1.11.5, which is on Maven
+            // Central. Deliberately staying on the 1.11 line: avro 1.12.x
+            // is compiled for Java 11 (class-file major 55) while 1.11.5 is
+            // still Java 8 (major 52), and this build targets Java 8. The
+            // 1.11.5 POM declares the same dependencies as 1.11.4, so
+            // nothing else in the tree moves with it.
+            dependencySet(group:"org.apache.avro", version:"1.11.5") {
                 entry("avro")
                 entry("avro-mapred")
             }
