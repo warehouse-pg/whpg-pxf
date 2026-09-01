@@ -22,7 +22,7 @@ features (external cluster mode, CLI changes) are tracked separately and are
   **4.1.137.Final** (above the AWS SDK's own 4.1.126 pin — the current
   netty 4.1.x release that clears the full published advisory set).
 - Security floor bumps on independent libraries: Avro **1.10.2 →
-  1.11.4**, commons-compress **1.20 → 1.28.0**, woodstox-core **5.0.3
+  1.11.5**, commons-compress **1.20 → 1.28.0**, woodstox-core **5.0.3
   → 6.7.0** (with stax2-api 3.1.4 → 4.2.2), and SnakeYAML **1.30 →
   2.5** (overriding the Spring Boot 2.7 BOM's managed version).
 - Boot-BOM-managed overrides raised for security: embedded Tomcat
@@ -33,7 +33,7 @@ features (external cluster mode, CLI changes) are tracked separately and are
 - Hive client **2.3.8 → 4.0.1**, and with it the hand-maintained Hive
   transitive tree re-derived from Hive 4.0.1's POMs: Thrift
   (libthrift) **0.9.3 → 0.16.0**, Kryo **3.0.3 → 5.5.0**, ORC
-  **1.6.13 → 1.8.5** (with aircompressor **0.8 → 2.0.3** and
+  **1.6.13 → 1.8.10** (with aircompressor **0.8 → 2.0.3** and
   threeten-extra 1.7.1), hive-storage-api **2.7.2 → 4.0.1**,
   protobuf-java **2.5.0 → 3.25.8** (orc-core 1.8.x needs a protobuf 3.x
   runtime; 2.5.0 satisfied orc-core 1.6).
@@ -69,6 +69,16 @@ bundle.
     `commons-configuration2` covers the client path; the pre-split jar
     was a Hadoop-2.x-era leftover. Upstream states no 1.x fix will be
     issued, so removal was the only remediation.
+  - `org.json:json` **20090211** dropped (2 medium). The oldest artifact
+    in the tree: a 2009 snapshot of the reference implementation, carried
+    as a companion jar for MapR deployments. Nothing in this repo imports
+    `org.json.*`, PXF ships no MapR client jars for it to pair with, and
+    Hive 4.0.1 reads JSON through `com.tdunning:json`, which supplies the
+    same `org.json.*` class names — so the two jars were shadowing each
+    other's classes on every classpath that had both. That ambiguity goes
+    away with the removal. No release under this coordinate fixes the
+    findings. A MapR deployment that needs the reference implementation
+    should place it on its own classpath.
   - `commons-lang:commons-lang` **2.6** dropped (BDSA-2025-6881), plus an
     `all*.exclude` so it cannot return transitively. 2.6 (2011) is the
     final release of the pre-lang3 groupId and no 2.x fix exists —
@@ -86,17 +96,36 @@ bundle.
     above Hive 4.0.1's own 3.24.4 pin, which is itself affected; 3.25.x
     also aligns the unshaded runtime with the protobuf major Hadoop 3.4.3
     shades.
-  - log4j2 **2.17.2 → 2.26.0** via the Boot BOM property, so api, core,
+  - log4j2 **2.17.2 → 2.26.1** via the Boot BOM property, so api, core,
     the JUL adapter, the SLF4J binding, the 1.x compatibility API and
-    log4j-spring-boot all move together. Clears five advisories
-    (CVE-2025-68161, CVE-2026-34477/34479/34480/34481). The JUnit
-    excludes previously needed on `log4j-spring-boot` are removed with
-    it — 2.17.2 declared them at compile scope, 2.26.0 does not.
+    log4j-spring-boot all move together. Clears six advisories: the five
+    against 2.17.2 (CVE-2025-68161, CVE-2026-34477/34479/34480/34481)
+    plus CVE-2026-49844 against 2.26.0 (improper serialization of
+    non-finite floating-point values in `MapMessage.asJson()`). The
+    JUnit excludes previously needed on `log4j-spring-boot` are removed
+    with it — 2.17.2 declared them at compile scope, 2.26.x does not.
   - `commons-io` **2.7 → 2.16.1**, matching
     `hadoop-project-3.4.3.pom`'s own `<commons-io.version>` rather than
     the newest release, so it lands on the JAR the Hadoop client stack
     already exercises.
   - PostgreSQL JDBC **42.7.2 → 42.7.13**.
+  - Apache ORC **1.8.5 → 1.8.10** (CVE-2025-47436, fixed in 1.8.9). A
+    few patches above Hive 4.0.1's own `<orc.version>` of 1.8.5, staying
+    inside the same minor line — orc-core 2.x is compiled for Java 17.
+    Note the advisory itself does not reach this bundle: it is a heap
+    buffer overflow in the ORC **C++** LZO decompressor, and only the
+    pure-Java `orc-core`/`orc-shims` jars ship here. The patch bump was
+    taken anyway because it is free.
+  - Apache Avro **1.11.4 → 1.11.5** (BDSA-2026-2029, 8.1 high: remote
+    code execution via code injection in the Java SDK). Stays on the
+    1.11 line on purpose — avro 1.12.x is compiled for Java 11 while
+    this build targets Java 8, and 1.11.5 declares the same
+    dependencies as 1.11.4.
+  - `org.wildfly.openssl:wildfly-openssl` **1.0.7.Final → 2.2.5.Final**
+    (BDSA-2020-3250, memory leak on HTTP session creation). Fixed
+    upstream in 1.0.11.Final, but 2.2.5.Final is what
+    `hadoop-project-3.4.3.pom` itself pins, so it is the release the
+    hadoop-aws S3A openssl channel mode is built against.
 
 #### Behavior note
 
@@ -159,9 +188,13 @@ Two things deliberately did **not** move:
   the Java `libthrift`).
 - Spring Framework 5.3.x and Spring Boot 2.7.x have no further OSS
   releases; their remaining advisories need the Boot 3.x / Java 17 move.
-- `org.json:json` **20090211** is still bundled for MapR. Note it ships
-  the same `org.json.*` classes as `com.tdunning:json` with a different
-  implementation, so classpath order decides which wins.
+- OpenTelemetry **1.49.0** carries BDSA-2026-13566 (1 low). The fix is
+  1.62.0, but OpenTelemetry 1.5x split `io.opentelemetry.common.*` into a
+  separate `opentelemetry-common` artifact, and these jars are bundled
+  `transitive = false`, so the bump produced a `NoClassDefFoundError` on
+  the first HBase query in the packaging smoke run. Left at the version
+  hbase-client 2.6.5 itself declares; see the note in
+  `server/pxf-hbase/build.gradle`.
 
 ### S3 Select behavior changes
 

@@ -49,12 +49,16 @@ ext['jackson-bom.version'] = '2.22.2'
 // advisories (CVE-2025-68161, CVE-2026-34477, CVE-2026-34479,
 // CVE-2026-34480, CVE-2026-34481 -- TLS hostname verification on the
 // Socket Appender, plus XmlLayout / Log4j1XmlLayout / JsonTemplateLayout
-// output-integrity issues). OSV puts the last of those fixed at 2.25.4;
-// 2.26.0 is the current release with none, and log4j-core stays Java 8
-// class files. Overridden via the log4j2 property so api, core, the JUL
-// adapter, the SLF4J binding, the 1.x compatibility API and
-// log4j-spring-boot all move together.
-ext['log4j2.version'] = '2.26.0'
+// output-integrity issues). OSV puts the last of those fixed at 2.25.4.
+// 2.26.0 then picked up CVE-2026-49844 of its own (improper serialization
+// of non-finite floating-point values in MapMessage.asJson(), in
+// log4j-api): OSV lists 2.26.0 as affected and 2.26.1 as not, so the
+// floor is 2.26.1. Class-file levels are unchanged from 2.26.0 (1252 of
+// 1253 log4j-core classes are Java 8, with the same single Java 9 class
+// and the same multi-release entries). Overridden via the log4j2
+// property so api, core, the JUL adapter, the SLF4J binding, the 1.x
+// compatibility API and log4j-spring-boot all move together.
+ext['log4j2.version'] = '2.26.1'
 
 def javaProjects = subprojects.findAll {
     it.name.startsWith("pxf-")
@@ -207,7 +211,19 @@ configure(javaProjects) {
             // JDO persistence jars the old hive-metastore artifact pulled in
             // are gone from the Hive 4.0.1 tree (dropped, not replaced).
             dependency("org.jodd:jodd-util:6.0.0")
-            dependency("org.json:json:20090211")
+            // No org.json:json entry: the 20090211 release that used to be
+            // pinned here (and declared by pxf-hive as a MapR companion jar)
+            // is gone. It was the oldest artifact in the tree -- a 2009
+            // snapshot of the reference implementation, unmaintained under
+            // that coordinate for years and carrying Black Duck findings
+            // with no fix in its own line. Nothing in this repo imports
+            // org.json.*, PXF ships no MapR client jars for it to pair
+            // with, and Hive 4.0.1 reads JSON through com.tdunning:json
+            // (above), which supplies the same org.json.* class names --
+            // so the two jars were shadowing each other's classes on every
+            // classpath that had both. Should a MapR deployment ever need
+            // the reference implementation back, it belongs in that
+            // deployment's own classpath, not in the PXF RPM.
             dependency("org.objenesis:objenesis:3.3")
 
             // Overrides the older release the Boot 2.7 BOM manages (the pin
@@ -221,7 +237,18 @@ configure(javaProjects) {
             dependency("org.simplify4u:slf4j-mock:2.3.0")
             dependency("org.threeten:threeten-extra:1.7.1")
             dependency("org.tukaani:xz:1.8")
-            dependency("org.wildfly.openssl:wildfly-openssl:1.0.7.Final")
+            // wildfly-openssl 1.0.7.Final carries BDSA-2020-3250 (memory leak
+            // on HTTP session creation -> DoS), fixed in 1.0.11.Final and
+            // 1.1.3.Final. 2.2.5.Final goes past both because it is what
+            // hadoop-project-3.4.3.pom itself pins, so it is the release the
+            // hadoop-aws S3A openssl channel mode is built and tested
+            // against. Still Java 8 class files, and the 2.x artifact is a
+            // shaded uber-jar that carries wildfly-openssl-java plus the
+            // per-platform natives inside it -- so the transitive = false
+            // declaration in pxf-hdfs still ships a complete library, and
+            // org.wildfly.openssl.OpenSSLProvider (the class Hadoop
+            // registers) is present.
+            dependency("org.wildfly.openssl:wildfly-openssl:2.2.5.Final")
             dependency("org.xerial.snappy:snappy-java:1.1.10.4")
 
             // Hadoop dependencies
@@ -311,8 +338,15 @@ configure(javaProjects) {
                 entry("orc-shims")
             }
 
-            // Avro dependencies
-            dependencySet(group:"org.apache.avro", version:"1.11.4") {
+            // Avro dependencies. 1.11.4 carries BDSA-2026-2029 (8.1 high:
+            // remote code execution via code injection in the Java SDK);
+            // Black Duck puts the 1.11.x fix at 1.11.5, which is on Maven
+            // Central. Deliberately staying on the 1.11 line: avro 1.12.x
+            // is compiled for Java 11 (class-file major 55) while 1.11.5 is
+            // still Java 8 (major 52), and this build targets Java 8. The
+            // 1.11.5 POM declares the same dependencies as 1.11.4, so
+            // nothing else in the tree moves with it.
+            dependencySet(group:"org.apache.avro", version:"1.11.5") {
                 entry("avro")
                 entry("avro-mapred")
             }
