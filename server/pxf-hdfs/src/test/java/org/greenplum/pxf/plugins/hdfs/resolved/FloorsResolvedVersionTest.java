@@ -32,7 +32,7 @@ public class FloorsResolvedVersionTest {
 
     @Test
     public void resolvedFloorsMatchTheSecurityPins() throws Exception {
-        assertEquals("1.11.4", versionOf("org.apache.avro", "avro"));
+        assertEquals("1.11.5", versionOf("org.apache.avro", "avro"));
         assertEquals("1.28.0", versionOf("org.apache.commons", "commons-compress"));
         assertEquals("6.7.0", versionOf("com.fasterxml.woodstox", "woodstox-core"));
         // the log4j2 override in the root build reaches every log4j artifact
