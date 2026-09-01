@@ -22,7 +22,7 @@ features (external cluster mode, CLI changes) are tracked separately and are
   **4.1.137.Final** (above the AWS SDK's own 4.1.126 pin — the current
   netty 4.1.x release that clears the full published advisory set).
 - Security floor bumps on independent libraries: Avro **1.10.2 →
-  1.11.4**, commons-compress **1.20 → 1.28.0**, woodstox-core **5.0.3
+  1.11.5**, commons-compress **1.20 → 1.28.0**, woodstox-core **5.0.3
   → 6.7.0** (with stax2-api 3.1.4 → 4.2.2), and SnakeYAML **1.30 →
   2.5** (overriding the Spring Boot 2.7 BOM's managed version).
 - Boot-BOM-managed overrides raised for security: embedded Tomcat
@@ -107,6 +107,11 @@ bundle.
     buffer overflow in the ORC **C++** LZO decompressor, and only the
     pure-Java `orc-core`/`orc-shims` jars ship here. The patch bump was
     taken anyway because it is free.
+  - Apache Avro **1.11.4 → 1.11.5** (BDSA-2026-2029, 8.1 high: remote
+    code execution via code injection in the Java SDK). Stays on the
+    1.11 line on purpose — avro 1.12.x is compiled for Java 11 while
+    this build targets Java 8, and 1.11.5 declares the same
+    dependencies as 1.11.4.
 
 #### Behavior note
 
