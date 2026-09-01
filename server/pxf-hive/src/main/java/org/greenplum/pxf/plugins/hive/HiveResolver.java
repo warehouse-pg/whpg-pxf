@@ -19,9 +19,11 @@ package org.greenplum.pxf.plugins.hive;
  * under the License.
  */
 
-import org.apache.commons.lang.CharUtils;
-import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.commons.lang.StringUtils;
+import java.util.Objects;
+import org.apache.commons.lang3.CharUtils;
+import org.apache.commons.lang3.Strings;
+import org.apache.commons.text.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -166,8 +168,8 @@ public class HiveResolver extends BasePlugin implements Resolver {
         if (metadata == null) {
             throw new RuntimeException("No hive metadata detected in request context");
         }
-        collectionDelim = StringUtils.defaultString(context.getOption("COLLECTION_DELIM"), COLLECTION_DELIM);
-        mapkeyDelim = StringUtils.defaultString(context.getOption("MAPKEY_DELIM"), MAPKEY_DELIM);
+        collectionDelim = Objects.toString(context.getOption("COLLECTION_DELIM"), COLLECTION_DELIM);
+        mapkeyDelim = Objects.toString(context.getOption("MAPKEY_DELIM"), MAPKEY_DELIM);
         hiveIndexes = metadata.getHiveIndexes();
         serdeClassName = metadata.getProperties().getProperty(SERIALIZATION_LIB);
     }
@@ -788,6 +790,6 @@ public class HiveResolver extends BasePlugin implements Resolver {
     private boolean columnDescriptorContainsColumn(String columnName) {
         return context.getTupleDescription()
                 .stream()
-                .anyMatch(cd -> StringUtils.equalsIgnoreCase(columnName, cd.columnName()));
+                .anyMatch(cd -> Strings.CI.equals(columnName, cd.columnName()));
     }
 }

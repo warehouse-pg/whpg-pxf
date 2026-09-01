@@ -11,7 +11,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.SneakyThrows;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.plugins.jdbc.PxfJdbcProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

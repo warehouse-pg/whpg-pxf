@@ -1,7 +1,7 @@
 package org.greenplum.pxf.api.error;
 
 import lombok.Getter;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 public class PxfRuntimeException extends RuntimeException {
 

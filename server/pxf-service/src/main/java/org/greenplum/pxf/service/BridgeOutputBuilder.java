@@ -20,9 +20,8 @@ package org.greenplum.pxf.service;
  */
 
 import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.GreenplumDateTime;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.error.BadRecordException;
@@ -43,6 +42,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -455,7 +455,7 @@ public class BridgeOutputBuilder {
                      * see https://www.postgresql.org/docs/9.4/arrays.html for details of this format.
                      */
                     gpdbOutput.setString(colIdx,
-                            ObjectUtils.toString(val, null));
+                            Objects.toString(val, null));
                     break;
                 default:
                     LOG.debug("Data type OID is {}", type);

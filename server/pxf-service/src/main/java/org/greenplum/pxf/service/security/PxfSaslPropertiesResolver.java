@@ -1,7 +1,7 @@
 package org.greenplum.pxf.service.security;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.security.SaslPropertiesResolver;
 import org.greenplum.pxf.api.model.ConfigurationFactory;
 import org.greenplum.pxf.api.security.GSSCredentialProvider;

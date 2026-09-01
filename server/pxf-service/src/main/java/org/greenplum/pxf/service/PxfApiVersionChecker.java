@@ -1,6 +1,6 @@
 package org.greenplum.pxf.service;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +15,6 @@ public class PxfApiVersionChecker {
      * @return true if the server is compatible with the client's API version
      */
     public boolean isCompatible(String serverApiVersion, String clientApiVersion) {
-        return StringUtils.equalsIgnoreCase(serverApiVersion, clientApiVersion);
+        return Strings.CI.equals(serverApiVersion, clientApiVersion);
     }
 }

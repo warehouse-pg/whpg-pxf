@@ -20,7 +20,7 @@ package org.greenplum.pxf.api.utilities;
  */
 
 import org.apache.catalina.connector.ClientAbortException;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.SecurityUtil;

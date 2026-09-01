@@ -1,9 +1,9 @@
 package org.greenplum.pxf.plugins.jdbc.utils;
 
 import com.google.common.collect.Sets;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.Set;
+import org.apache.commons.lang3.Strings;
 
 /**
  * Utilities class to handle Hive JDBC specific logic.
@@ -43,7 +43,7 @@ public class HiveJdbcUtils {
             prefix = terminatorIndex < 0 ? url : url.substring(0, terminatorIndex);
         }
 
-        return String.format("%s%s=%s%s", StringUtils.removeEnd(prefix, ";"), HIVE_URL_IMPERSONATION_PROPERTY, user, suffix);
+        return String.format("%s%s=%s%s", Strings.CS.removeEnd(prefix, ";"), HIVE_URL_IMPERSONATION_PROPERTY, user, suffix);
     }
 
     private static int findTerminatorIndex(String s, int start, Set<Character> terminators) {

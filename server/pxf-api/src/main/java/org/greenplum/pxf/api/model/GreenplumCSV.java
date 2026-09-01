@@ -1,6 +1,7 @@
 package org.greenplum.pxf.api.model;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 /**
  * Greenplum CSV Default
@@ -105,7 +106,7 @@ public class GreenplumCSV {
      * @return GreenplumCSV object for builder pattern
      */
     public GreenplumCSV withEscapeChar(String escapeString) {
-        if (StringUtils.equalsIgnoreCase("OFF", escapeString)) {
+        if (Strings.CI.equals("OFF", escapeString)) {
             escape = null;
         } else if (StringUtils.isNotEmpty(escapeString)) {
             validateSingleCharacter(escapeString, "ESCAPE");
@@ -169,7 +170,7 @@ public class GreenplumCSV {
      * @return GreenplumCSV object for builder pattern
      */
     public GreenplumCSV withDelimiter(String delimiterString) {
-        if (StringUtils.equalsIgnoreCase("OFF", delimiterString)) {
+        if (Strings.CI.equals("OFF", delimiterString)) {
             delimiter = null;
         } else if (StringUtils.isNotEmpty(delimiterString)) {
             validateSingleCharacter(delimiterString, "DELIMITER");

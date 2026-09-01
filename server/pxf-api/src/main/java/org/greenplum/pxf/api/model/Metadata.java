@@ -20,7 +20,7 @@ package org.greenplum.pxf.api.model;
  */
 
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.utilities.EnumGpdbType;
 
 import java.util.ArrayList;

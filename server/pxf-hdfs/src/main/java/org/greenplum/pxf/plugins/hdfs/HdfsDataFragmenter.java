@@ -20,7 +20,7 @@ package org.greenplum.pxf.plugins.hdfs;
  */
 
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
@@ -67,7 +67,7 @@ public class HdfsDataFragmenter extends BaseFragmenter {
         try {
             splits = getSplits(path);
         } catch (InvalidInputException e) {
-            if (StringUtils.equalsIgnoreCase("true", context.getOption(IGNORE_MISSING_PATH_OPTION))) {
+            if (Strings.CI.equals("true", context.getOption(IGNORE_MISSING_PATH_OPTION))) {
                 LOG.debug("Ignoring InvalidInputException", e);
                 return fragments;
             }

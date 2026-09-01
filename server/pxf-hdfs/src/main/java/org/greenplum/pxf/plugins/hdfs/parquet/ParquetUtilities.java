@@ -1,6 +1,6 @@
 package org.greenplum.pxf.plugins.hdfs.parquet;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.PrimitiveType;
@@ -58,7 +58,7 @@ public class ParquetUtilities {
             try {
                 data.add(decodeString(split, primitiveTypeName, logicalTypeAnnotation));
             } catch (NumberFormatException | PxfRuntimeException | DateTimeParseException e) {
-                String hint = createErrorHintFromValue(StringUtils.startsWith(split, "{"), val);
+                String hint = createErrorHintFromValue(Strings.CS.startsWith(split, "{"), val);
                 throw new PxfRuntimeException(String.format("Error parsing array element: %s was not of expected type %s", split, primitiveTypeName), hint, e);
             }
         }

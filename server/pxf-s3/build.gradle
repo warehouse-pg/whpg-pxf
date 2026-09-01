@@ -27,7 +27,6 @@ dependencies {
     implementation(project(':pxf-jdbc'))
     implementation("com.google.guava:guava")
     implementation("commons-codec:commons-codec")
-    implementation("commons-lang:commons-lang")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.apache.httpcomponents:httpclient")           { transitive = false }
     implementation("org.apache.httpcomponents:httpcore")             { transitive = false }

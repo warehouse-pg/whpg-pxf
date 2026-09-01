@@ -1,6 +1,7 @@
 package org.greenplum.pxf.plugins.hdfs;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -40,7 +41,7 @@ public enum HcfsType {
 
             return "/".equals(basePath)
                     ? "/"
-                    : "/" + StringUtils.removeEnd(StringUtils.removeStart(basePath, "/"), "/") + "/";
+                    : "/" + Strings.CS.removeEnd(Strings.CS.removeStart(basePath, "/"), "/") + "/";
         }
     },
     GS,
@@ -112,7 +113,7 @@ public enum HcfsType {
     private static void checkForConfigurationMismatch(String defaultFSScheme, String schemeFromContext, String serverName, String configurationDirectory) {
         // do not allow protocol mismatch, unless defaultFs has file:// scheme
         if (!FILE_SCHEME.equals(defaultFSScheme) &&
-                !StringUtils.equalsIgnoreCase(defaultFSScheme, schemeFromContext)) {
+                !Strings.CI.equals(defaultFSScheme, schemeFromContext)) {
             throw new PxfRuntimeException(
                     String.format("profile '%s' is not compatible with server's '%s' configuration ('%s')",
                             schemeFromContext, serverName, defaultFSScheme),
@@ -146,7 +147,7 @@ public enum HcfsType {
      */
     public String getUriForWrite(RequestContext context, String extension, CompressionCodec compressionCodec) {
         String fileName = String.format("%s/%s_%d",
-                StringUtils.removeEnd(getDataUri(context), "/"),
+                Strings.CS.removeEnd(getDataUri(context), "/"),
                 context.getTransactionId(),
                 context.getSegmentId());
 
@@ -192,17 +193,17 @@ public enum HcfsType {
      */
     public String validateAndNormalizeDataSource(String dataSource) {
 
-        String effectiveDataSource = StringUtils.removeStart(dataSource, "/");
+        String effectiveDataSource = Strings.CS.removeStart(dataSource, "/");
 
         if ("..".equals(effectiveDataSource)
-                || StringUtils.contains(effectiveDataSource, "../")
-                || StringUtils.endsWith(effectiveDataSource, "/..")) {
+                || Strings.CS.contains(effectiveDataSource, "../")
+                || Strings.CS.endsWith(effectiveDataSource, "/..")) {
             // Disallow relative paths
             throw new IllegalArgumentException(String
                     .format("the provided path '%s' is invalid. Relative paths are not allowed by PXF", effectiveDataSource));
         }
 
-        if (StringUtils.contains(effectiveDataSource, "$")) {
+        if (Strings.CS.contains(effectiveDataSource, "$")) {
             // Disallow $ to prevent users to access environment variables
             throw new IllegalArgumentException(String
                     .format("the provided path '%s' is invalid. The dollar sign character ($) is not allowed by PXF", effectiveDataSource));
@@ -225,10 +226,10 @@ public enum HcfsType {
 
         if (FILE_SCHEME.equals(defaultFS.getScheme())) {
             // if the defaultFS is file://, but enum is not FILE, use enum scheme only
-            uri = StringUtils.removeEnd(scheme, "://") + "://" + normalizedBasePath + normalizedDataSource;
+            uri = Strings.CS.removeEnd(scheme, "://") + "://" + normalizedBasePath + normalizedDataSource;
         } else {
             // if the defaultFS is not file://, use it, instead of enum scheme and append user's path
-            uri = StringUtils.removeEnd(defaultFS.toString(), "/") + "/" + normalizedBasePath + normalizedDataSource;
+            uri = Strings.CS.removeEnd(defaultFS.toString(), "/") + "/" + normalizedBasePath + normalizedDataSource;
         }
 
         disableSecureTokenRenewal(uri, configuration);
@@ -246,7 +247,7 @@ public enum HcfsType {
         return StringUtils.isBlank(basePath)
                 // Return an empty string to prevent "null" in the string concatenation
                 ? ""
-                : StringUtils.removeEnd(StringUtils.removeStart(basePath, "/"), "/") + "/";
+                : Strings.CS.removeEnd(Strings.CS.removeStart(basePath, "/"), "/") + "/";
     }
 
     /**

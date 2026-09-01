@@ -7,7 +7,7 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.mapred.FsInput;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
@@ -121,7 +121,7 @@ public final class AvroUtilities {
                     list.add(decodeString(elementType, split, false, hasUserProvidedSchema));
                 } catch (NumberFormatException | PxfRuntimeException e) {
                     String hint = "";
-                    if (StringUtils.startsWith(split, "{")) {
+                    if (Strings.CS.startsWith(split, "{")) {
                         hint = hasUserProvidedSchema ?
                                 "Value is a multi-dimensional array, please check that the provided AVRO schema has the correct dimensions." :
                                 "Value is a multi-dimensional array, user is required to provide an AVRO schema with matching dimensions.";
