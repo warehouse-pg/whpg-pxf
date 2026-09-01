@@ -153,12 +153,29 @@ configure(javaProjects) {
             dependency("com.zaxxer:HikariCP:3.4.5")
             dependency("commons-codec:commons-codec:1.14")
             dependency("commons-collections:commons-collections:3.2.2")
-            // commons-io 2.7 carries CVE-2024-47554 (uncontrolled resource
-            // consumption in XmlStreamReader), fixed in 2.14.0. 2.16.1 is
-            // hadoop-project-3.4.3.pom's own <commons-io.version>, so this
-            // lands on the JAR the Hadoop client stack already exercises
-            // rather than jumping to the newest 2.22.0.
-            dependency("commons-io:commons-io:2.16.1")
+            // commons-io 2.7 carried CVE-2024-47554 (uncontrolled resource
+            // consumption in XmlStreamReader), fixed in 2.14.0. This pin used
+            // to sit at 2.16.1 -- hadoop-project-3.4.3.pom's own
+            // <commons-io.version> -- deliberately, so it landed on the JAR
+            // the Hadoop client stack already exercises.
+            //
+            // It has to leave that pin now, and not for a security reason:
+            // commons-configuration2 2.15.x (see its own note below, bumped
+            // for CVE-2026-45205) builds its file-location strategies on
+            // org.apache.commons.io.build.AbstractSupplier, whose
+            // IOSupplier.getUnchecked() default method only exists from
+            // commons-io 2.17.0. Against 2.16.1 the pairing compiles and unit
+            // tests fine, then dies at runtime the first time Hadoop resolves
+            // a configuration file:
+            //   NoSuchMethodError: org.apache.commons.configuration2.io
+            //     .HomeDirectoryLocationStrategy$Builder.getUnchecked()
+            // caught by the L2 parquet smoke test, not by anything local.
+            //
+            // 2.20.0 is the current release; every class is still Java 8 and
+            // all 11 commons-io symbols hadoop-common 3.4.3 references resolve
+            // against it. If commons-configuration2 is ever reverted to a
+            // 2.10.x line, this can go back to matching Hadoop.
+            dependency("commons-io:commons-io:2.20.0")
             // No commons-lang (2.x) entry: the pre-lang3 groupId is gone.
             // commons-lang 2.6 (2011) is the final release of that line and
             // carries BDSA-2025-6881 with no 2.x fix -- upstream's answer is
@@ -168,9 +185,11 @@ configure(javaProjects) {
             // configurations block keeps it from returning transitively.
             dependency("commons-logging:commons-logging:1.1.3")
 
-            // The next five track hadoop-project-3.4.3.pom in lockstep with
-            // hadoopVersion and are declared (transitive=false) by several
-            // modules; the versions live only here.
+            // The next five are declared (transitive=false) by several
+            // modules and their versions live only here. All but
+            // commons-configuration2 track hadoop-project-3.4.3.pom in
+            // lockstep with hadoopVersion -- see that one's own note below
+            // for why it is deliberately ahead.
             dependency("org.apache.commons:commons-text:1.14.0")
             // commons-text 1.14.0's escaper classes call commons-lang3
             // Range.of(), which only exists from lang3 3.13; the Spring Boot
@@ -180,7 +199,33 @@ configure(javaProjects) {
             // with NoSuchMethodError. 3.18.0 is the lang3 version
             // hadoop-project-3.4.3.pom itself pairs with text 1.14.0.
             dependency("org.apache.commons:commons-lang3:3.18.0")
-            dependency("org.apache.commons:commons-configuration2:2.10.1")
+            // Deliberately ahead of hadoop-project-3.4.3.pom's own pin of
+            // 2.10.1, which carries CVE-2026-45205 (StackOverflowError on
+            // YAML input containing cycles). Upstream fixed it in 2.15.0 and
+            // states 2.2 through 2.14.x are affected, so no 2.10.x release
+            // resolves it; 2.15.1 is the current patch of the fixed line and
+            // is still Java 8 class files.
+            //
+            // This is the same jar the commons-text/lang3 note above describes
+            // going wrong, and it went wrong again here. The 2.15.x line moved
+            // its file-location strategies onto commons-io's
+            // build.AbstractSupplier: FileLocatorUtils calls
+            // HomeDirectoryLocationStrategy$Builder.getUnchecked(), inherited
+            // from commons-io's IOSupplier, which only has that method from
+            // 2.17.0. Against the previous commons-io 2.16.1 pin this compiled
+            // and passed every unit test, then threw NoSuchMethodError on the
+            // first Hadoop configuration-file resolution. Only the L2 parquet
+            // smoke test caught it -- see the commons-io pin above, which had
+            // to leave Hadoop's version because of this.
+            //
+            // Bumping anything in this cluster (commons-configuration2,
+            // commons-io, commons-lang3, commons-text) needs a real runtime
+            // exercise of a Hadoop config path, not unit tests and not
+            // bytecode reference-resolution: an earlier attempt to verify this
+            // statically reported "all references resolve" for BOTH the broken
+            // and the working pairing, because a supertype walk that reaches
+            // java.lang.Object cannot conclude anything.
+            dependency("org.apache.commons:commons-configuration2:2.15.1")
             dependency("org.apache.commons:commons-collections4:4.4")
             dependencySet(group:"org.apache.hadoop.thirdparty", version:"1.5.0") {
                 entry("hadoop-shaded-guava")
