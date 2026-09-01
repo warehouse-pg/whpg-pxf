@@ -1,6 +1,8 @@
 package org.greenplum.pxf.service;
 
-import org.apache.commons.lang.StringUtils;
+import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.greenplum.pxf.api.model.GreenplumCSV;
 import org.greenplum.pxf.api.model.OutputFormat;
@@ -154,7 +156,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         context.setConfig(StringUtils.isNotBlank(config) ? config : context.getServerName());
 
         // STATS-MAX-FRAGMENTS is deprecated in favor of STATS_MAX_FRAGMENTS for FDW options support
-        String maxFrags = StringUtils.defaultString(
+        String maxFrags = Objects.toString(
                 params.removeUserProperty("STATS_MAX_FRAGMENTS"),
                 params.removeUserProperty("STATS-MAX-FRAGMENTS"));
         if (!StringUtils.isBlank(maxFrags)) {
@@ -162,7 +164,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         }
 
         // STATS-SAMPLE-RATIO is deprecated in favor of STATS_SAMPLE_RATIO for FDW options support
-        String sampleRatioStr = StringUtils.defaultString(
+        String sampleRatioStr = Objects.toString(
                 params.removeUserProperty("STATS_SAMPLE_RATIO"),
                 params.removeUserProperty("STATS-SAMPLE-RATIO"));
         if (!StringUtils.isBlank(sampleRatioStr)) {
@@ -210,7 +212,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         // we clone the keyset to prevent concurrent modification exceptions
         List<String> paramNames = new ArrayList<>(params.keySet());
         for (String param : paramNames) {
-            if (StringUtils.startsWithIgnoreCase(param, RequestMap.USER_PROP_PREFIX)) {
+            if (Strings.CI.startsWith(param, RequestMap.USER_PROP_PREFIX)) {
                 // Add all left-over user properties as options
                 String optionName = param.toLowerCase().replace(RequestMap.USER_PROP_PREFIX_LOWERCASE, "");
                 String optionValue = params.removeUserProperty(optionName);
@@ -228,7 +230,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
                         LOG.debug("Added extra config property {} from option {}", propertyName, optionName);
                     }
                 }
-            } else if (StringUtils.startsWithIgnoreCase(param, RequestMap.PROP_PREFIX)) {
+            } else if (Strings.CI.startsWith(param, RequestMap.PROP_PREFIX)) {
                 // log debug for all left-over system properties
                 LOG.debug("Unused property {}", param);
             }
@@ -503,7 +505,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
          * @return true when the property is true, false otherwise
          */
         private boolean removeOptionalBoolProperty(String property) {
-            return StringUtils.equals(TRUE_LCASE, removeOptionalProperty(property));
+            return Strings.CS.equals(TRUE_LCASE, removeOptionalProperty(property));
         }
     }
 

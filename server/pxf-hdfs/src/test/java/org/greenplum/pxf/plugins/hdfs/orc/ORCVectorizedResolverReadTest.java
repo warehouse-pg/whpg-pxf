@@ -1,6 +1,6 @@
 package org.greenplum.pxf.plugins.hdfs.orc;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
@@ -399,7 +399,7 @@ class ORCVectorizedResolverReadTest extends ORCVectorizedBaseTest {
 
     private void checkListTimestampwithTimezoneReturned(Object expectedValue, Object value, int rowNum, int colNum) {
         // expect empty arrays to be empty
-        if (StringUtils.equalsIgnoreCase("{}", expectedValue.toString()) || StringUtils.equalsIgnoreCase("{{}}", expectedValue.toString())) {
+        if (Strings.CI.equals("{}", expectedValue.toString()) || Strings.CI.equals("{{}}", expectedValue.toString())) {
             assertEquals(expectedValue, value, "Row " + rowNum + ", COL" + (colNum + 1));
         } else {
             // check each element in the array
@@ -408,7 +408,7 @@ class ORCVectorizedResolverReadTest extends ORCVectorizedBaseTest {
             for (int i = 0; i < expected_timestamps.length; i++) {
                 String expected = expected_timestamps[i];
                 String actual = actual_timestamps[i];
-                if (StringUtils.equalsIgnoreCase("NULL", expected)) {
+                if (Strings.CI.equals("NULL", expected)) {
                     assertEquals("NULL", actual);
                 } else {
                     Object expectedTimestamp = ZonedDateTime.parse(expected.substring(1, expected_timestamps[i].length() - 1), GreenplumDateTime.DATETIME_WITH_TIMEZONE_FORMATTER).withZoneSameInstant(ZoneOffset.UTC);

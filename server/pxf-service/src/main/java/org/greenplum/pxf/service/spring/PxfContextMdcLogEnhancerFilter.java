@@ -1,7 +1,7 @@
 package org.greenplum.pxf.service.spring;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.service.HttpHeaderDecoder;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;

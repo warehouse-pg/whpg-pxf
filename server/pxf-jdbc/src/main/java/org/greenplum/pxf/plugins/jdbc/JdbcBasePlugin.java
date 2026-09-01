@@ -19,7 +19,8 @@ package org.greenplum.pxf.plugins.jdbc;
  * under the License.
  */
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.RequestContext;
@@ -305,7 +306,7 @@ public class JdbcBasePlugin extends BasePlugin {
         boolean impersonationEnabledForServer = configuration.getBoolean(CONFIG_KEY_SERVICE_USER_IMPERSONATION, false);
         LOG.debug("JDBC impersonation is {}enabled for server {}", impersonationEnabledForServer ? "" : "not ", context.getServerName());
         if (impersonationEnabledForServer) {
-            if (Utilities.isSecurityEnabled(configuration) && StringUtils.startsWith(jdbcUrl, HIVE_URL_PREFIX)) {
+            if (Utilities.isSecurityEnabled(configuration) && Strings.CS.startsWith(jdbcUrl, HIVE_URL_PREFIX)) {
                 // secure impersonation for Hive JDBC driver requires setting URL fragment that cannot be overwritten by properties
                 String updatedJdbcUrl = HiveJdbcUtils.updateImpersonationPropertyInHiveJdbcUrl(jdbcUrl, context.getUser());
                 LOG.debug("Replaced JDBC URL {} with {}", jdbcUrl, updatedJdbcUrl);
@@ -473,7 +474,7 @@ public class JdbcBasePlugin extends BasePlugin {
      */
     private Connection getConnectionInternal() throws Exception {
         Configuration configuration = context.getConfiguration();
-        if (Utilities.isSecurityEnabled(configuration) && StringUtils.startsWith(jdbcUrl, HIVE_URL_PREFIX)) {
+        if (Utilities.isSecurityEnabled(configuration) && Strings.CS.startsWith(jdbcUrl, HIVE_URL_PREFIX)) {
             return secureLogin.getLoginUser(context, configuration).doAs((PrivilegedExceptionAction<Connection>) () ->
                     connectionManager.getConnection(context.getServerName(), jdbcUrl, connectionConfiguration, isConnectionPoolUsed, poolConfiguration, poolQualifier));
         } else {

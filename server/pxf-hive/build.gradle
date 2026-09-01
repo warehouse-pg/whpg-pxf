@@ -28,7 +28,6 @@ dependencies {
 
     implementation("com.google.guava:guava")
     implementation("commons-codec:commons-codec")
-    implementation("commons-lang:commons-lang")
     implementation("org.apache.hive:hive-exec:${hiveVersion}:core")  { transitive = false }
     implementation("org.apache.hive:hive-metastore")                 { transitive = false }
     implementation("org.apache.hive:hive-serde")                     { transitive = false }
@@ -58,6 +57,12 @@ dependencies {
     implementation("org.apache.hive.shims:hive-shims-common")        { transitive = false }
     implementation("org.apache.hive.shims:hive-shims-0.23")          { transitive = false }
     implementation("org.apache.commons:commons-lang3")               { transitive = false }
+    // HiveResolver escapes Java string literals through
+    // org.apache.commons.text.StringEscapeUtils: the lang3 class of that
+    // name is deprecated upstream, and this build compiles with
+    // -Xlint:deprecation -Werror, so commons-text is the only usable home
+    // for it. pxf-hdfs already bundles the same artifact.
+    implementation("org.apache.commons:commons-text")                 { transitive = false }
     implementation("org.apache.hive:hive-storage-api")               { transitive = false }
     implementation("org.apache.orc:orc-core")                        { transitive = false }
     // a declared runtime dependency of orc-core (already bundled for the
@@ -74,23 +79,17 @@ dependencies {
     implementation("org.apache.thrift:libthrift")                    { transitive = false }
     implementation("org.antlr:antlr-runtime")                        { transitive = false }
     implementation("org.xerial.snappy:snappy-java")                  { transitive = false }
-    // hive-common 4.x reads JSON through com.tdunning:json. This jar and
-    // org.json:json below (kept for MapR, see its own comment) both ship
-    // classes under the same org.json.* package names (JSONObject,
-    // JSONArray, JSONException, JSONTokener, etc.) with different
-    // implementations -- verified by listing both jars' contents.
-    // Whichever one the classpath happens to load first wins for any
-    // caller of those classes; this repo's own code doesn't reference
-    // org.json.* directly, so nothing here is currently affected, but a
-    // future direct usage should be aware of the collision.
+    // hive-common 4.x reads JSON through com.tdunning:json. It is now the
+    // only supplier of the org.json.* class names (JSONObject, JSONArray,
+    // JSONException, JSONTokener, etc.) on this classpath: org.json:json
+    // 20090211 used to ship the same names with a different implementation
+    // -- whichever jar loaded first won -- and was dropped along with that
+    // ambiguity (see the note in the root build.gradle).
     implementation("com.tdunning:json")                              { transitive = false }
     implementation("org.jodd:jodd-util")                             { transitive = false }
 
     // transitive dependency for reading Hive tables with SerDe 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
     implementation("net.sf.opencsv:opencsv")                         { transitive = false }
-
-    // transitive dependency required by MapR
-    implementation("org.json:json:20090211")                         { transitive = false }
 
     /*******************************
      * Test Dependencies

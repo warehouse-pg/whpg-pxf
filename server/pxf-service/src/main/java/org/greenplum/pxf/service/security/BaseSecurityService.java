@@ -1,6 +1,7 @@
 package org.greenplum.pxf.service.security;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.HadoopKerberosName;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -186,7 +187,7 @@ public class BaseSecurityService implements SecurityService {
                                         String realm, boolean isConstrainedDelegationEnabled) {
         String result = remoteUser;
         if ((isConstrainedDelegationEnabled || isExpandUserPrincipal) && !remoteUser.endsWith(realm)) {
-            if (StringUtils.contains(remoteUser, "@")) {
+            if (Strings.CS.contains(remoteUser, "@")) {
                 throw new PxfRuntimeException(
                         String.format("Remote principal name %s contains @ symbol but does not end with %s",
                                 remoteUser, realm),

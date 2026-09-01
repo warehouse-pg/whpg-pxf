@@ -1,6 +1,6 @@
 package org.greenplum.pxf.service.spring;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.springframework.beans.factory.BeanCreationException;

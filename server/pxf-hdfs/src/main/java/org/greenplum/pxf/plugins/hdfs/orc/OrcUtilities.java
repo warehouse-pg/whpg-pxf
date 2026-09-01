@@ -1,6 +1,6 @@
 package org.greenplum.pxf.plugins.hdfs.orc;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.orc.TypeDescription;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.greenplum.pxf.plugins.hdfs.utilities.PgUtilities;
@@ -48,7 +48,7 @@ public final class OrcUtilities {
             try {
                 data.add(decodeString(split, underlyingChildCategory));
             } catch (NumberFormatException | PxfRuntimeException e) {
-                String hint = createErrorHintFromValue(StringUtils.startsWith(split, "{"), val);
+                String hint = createErrorHintFromValue(Strings.CS.startsWith(split, "{"), val);
                 throw new PxfRuntimeException(String.format("Error parsing array element: %s was not of expected type %s", split, underlyingChildCategory), hint, e);
             }
         }

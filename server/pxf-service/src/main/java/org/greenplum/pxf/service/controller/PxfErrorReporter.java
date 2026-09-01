@@ -1,7 +1,7 @@
 package org.greenplum.pxf.service.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.error.PxfRuntimeException;
 import org.greenplum.pxf.api.utilities.Utilities;
 import org.greenplum.pxf.service.utilities.ThrowingSupplier;

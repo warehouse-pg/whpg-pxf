@@ -1,6 +1,6 @@
 package org.greenplum.pxf.service.utilities;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.greenplum.pxf.api.utilities.Utilities;
 import org.slf4j.Logger;
@@ -65,7 +65,7 @@ public class GSSFailureHandler {
                 break;
             } catch (IOException e) {
                 // non-secure cluster or other IOException needs to be rethrown
-                if (!securityEnabled || !StringUtils.contains(e.getMessage(), ERROR_MESSAGE_PATTERN)) {
+                if (!securityEnabled || !Strings.CS.contains(e.getMessage(), ERROR_MESSAGE_PATTERN)) {
                     throw e;
                 }
                 LOG.warn(String.format("Attempt #%d of %d failed to %s: ", attempt, maxAttempts, operationName), e.getMessage());

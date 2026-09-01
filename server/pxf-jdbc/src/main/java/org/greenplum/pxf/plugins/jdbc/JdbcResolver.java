@@ -19,7 +19,7 @@ package org.greenplum.pxf.plugins.jdbc;
  * under the License.
  */
 
-import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang3.BooleanUtils;
 import org.greenplum.pxf.api.GreenplumDateTime;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;

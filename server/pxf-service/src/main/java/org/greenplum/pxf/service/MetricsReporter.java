@@ -5,7 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;

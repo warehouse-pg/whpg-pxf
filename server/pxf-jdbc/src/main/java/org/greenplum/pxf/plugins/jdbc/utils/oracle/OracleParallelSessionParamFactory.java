@@ -1,6 +1,6 @@
 package org.greenplum.pxf.plugins.jdbc.utils.oracle;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.util.Strings;
 
 /**

@@ -20,7 +20,7 @@ package org.greenplum.pxf.plugins.hdfs;
  */
 
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.greenplum.pxf.api.OneRow;
 
 import java.io.BufferedReader;
@@ -48,7 +48,7 @@ public class QuotedLineBreakAccessor extends HdfsAtomicDataAccessor {
     public void afterPropertiesSet() {
         super.afterPropertiesSet();
         // true if the files are read as a single row, false otherwise
-        fileAsRow = StringUtils.equalsIgnoreCase("true", context.getOption("FILE_AS_ROW"));
+        fileAsRow = Strings.CI.equals("true", context.getOption("FILE_AS_ROW"));
 
         if (fileAsRow && context.getTupleDescription().size() != 1) {
             throw new IllegalArgumentException(String.format("the FILE_AS_ROW " +

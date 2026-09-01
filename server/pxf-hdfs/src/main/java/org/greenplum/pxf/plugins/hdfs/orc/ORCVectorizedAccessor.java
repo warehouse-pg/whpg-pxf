@@ -2,7 +2,7 @@ package org.greenplum.pxf.plugins.hdfs.orc;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.Data;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;

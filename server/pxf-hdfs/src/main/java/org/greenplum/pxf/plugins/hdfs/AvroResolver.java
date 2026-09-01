@@ -20,6 +20,7 @@ package org.greenplum.pxf.plugins.hdfs;
  */
 
 
+import java.util.Objects;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
@@ -29,7 +30,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.io.BytesWritable;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
@@ -105,9 +105,9 @@ public class AvroResolver extends BasePlugin implements Resolver {
 
         fields = schema.getFields();
 
-        collectionDelim = StringUtils.defaultString(context.getOption("COLLECTION_DELIM"), COLLECTION_DELIM);
-        mapkeyDelim = StringUtils.defaultString(context.getOption("MAPKEY_DELIM"), MAPKEY_DELIM);
-        recordkeyDelim = StringUtils.defaultString(context.getOption("RECORDKEY_DELIM"), RECORDKEY_DELIM);
+        collectionDelim = Objects.toString(context.getOption("COLLECTION_DELIM"), COLLECTION_DELIM);
+        mapkeyDelim = Objects.toString(context.getOption("MAPKEY_DELIM"), MAPKEY_DELIM);
+        recordkeyDelim = Objects.toString(context.getOption("RECORDKEY_DELIM"), RECORDKEY_DELIM);
         recordkeyIndex = (context.getRecordkeyColumn() == null) ? -1 : context.getRecordkeyColumn().columnIndex();
     }
 
