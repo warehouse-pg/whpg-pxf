@@ -89,12 +89,14 @@ bundle.
     above Hive 4.0.1's own 3.24.4 pin, which is itself affected; 3.25.x
     also aligns the unshaded runtime with the protobuf major Hadoop 3.4.3
     shades.
-  - log4j2 **2.17.2 → 2.26.0** via the Boot BOM property, so api, core,
+  - log4j2 **2.17.2 → 2.26.1** via the Boot BOM property, so api, core,
     the JUL adapter, the SLF4J binding, the 1.x compatibility API and
-    log4j-spring-boot all move together. Clears five advisories
-    (CVE-2025-68161, CVE-2026-34477/34479/34480/34481). The JUnit
-    excludes previously needed on `log4j-spring-boot` are removed with
-    it — 2.17.2 declared them at compile scope, 2.26.0 does not.
+    log4j-spring-boot all move together. Clears six advisories: the five
+    against 2.17.2 (CVE-2025-68161, CVE-2026-34477/34479/34480/34481)
+    plus CVE-2026-49844 against 2.26.0 (improper serialization of
+    non-finite floating-point values in `MapMessage.asJson()`). The
+    JUnit excludes previously needed on `log4j-spring-boot` are removed
+    with it — 2.17.2 declared them at compile scope, 2.26.x does not.
   - `commons-io` **2.7 → 2.16.1**, matching
     `hadoop-project-3.4.3.pom`'s own `<commons-io.version>` rather than
     the newest release, so it lands on the JAR the Hadoop client stack
@@ -112,6 +114,11 @@ bundle.
     1.11 line on purpose — avro 1.12.x is compiled for Java 11 while
     this build targets Java 8, and 1.11.5 declares the same
     dependencies as 1.11.4.
+  - `org.wildfly.openssl:wildfly-openssl` **1.0.7.Final → 2.2.5.Final**
+    (BDSA-2020-3250, memory leak on HTTP session creation). Fixed
+    upstream in 1.0.11.Final, but 2.2.5.Final is what
+    `hadoop-project-3.4.3.pom` itself pins, so it is the release the
+    hadoop-aws S3A openssl channel mode is built against.
 
 #### Behavior note
 
@@ -132,6 +139,13 @@ the upgrade and no longer depends on the library's wording.
   the Java `libthrift`).
 - Spring Framework 5.3.x and Spring Boot 2.7.x have no further OSS
   releases; their remaining advisories need the Boot 3.x / Java 17 move.
+- OpenTelemetry **1.49.0** carries BDSA-2026-13566 (1 low). The fix is
+  1.62.0, but OpenTelemetry 1.5x split `io.opentelemetry.common.*` into a
+  separate `opentelemetry-common` artifact, and these jars are bundled
+  `transitive = false`, so the bump produced a `NoClassDefFoundError` on
+  the first HBase query in the packaging smoke run. Left at the version
+  hbase-client 2.6.5 itself declares; see the note in
+  `server/pxf-hbase/build.gradle`.
 - `commons-lang` **2.6** is end-of-life (2.6 is the final release); the
   fix is migration to `commons-lang3`, which is not yet done.
 

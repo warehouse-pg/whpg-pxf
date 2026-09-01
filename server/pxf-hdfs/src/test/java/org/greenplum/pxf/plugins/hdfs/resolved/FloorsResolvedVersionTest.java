@@ -35,6 +35,14 @@ public class FloorsResolvedVersionTest {
         assertEquals("1.11.5", versionOf("org.apache.avro", "avro"));
         assertEquals("1.28.0", versionOf("org.apache.commons", "commons-compress"));
         assertEquals("6.7.0", versionOf("com.fasterxml.woodstox", "woodstox-core"));
+        // the log4j2 override in the root build reaches every log4j artifact
+        // through log4j-bom; log4j-1.2-api is the one this module declares
+        assertEquals("2.26.1", versionOf("org.apache.logging.log4j", "log4j-1.2-api"));
+        // wildfly-openssl 2.x is a shaded uber-jar declared here with
+        // transitive = false. Reading its own pom.properties confirms the
+        // shaded artifact is really on the classpath, which is the thing
+        // that declaration style can silently get wrong across a major bump.
+        assertEquals("2.2.5.Final", versionOf("org.wildfly.openssl", "wildfly-openssl"));
     }
 
     @Test
