@@ -472,6 +472,17 @@
             <version>${orc.version}</version>
         </dependency>
 
+        <!-- Direct pin: maven mediation otherwise selects the 2.5.0
+             transitive from hbase-common, while the ORC writer code
+             bundled in hive-exec 4.x is generated against the
+             protobuf 3 API (Internal.checkNotNull). Same version the
+             product pins. -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.25.8</version>
+        </dependency>
+
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-all</artifactId>
