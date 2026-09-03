@@ -124,6 +124,26 @@ public class PxfMetricsIT {
         assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"unknown\",segment=\"unknown\",server=\"unknown\",status=\"200\",uri=\"/actuator/health\",user=\"unknown\",} 1.0\n"));
     }
 
+    @Test
+    public void test_ShutdownEndpoint_NotExposed() {
+        // The shutdown actuator endpoint must stay at Spring Boot's secure
+        // default (not exposed, not enabled): an unauthenticated POST to it
+        // would stop the service. The pxf CLI stops the service via signal
+        // and does not depend on this endpoint.
+        client.post().uri("/actuator/shutdown")
+                .exchange().expectStatus().isNotFound();
+    }
+
+    @Test
+    public void test_DocumentedActuatorEndpoints_RemainExposed() {
+        // Guards the exposure list: health, info, metrics and prometheus are
+        // documented monitoring endpoints and must stay reachable.
+        client.get().uri("/actuator/health").exchange().expectStatus().isOk();
+        client.get().uri("/actuator/info").exchange().expectStatus().isOk();
+        client.get().uri("/actuator/metrics").exchange().expectStatus().isOk();
+        client.get().uri("/actuator/prometheus").exchange().expectStatus().isOk();
+    }
+
     private void mockServices() throws Exception {
         // mock ReadService
         when(mockParser.parseRequest(any(), eq(RequestContext.RequestType.READ_BRIDGE))).thenReturn(mockContext);

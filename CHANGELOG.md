@@ -8,6 +8,14 @@ HBase/Hadoop/ZooKeeper/Hive library modernization; the remaining PXF 7.0
 features (external cluster mode, CLI changes) are tracked separately and are
 **not** part of this cut.
 
+### Security hardening
+
+- The Spring Boot actuator `shutdown` endpoint is no longer exposed or
+  enabled (an unauthenticated POST to it stopped the service). `pxf stop`
+  is unaffected — it signals the process directly. Operators who need
+  the endpoint can re-enable it, or restrict all actuator endpoints to
+  local-only access, via `$PXF_BASE/conf/pxf-application.properties`.
+
 ### Library bundle
 
 - HBase client **1.3.2 → 2.6.5** (current Apache release).
