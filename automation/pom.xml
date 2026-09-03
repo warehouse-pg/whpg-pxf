@@ -193,21 +193,17 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.2</version>
+            <version>42.7.13</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring</artifactId>
-            <version>2.5.6</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <version>5.3.33</version>
-            <scope>provided</scope>
-        </dependency>
+        <!-- No direct Spring dependency: the suite's only Spring usages
+             (org.springframework.util.Assert, @Autowired in the testplugin
+             deployed into the PXF server) compile against the spring-core
+             and spring-beans jars that arrive transitively via
+             hive-exec -> atlas-intg -> spring-context. The previously
+             declared org.springframework:spring 2.5.6 (2008-era monolith)
+             and spring-web (unused; only its transitives were consumed)
+             carried scanner findings and are gone. -->
 
         <dependency>
             <groupId>net.sf.opencsv</groupId>
@@ -243,13 +239,13 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.12.6</version>
+            <version>2.22.2</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.13.4.2</version>
+            <version>2.22.2</version>
         </dependency>
 
         <dependency>
