@@ -77,13 +77,20 @@ public class PxfActuatorExposureIT {
 
     @Test
     public void test_DocumentedEndpoints_StillExposedWhenShutdownReEnabled() {
-        // re-enabling shutdown must not disturb the documented monitoring set
+        // re-enabling shutdown must not disturb the documented monitoring set.
+        //
+        // prometheus is deliberately NOT asserted here: this test class does
+        // not carry @AutoConfigureMetrics, so the test context has only the
+        // default SimpleMeterRegistry - /actuator/metrics is present but the
+        // prometheus endpoint (which needs the Prometheus registry supplied by
+        // the metrics export auto-configuration, switched off in tests) is not.
+        // On a running service all four are exposed. PxfMetricsIT, which does
+        // enable metrics, owns the prometheus assertions.
         client.get().uri("/actuator")
                 .exchange().expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$._links.health").exists()
                 .jsonPath("$._links.info").exists()
-                .jsonPath("$._links.metrics").exists()
-                .jsonPath("$._links.prometheus").exists();
+                .jsonPath("$._links.metrics").exists();
     }
 }
