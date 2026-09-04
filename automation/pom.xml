@@ -70,6 +70,23 @@
             </resource>
         </resources>
     </build>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Converges the whole jackson family on one release train.
+                 Note: since 2.20, jackson-annotations is released per MINOR
+                 only (2.22 exists, 2.22.2 does not) - the bom pins the
+                 correct per-artifact versions, so no jackson dependency
+                 below declares its own. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>2.22.2</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.greenplum</groupId>
@@ -162,6 +179,17 @@
                     <groupId>javax.comm</groupId>
                     <artifactId>comm</artifactId>
                 </exclusion>
+                <!-- jsystem-parent manages the 2006-era Spring monolith at 2.0;
+                     without this exclusion it surfaces in the tree (and early on
+                     the classpath) once no direct Spring pin overrides it.
+                     jsystemCore's bytecode references only
+                     org.springframework.util.ObjectUtils, which spring-core
+                     (transitive via hive-exec -> atlas-intg -> spring-context)
+                     supplies. -->
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -239,19 +267,16 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.22.2</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.22.2</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.12.6</version>
         </dependency>
 
         <dependency>
