@@ -2,12 +2,9 @@ package org.greenplum.pxf.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.web.reactive.server.WebTestClient;
-
-import static org.junit.jupiter.api.condition.OS.MAC;
 
 /**
  * Pins the documented operator escape hatch for the shutdown actuator
@@ -40,8 +37,11 @@ import static org.junit.jupiter.api.condition.OS.MAC;
                 "management.endpoints.web.exposure.include=health,info,shutdown,metrics,prometheus",
                 "management.endpoint.shutdown.enabled=true"
         })
-// same JVM-crash reason as PxfMetricsIT: disabled on MacOS, runs in CI
-@DisabledOnOs(MAC)
+// Unlike PxfMetricsIT, this class carries no OS-based skip: the sibling's
+// JVM-crash workaround dates to Intel Macs on early JDK 8 builds, and the
+// crash did not reproduce when this class was run on macOS under either an
+// x86_64/JDK 8 or an arm64/JDK 11 JVM. Keeping it runnable locally matters:
+// OS-skipped tests here can only ever fail in CI.
 public class PxfActuatorExposureIT {
 
     @LocalServerPort
