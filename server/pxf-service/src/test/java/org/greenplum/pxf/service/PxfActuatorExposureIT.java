@@ -1,17 +1,11 @@
 package org.greenplum.pxf.service;
 
-import org.greenplum.pxf.api.model.RequestContext;
-import org.greenplum.pxf.service.controller.ReadService;
-import org.greenplum.pxf.service.controller.WriteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.util.MultiValueMap;
 
 import static org.junit.jupiter.api.condition.OS.MAC;
 
@@ -19,12 +13,18 @@ import static org.junit.jupiter.api.condition.OS.MAC;
  * Pins the documented operator escape hatch for the shutdown actuator
  * endpoint.
  * <p>
- * The endpoint is disabled by default (see
- * {@code PxfMetricsIT#test_ShutdownEndpoint_NotExposed}), and
- * {@code $PXF_BASE/conf/pxf-application.properties} documents the two
- * properties that restore it. This test applies exactly those two
+ * The endpoint is disabled by default (pinned in {@link PxfMetricsIT}, whose
+ * context runs without the override properties), and the documentation names
+ * the two properties that restore it. This test applies exactly those two
  * documented properties and asserts the endpoint becomes available again,
  * so the published recovery procedure cannot silently rot.
+ * <p>
+ * This test pins the property <em>semantics</em>. Operators apply the same
+ * properties via {@code $PXF_BASE/conf/pxf-application.properties}, which
+ * takes effect because the pxf CLI passes
+ * {@code --spring.config.location=classpath:/application.properties,file:$PXF_BASE/conf/pxf-application.properties}
+ * at launch and later locations win; that precedence rests on the
+ * {@code RUN_ARGS} assembly in {@code server/pxf-service/src/scripts/pxf}.
  * <p>
  * Availability is asserted through the actuator discovery index rather than
  * by POSTing to the endpoint: a POST would shut down the test's application
@@ -46,18 +46,6 @@ public class PxfActuatorExposureIT {
 
     @LocalServerPort
     private int port;
-
-    @MockBean
-    private RequestParser<MultiValueMap<String, String>> mockParser;
-
-    @MockBean
-    private ReadService readService;
-
-    @MockBean
-    private WriteService mockWriteService;
-
-    @Mock
-    private RequestContext mockContext;
 
     private WebTestClient client;
 

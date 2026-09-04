@@ -17,6 +17,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.util.MultiValueMap;
 
 import java.io.OutputStream;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -121,7 +122,11 @@ public class PxfMetricsIT {
         assertNotNull(prometheusResponse);
         assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/read\",user=\"reader\",} 1.0\n"));
         assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"POST\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/write\",user=\"writer\",} 1.0\n"));
-        assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"unknown\",segment=\"unknown\",server=\"unknown\",status=\"200\",uri=\"/actuator/health\",user=\"unknown\",} 1.0\n"));
+        // the health count is asserted tolerantly (>= 1, not an exact
+        // count): other tests in this shared application context may also
+        // hit /actuator/health, and an exact pin would make this test
+        // execution-order-dependent
+        assertTrue(Pattern.compile(Pattern.quote("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"unknown\",segment=\"unknown\",server=\"unknown\",status=\"200\",uri=\"/actuator/health\",user=\"unknown\",} ") + "\\d+\\.\\d+\n").matcher(prometheusResponse).find());
     }
 
     @Test
@@ -136,16 +141,12 @@ public class PxfMetricsIT {
 
     @Test
     public void test_DocumentedActuatorEndpoints_RemainExposed() {
-        // Guards the exposure list: info and metrics are documented
-        // monitoring endpoints and must stay reachable. The other two
-        // documented endpoints (health, prometheus) are deliberately NOT
-        // hit here: test_HttpServerRequests_Metric asserts an EXACT request
-        // count for /actuator/health in the shared application context, so
-        // touching it from another test breaks that assertion depending on
-        // execution order. Their reachability is already pinned by that
-        // test's own assertions.
+        // Guards the exposure list: all four documented monitoring
+        // endpoints must stay reachable.
+        client.get().uri("/actuator/health").exchange().expectStatus().isOk();
         client.get().uri("/actuator/info").exchange().expectStatus().isOk();
         client.get().uri("/actuator/metrics").exchange().expectStatus().isOk();
+        client.get().uri("/actuator/prometheus").exchange().expectStatus().isOk();
     }
 
     private void mockServices() throws Exception {
