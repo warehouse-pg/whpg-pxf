@@ -17,6 +17,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.util.MultiValueMap;
 
 import java.io.OutputStream;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -121,7 +122,31 @@ public class PxfMetricsIT {
         assertNotNull(prometheusResponse);
         assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/read\",user=\"reader\",} 1.0\n"));
         assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"POST\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/write\",user=\"writer\",} 1.0\n"));
-        assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"unknown\",segment=\"unknown\",server=\"unknown\",status=\"200\",uri=\"/actuator/health\",user=\"unknown\",} 1.0\n"));
+        // the health count is asserted tolerantly (>= 1, not an exact
+        // count): other tests in this shared application context may also
+        // hit /actuator/health, and an exact pin would make this test
+        // execution-order-dependent
+        assertTrue(Pattern.compile(Pattern.quote("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"unknown\",segment=\"unknown\",server=\"unknown\",status=\"200\",uri=\"/actuator/health\",user=\"unknown\",} ") + "\\d+\\.\\d+\n").matcher(prometheusResponse).find());
+    }
+
+    @Test
+    public void test_ShutdownEndpoint_NotExposed() {
+        // The shutdown actuator endpoint must stay at Spring Boot's secure
+        // default (not exposed, not enabled): an unauthenticated POST to it
+        // would stop the service. The pxf CLI stops the service via signal
+        // and does not depend on this endpoint.
+        client.post().uri("/actuator/shutdown")
+                .exchange().expectStatus().isNotFound();
+    }
+
+    @Test
+    public void test_DocumentedActuatorEndpoints_RemainExposed() {
+        // Guards the exposure list: all four documented monitoring
+        // endpoints must stay reachable.
+        client.get().uri("/actuator/health").exchange().expectStatus().isOk();
+        client.get().uri("/actuator/info").exchange().expectStatus().isOk();
+        client.get().uri("/actuator/metrics").exchange().expectStatus().isOk();
+        client.get().uri("/actuator/prometheus").exchange().expectStatus().isOk();
     }
 
     private void mockServices() throws Exception {

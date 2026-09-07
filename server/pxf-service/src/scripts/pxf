@@ -424,7 +424,8 @@ function doStop() {
 
     echoYellow "Stopping PXF [pid=$pid]..."
 
-    # first try endpoint (assume it might be disabled)
+    # first try the shutdown endpoint (disabled by default, so this
+    # is expected to 404 instantly unless the operator re-enabled it)
     if $curl --max-time 5 --silent -X POST "localhost:$PXF_PORT/actuator/shutdown" | grep "Shutting down, bye..." > /dev/null; then
         for i in $(seq 1 $STOP_WAIT_TIME); do
             if isRunning "$pid"; then

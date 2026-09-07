@@ -57,6 +57,8 @@ PXF exposes the following HTTP endpoints that you can use to monitor a running P
 
 Any user can access the HTTP endpoints and view the monitoring information that PXF returns.
 
+**Note:** The actuator `shutdown` endpoint is disabled by default; an unauthenticated request to that endpoint would stop the PXF Service. The `pxf` command-line utility does not require the endpoint to stop the service. If your tooling depends on the endpoint, you can re-enable it by setting both `management.endpoints.web.exposure.include=health,info,shutdown,metrics,prometheus` and `management.endpoint.shutdown.enabled=true` in `$PXF_BASE/conf/pxf-application.properties` on each PXF host, and then restarting PXF.
+
 You can view the data associated with a specific endpoint by viewing in a browser, or `curl`-ing, a URL of the following format (default PXF deployment topology):
 
 ``` pre
