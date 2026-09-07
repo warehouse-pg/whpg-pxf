@@ -15,6 +15,8 @@ In the default deployment topology, since PXF 6.7.0, the PXF Service starts on a
 
 The `server.address` property identifies the IP address or hostname of the network interface on which the PXF service listens. The default PXF service listen address is `localhost`. You may choose to change the listen address to allow traffic from other hosts to send requests to PXF (for example, when you have chosen the [alternate deployment topology](deployment_topos.html#alt_topo) or to retrieve PXF monitoring data).
 
+<div class="note warning"><b>Warning:</b> The PXF Service does not authenticate its clients; it trusts the user identity presented in each request it receives. When PXF listens on a non-local address, any host that can reach the address and port can submit requests to PXF asserting any user identity. If you change the listen address from the <code>localhost</code> default, you must restrict network access to the PXF port to trusted cluster hosts, and you must not expose the port outside of the cluster network. Refer to <a href="security_pxf.html">PXF Security Considerations</a> for more information about the PXF trust model.</div>
+
 Perform the following procedure to change the PXF listen address:
 
 1. Log in to your Greenplum Database coordinator host:
