@@ -23,7 +23,7 @@ address with the details of the vulnerability. The email will be fielded by the
 WarehousePG project team. Emails will be addressed promptly, including a
 detailed plan to investigate the issue and any potential workarounds to perform
 in the meantime. Do not report non-security-impacting bugs through this
-channel. Use [GitHub issues](https://github.com/warehouse-pg/whpg-backup/issues)
+channel. Use [GitHub issues](https://github.com/warehouse-pg/whpg-pxf/issues)
 instead.
 
 ## Proposed Email Content
