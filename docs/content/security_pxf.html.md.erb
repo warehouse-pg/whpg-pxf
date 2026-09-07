@@ -18,6 +18,10 @@ In the default deployment topology, the PXF Service runs on every Greenplum Data
 
 Certain configurations require PXF to listen on a non-local address — for example, the [alternate deployment topology](deployment_topos.html#alt_topo), or retrieving monitoring data from another host. Widening the listen address extends the trust boundary to every host that can reach the address and port.
 
+PXF requests and responses travel over plain, unencrypted HTTP; the PXF Service does not support TLS. Requests carry more than the user identity: external table options are transmitted to PXF as request headers, and for some connectors those options may include credentials (for example, S3 credentials supplied as external table options — a practice that [About Accessing the S3 Object Store](access_s3.html) already discourages). Widening the listen address therefore also exposes request contents, including any such credentials, to the network in transit.
+
+The PXF monitoring endpoints (`health`, `info`, `metrics`, `prometheus` — see [Monitoring PXF](monitor_pxf.html)) are served on the same port and are likewise unauthenticated. If you widen the listen address in order to retrieve monitoring data from another host, be aware that you are exposing the full PXF request surface described in this topic, not only the monitoring endpoints.
+
 If you change the PXF listen address from the `localhost` default:
 
 - Restrict network access to the PXF port (default `5888`) to the hosts that must send requests to PXF — the Greenplum Database hosts, and any dedicated monitoring host.
@@ -28,6 +32,8 @@ Refer to [Service Listen Address, Host, and Port](cfghostport.html) for the conf
 ## <a id="impersonation"></a>User Impersonation Implications
 
 When user impersonation is activated (the default for Hadoop servers), PXF presents the user identity from the request to the external system, and the external system applies that user's permissions. Because PXF does not authenticate the requests it receives, the external system's access controls are applied to whatever identity the request asserts. Refer to [Configuring the Hadoop User, User Impersonation, and Proxying](pxfuserimpers.html) for the impersonation configuration options.
+
+When user impersonation is deactivated for a server (the default for JDBC servers), PXF accesses the external system with the identity and credentials configured for that server — so any client that can send requests to the PXF listen address can act with those stored credentials, regardless of the identity the request asserts.
 
 When PXF accesses a Kerberos-secured Hadoop cluster, PXF authenticates to Hadoop with its own principal and keytab, and is typically configured as a Hadoop proxy user. Any client that can send requests to the PXF listen address can direct PXF to exercise these proxy privileges. This makes restricting access to the PXF listen address especially important in secured deployments.
 
