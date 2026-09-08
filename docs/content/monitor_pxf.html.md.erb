@@ -28,13 +28,13 @@ PXF also provides additional information about the runtime status of the PXF Ser
 
 ## <a id="status"></a> Viewing PXF Status on the Command Line
 
-The `pxf cluster status` command displays the status of the PXF Service instance on all hosts in your Greenplum Database cluster. `pxf status` displays the status of the PXF Service instance on the local Greenplum host.
+The `pxf cluster status` command displays the status of the PXF Service instance on all hosts in your WarehousePG cluster. `pxf status` displays the status of the PXF Service instance on the local WarehousePG host.
 
 Only the `gpadmin` user can request the status of the PXF Service.
 
-Perform the following procedure to request the PXF status of your Greenplum Database cluster.
+Perform the following procedure to request the PXF status of your WarehousePG cluster.
 
-1. Log in to the Greenplum Database coordinator host:
+1. Log in to the WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -83,7 +83,7 @@ Sample output:
 {"build":{"version":"6.0.0","artifact":"pxf-service","name":"pxf-service","pxfApiVersion":"16","group":"org.greenplum.pxf","time":"2021-03-29T22:26:22.780Z"}}
 ```
 
-To view the status of the PXF Service running on the local Greenplum Database host, query the `actuator/health` endpoint:
+To view the status of the PXF Service running on the local WarehousePG host, query the `actuator/health` endpoint:
 
 ``` pre
 http://localhost:5888/actuator/health
@@ -103,11 +103,11 @@ PXF also exposes metrics that are specific to its processing, including:
 
 | Metric Name  | Description |
 |---------|-------------|
-| pxf.fragments.sent  | The number of fragments, and the total time that it took to send all fragments to Greenplum Database. |
-| pxf.records.sent  | The number of records that PXF sent to Greenplum Database. |
-| pxf.records.received  | The number of records that PXF received from Greenplum Database. |
-| pxf.bytes.sent  | The number of bytes that PXF sent to Greenplum Database. |
-| pxf.bytes.received  | The number of bytes that PXF received from Greenplum Database. |
+| pxf.fragments.sent  | The number of fragments, and the total time that it took to send all fragments to WarehousePG. |
+| pxf.records.sent  | The number of records that PXF sent to WarehousePG. |
+| pxf.records.received  | The number of records that PXF received from WarehousePG. |
+| pxf.bytes.sent  | The number of bytes that PXF sent to WarehousePG. |
+| pxf.bytes.received  | The number of bytes that PXF received from WarehousePG. |
 | http.server.requests | Standard metric augmented with PXF tags. |
 
 

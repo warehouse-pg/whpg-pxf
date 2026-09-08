@@ -39,15 +39,15 @@ Refer to the [Apache orc](https://orc.apache.org/docs/) documentation for detail
 
 ## <a id="datatype_map"></a>Data Type Mapping
 
-To read and write ORC primitive data types in Greenplum Database, map ORC data values to Greenplum Database columns of the same type.
+To read and write ORC primitive data types in WarehousePG, map ORC data values to WarehousePG columns of the same type.
 
 ### <a id="read_map"></a>Read Mapping
 
-To read ORC scalar data types in Greenplum Database, map ORC data values to Greenplum Database columns of the same type.
+To read ORC scalar data types in WarehousePG, map ORC data values to WarehousePG columns of the same type.
 
 PXF uses the following data type mapping when it reads ORC data:
 
-| ORC Physical Type | ORC Logical Type | PXF/Greenplum Data Type |
+| ORC Physical Type | ORC Logical Type | PXF/WarehousePG Data Type |
 |-------------------|---------------|--------------------------|
 | binary | decimal | Numeric |
 | binary | timestamp | Timestamp |
@@ -66,7 +66,7 @@ PXF uses the following data type mapping when it reads ORC data:
 
 PXF supports only the list ORC compound type, and only for a subset of the ORC scalar types. The supported mappings follow:
 
-| ORC Compound Type | PXF/Greenplum Data Type |
+| ORC Compound Type | PXF/WarehousePG Data Type |
 |-------------------|-------------------------|
 | array\<string> | Text[] |
 | array\<char> | Bpchar[] |
@@ -84,7 +84,7 @@ PXF supports only the list ORC compound type, and only for a subset of the ORC s
 
 PXF uses the following data type mapping when writing ORC data:
 
-| PXF/Greenplum Data Type | ORC Logical Type | ORC Physical Type |
+| PXF/WarehousePG Data Type | ORC Logical Type | ORC Physical Type |
 |-------------------------|------------------|-------------------|
 | Numeric | decimal | binary |
 | Timestamp | timestamp | binary |
@@ -105,7 +105,7 @@ PXF uses the following data type mapping when writing ORC data:
 
 PXF supports writing the list ORC compound type for one-dimensional arrays, for all of the above of the ORC primitive types. The supported mappings are:
 
-| ORC Compound Type | PXF/Greenplum Data Type |
+| ORC Compound Type | PXF/WarehousePG Data Type |
 |-------------------|-------------------------|
 | array\<decimal> | Numeric[] |
 | array\<timestamp> | Timestamp[] |
@@ -126,7 +126,7 @@ PXF supports writing the list ORC compound type for one-dimensional arrays, for 
 
 The PXF HDFS connector `hdfs:orc` profile supports reading and writing ORC-formatted HDFS files. When you insert records into a writable external table, the block(s) of data that you insert are written to one file per segment in the directory that you specified.
 
-Use the following syntax to create a Greenplum Database external table that references an HDFS file or directory:
+Use the following syntax to create a WarehousePG external table that references an HDFS file or directory:
 
 ``` sql
 CREATE [WRITABLE] EXTERNAL TABLE <table_name>
@@ -137,7 +137,7 @@ FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import'|'pxfwritable_export')
 [DISTRIBUTED BY (<column_name> [, ... ] ) | DISTRIBUTED RANDOMLY];
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -146,7 +146,7 @@ The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL
 | SERVER=\<server_name\>    | The named server configuration that PXF uses to access the data. PXF uses the `default` server if not specified. |
 | \<custom-option\>    | \<custom-option\>s are described below. |
 | FORMAT 'CUSTOM' | Use `FORMAT 'CUSTOM'`with `(FORMATTER='pxfwritable_export')` (write) or `(FORMATTER='pxfwritable_import')` (read).   |
-| DISTRIBUTED BY | If you want to load data from an existing Greenplum Database table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation.  |
+| DISTRIBUTED BY | If you want to load data from an existing WarehousePG table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation.  |
 
 <a id="customopts"></a>
 The PXF `hdfs:orc` profile supports the following *read* options. You specify this option in the `LOCATION` clause:
@@ -154,7 +154,7 @@ The PXF `hdfs:orc` profile supports the following *read* options. You specify th
 | Read Option  | Value Description |
 |-------|-------------------------------------|
 | IGNORE_MISSING_PATH | A Boolean value that specifies the action to take when \<path-to-hdfs-file\> is missing or invalid. The default value is `false`, PXF returns an error in this situation. When the value is `true`, PXF ignores missing path errors and returns an empty fragment. |
-| MAP_BY_POSITION | A Boolean value that, when set to `true`, specifies that PXF should map an ORC column to a Greenplum Database column by position. The default value is `false`, PXF maps an ORC column to a Greenplum column by name. |
+| MAP_BY_POSITION | A Boolean value that, when set to `true`, specifies that PXF should map an ORC column to a WarehousePG column by position. The default value is `false`, PXF maps an ORC column to a WarehousePG column by name. |
 
 The PXF `hdfs:orc` profile supports a single compression-related write option; you specify this option in the `CREATE WRITABLE EXTERNAL TABLE` `LOCATION` clause:
 
@@ -183,10 +183,10 @@ This example operates on a simple data set that models a retail sales operation.
 In this example, you:
 
 - Create a sample data set in JSON format, use the `orc-tools` JAR utilities to convert the JSON file into an ORC-formatted file, and then copy the ORC file to HDFS.
-- Create a Greenplum Database readable external table that references the ORC file and that specifies the `hdfs:orc` profile.
+- Create a WarehousePG readable external table that references the ORC file and that specifies the `hdfs:orc` profile.
 - Query the external table.
 
-You must have administrative privileges to both a Hadoop cluster and a Greenplum Database cluster to run the example. You must also have configured a PXF server to access Hadoop.
+You must have administrative privileges to both a Hadoop cluster and a WarehousePG cluster to run the example. You must also have configured a PXF server to access Hadoop.
 
 
 Procedure:
@@ -217,7 +217,7 @@ Procedure:
     $ hdfs dfs -put /tmp/sampledata.orc /data/pxf_examples/orc_example/
     ```
 
-1. Log in to the Greenplum Database coordinator host and connect to a database. This command connects to the database named `testdb` as the `gpadmin` user:
+1. Log in to the WarehousePG coordinator host and connect to a database. This command connects to the database named `testdb` as the `gpadmin` user:
 
     ``` shell
     gpadmin@coordinator$ psql -d testdb
@@ -295,7 +295,7 @@ In this example, you create a writable external table to write some data to the 
     postgres=# INSERT INTO write_to_sample_orc VALUES ( 'Cleveland', 'Oct', 3218, 96645.37, '{"long-sleeved shirts",hats}' );
     ```
 
-1. Recall that Greenplum Database does not support directly querying a writable external table. Query the `sample_orc` table that you created in the previous example to read the new data that you added:
+1. Recall that WarehousePG does not support directly querying a writable external table. Query the `sample_orc` table that you created in the previous example to read the new data that you added:
 
     ``` sql
     postgres=# SELECT * FROM sample_orc ORDER BY num_orders;

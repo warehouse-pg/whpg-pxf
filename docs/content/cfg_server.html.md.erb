@@ -13,9 +13,9 @@ A PXF *Server* definition is simply a named configuration that provides access t
 
 PXF provides a server template file for each connector; this template identifies the typical set of properties that you must configure to use the connector.
 
-You will configure a server definition for each external data store that Greenplum Database users need to access. For example, if you require access to two Hadoop clusters, you will create a PXF Hadoop server configuration for each cluster. If you require access to an Oracle and a MySQL database, you will create one or more PXF JDBC server configurations for each database.
+You will configure a server definition for each external data store that WarehousePG users need to access. For example, if you require access to two Hadoop clusters, you will create a PXF Hadoop server configuration for each cluster. If you require access to an Oracle and a MySQL database, you will create one or more PXF JDBC server configurations for each database.
 
-A server configuration may include default settings for user access credentials and other properties for the external data store. You can allow Greenplum Database users to access the external data store using the default settings, or you can configure access and other properties on a per-user basis. This allows you to configure different Greenplum Database users with different external data store access credentials in a single PXF server definition.
+A server configuration may include default settings for user access credentials and other properties for the external data store. You can allow WarehousePG users to access the external data store using the default settings, or you can configure access and other properties on a per-user basis. This allows you to configure different WarehousePG users with different external data store access credentials in a single PXF server definition.
 
 
 ## <a id="templates"></a>About Server Template Files
@@ -73,11 +73,11 @@ When you configure a PXF connector to an external data store, you add a named PX
 4. Fill in appropriate default values for the properties in the template file.
 5. Add any additional configuration properties and values required for your environment.
 6. Configure one or more users for the server configuration as described in [About Configuring a PXF User](#usercfg).
-7. Synchronize the server and user configuration to the Greenplum Database cluster.
+7. Synchronize the server and user configuration to the WarehousePG cluster.
 
-**Note**: You must re-sync the PXF configuration to the Greenplum Database cluster after you add or update PXF server configuration.
+**Note**: You must re-sync the PXF configuration to the WarehousePG cluster after you add or update PXF server configuration.
 
-After you configure a PXF server, you publish the server name to Greenplum Database users who need access to the data store. A user need only provide the server name when they create an external table that accesses the external data store. PXF obtains the external data source location and access credentials from server and user configuration files residing in the server configuration directory identified by the server name.
+After you configure a PXF server, you publish the server name to WarehousePG users who need access to the data store. A user need only provide the server name when they create an external table that accesses the external data store. PXF obtains the external data source location and access credentials from server and user configuration files residing in the server configuration directory identified by the server name.
 
 To configure a PXF server, refer to the connector configuration topic:
 
@@ -135,16 +135,16 @@ When you configure the `pxf.fs.basePath` property for a server, PXF considers th
 
 ## <a id="usercfg"></a>Configuring a PXF User
 
-You can configure access to an external data store on a per-server, per-Greenplum-user basis.
+You can configure access to an external data store on a per-server, per-WarehousePG-user basis.
 
 <div class="note info"><b>Note:</b> PXF per-server, per-user configuration provides the most benefit for JDBC servers.</div>
 
-You configure external data store user access credentials and properties for a specific Greenplum Database user by providing a `<greenplum_user_name>-user.xml` user configuration file in the PXF server configuration directory, `$PXF_BASE/servers/<server_name>/`. For example, you specify the properties for the Greenplum Database user named `bill` in the file `$PXF_BASE/servers/<server_name>/bill-user.xml`. You can configure zero, one, or more users in a PXF server configuration.
+You configure external data store user access credentials and properties for a specific WarehousePG user by providing a `<greenplum_user_name>-user.xml` user configuration file in the PXF server configuration directory, `$PXF_BASE/servers/<server_name>/`. For example, you specify the properties for the WarehousePG user named `bill` in the file `$PXF_BASE/servers/<server_name>/bill-user.xml`. You can configure zero, one, or more users in a PXF server configuration.
 
 
 The properties that you specify in a user configuration file are connector-specific. You can specify any configuration property supported by the PXF connector server in a `<greenplum_user_name>-user.xml` configuration file.
 
-For example, suppose you have configured access to a PostgreSQL database in the PXF JDBC server configuration named `pgsrv1`. To allow the Greenplum Database user named `bill` to access this database as the PostgreSQL user named `pguser1`, password `changeme`, you create the user configuration file `$PXF_BASE/servers/pgsrv1/bill-user.xml` with the following properties:
+For example, suppose you have configured access to a PostgreSQL database in the PXF JDBC server configuration named `pgsrv1`. To allow the WarehousePG user named `bill` to access this database as the PostgreSQL user named `pguser1`, password `changeme`, you create the user configuration file `$PXF_BASE/servers/pgsrv1/bill-user.xml` with the following properties:
 
 ``` xml
 <configuration>
@@ -176,7 +176,7 @@ If you want to configure a specific search path and a larger read fetch size for
 
 For each PXF user that you want to configure, you will:
 
-1. Identify the name of the Greenplum Database user.
+1. Identify the name of the WarehousePG user.
 2. Identify the PXF server definition for which you want to configure user access.
 3. Identify the name and value of each property that you want to configure for the user.
 4. Create/edit the file `$PXF_BASE/servers/<server_name>/<greenplum_user_name>-user.xml`, and add the outer configuration block:
@@ -186,25 +186,25 @@ For each PXF user that you want to configure, you will:
     </configuration>
     ```
 5. Add each property/value pair that you identified in Step 3 within the configuration block in the `<greenplum_user_name>-user.xml` file.
-6. If you are adding the PXF user configuration to previously configured  PXF server definition, synchronize the user configuration to the Greenplum Database cluster.
+6. If you are adding the PXF user configuration to previously configured  PXF server definition, synchronize the user configuration to the WarehousePG cluster.
 
 
 ## <a id="override"></a>About Configuration Property Precedence
 
-A PXF server configuration may include default settings for user access credentials and other properties for accessing an external data store. Some PXF connectors, such as the S3 and JDBC connectors, allow you to directly specify certain server properties via custom options in the `CREATE EXTERNAL TABLE` command `LOCATION` clause. A `<greenplum_user_name>-user.xml` file specifies property settings for an external data store that are specific to a Greenplum Database user.
+A PXF server configuration may include default settings for user access credentials and other properties for accessing an external data store. Some PXF connectors, such as the S3 and JDBC connectors, allow you to directly specify certain server properties via custom options in the `CREATE EXTERNAL TABLE` command `LOCATION` clause. A `<greenplum_user_name>-user.xml` file specifies property settings for an external data store that are specific to a WarehousePG user.
 
-For a given Greenplum Database user, PXF uses the following precedence rules (highest to lowest) to obtain configuration property settings for the user:
+For a given WarehousePG user, PXF uses the following precedence rules (highest to lowest) to obtain configuration property settings for the user:
 
 1. A property that you configure in `<server_name>/<greenplum_user_name>-user.xml` overrides any setting of the property elsewhere.
 2. A property that is specified via custom options in the `CREATE EXTERNAL TABLE` command `LOCATION` clause overrides any setting of the property in a PXF server configuration.
 3. Properties that you configure in the `<server_name>` PXF server definition identify the default property values.
 
-These precedence rules allow you create a single external table that can be accessed by multiple Greenplum Database users, each with their own unique external data store user credentials.
+These precedence rules allow you create a single external table that can be accessed by multiple WarehousePG users, each with their own unique external data store user credentials.
 
 
 ## <a id="using"></a>Using a Server Configuration
 
-To access an external data store, the Greenplum Database user specifies the server name in the `CREATE EXTERNAL TABLE` command `LOCATION` clause `SERVER=<server_name>` option. The `<server_name>` that the user provides identifies the server configuration directory from which PXF obtains the configuration and credentials to access the external data store.
+To access an external data store, the WarehousePG user specifies the server name in the `CREATE EXTERNAL TABLE` command `LOCATION` clause `SERVER=<server_name>` option. The `<server_name>` that the user provides identifies the server configuration directory from which PXF obtains the configuration and credentials to access the external data store.
 
 For example, the following command accesses an S3 object store using the server configuration defined in the `$PXF_BASE/servers/s3srvcfg/s3-site.xml` file:
 
@@ -224,5 +224,5 @@ CREATE EXTERNAL TABLE pxf_ext_hdfs(location text, miles int)
 FORMAT 'TEXT' (delimiter=E',');
 </pre>
 
-<div class="note info"><b>Note:</b> A Greenplum Database user who queries or writes to an external table accesses the external data store with the credentials configured for the <code>&lt;server_name></code> user. If no user-specific credentials are configured for <code>&lt;server_name></code>, the Greenplum user accesses the external data store with the default credentials configured for <code>&lt;server_name></code>.</div>
+<div class="note info"><b>Note:</b> A WarehousePG user who queries or writes to an external table accesses the external data store with the credentials configured for the <code>&lt;server_name></code> user. If no user-specific credentials are configured for <code>&lt;server_name></code>, the WarehousePG user accesses the external data store with the default credentials configured for <code>&lt;server_name></code>.</div>
 

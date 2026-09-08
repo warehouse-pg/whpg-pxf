@@ -31,7 +31,7 @@ Ensure that you have met the PXF Hadoop [Prerequisites](access_hdfs.html#hadoop_
 
 ## <a id="profile_text"></a>Reading Text Data
 
-Use the `hdfs:text` profile when you read plain text delimited, and `hdfs:csv` when reading .csv data where each row is a single record. The following syntax creates a Greenplum Database readable external table that references such a text file on HDFS: 
+Use the `hdfs:text` profile when you read plain text delimited, and `hdfs:csv` when reading .csv data where each row is a single record. The following syntax creates a WarehousePG readable external table that references such a text file on HDFS: 
 
 ``` sql
 CREATE EXTERNAL TABLE <table_name> 
@@ -40,7 +40,7 @@ LOCATION ('pxf://<path-to-hdfs-file>?PROFILE=hdfs:text|csv[&SERVER=<server_name>
 FORMAT '[TEXT|CSV]' (delimiter[=|<space>][E]'<delim_value>');
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -93,7 +93,7 @@ Perform the following procedure to create a sample text file, copy the file to H
     $ psql -d postgres
     ```
 
-1. Use the PXF `hdfs:text` profile to create a Greenplum Database external table that references the `pxf_hdfs_simple.txt` file that you just created and added to HDFS:
+1. Use the PXF `hdfs:text` profile to create a WarehousePG external table that references the `pxf_hdfs_simple.txt` file that you just created and added to HDFS:
 
     ``` sql
     postgres=# CREATE EXTERNAL TABLE pxf_hdfs_textsimple(location text, month text, num_orders int, total_sales float8)
@@ -130,7 +130,7 @@ Perform the following procedure to create a sample text file, copy the file to H
 
 ## <a id="profile_textmulti"></a>Reading Text Data with Quoted Linefeeds
 
-Use the `hdfs:text:multi` profile to read plain text data with delimited single- or multi- line records that include embedded (quoted) linefeed characters. The following syntax creates a Greenplum Database readable external table that references such a text file on HDFS:
+Use the `hdfs:text:multi` profile to read plain text data with delimited single- or multi- line records that include embedded (quoted) linefeed characters. The following syntax creates a WarehousePG readable external table that references such a text file on HDFS:
 
 ``` sql
 CREATE EXTERNAL TABLE <table_name>
@@ -139,7 +139,7 @@ LOCATION ('pxf://<path-to-hdfs-file>?PROFILE=hdfs:text:multi[&SERVER=<server_nam
 FORMAT '[TEXT|CSV]' (delimiter[=|<space>][E]'<delim_value>');
 ```
 
-The specific keywords and values used in the [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -155,7 +155,7 @@ The specific keywords and values used in the [CREATE EXTERNAL TABLE](https://doc
 
 ### <a id="profile_textmulti_query"></a>Example: Reading Multi-Line Text Data on HDFS
 
-Perform the following steps to create a sample text file, copy the file to HDFS, and use the PXF `hdfs:text:multi` profile and the default PXF server to create a Greenplum Database readable external table to query the data:
+Perform the following steps to create a sample text file, copy the file to HDFS, and use the PXF `hdfs:text:multi` profile and the default PXF server to create a WarehousePG readable external table to query the data:
 
 1. Create a second delimited plain text file:
 
@@ -224,7 +224,7 @@ The PXF HDFS connector profiles `hdfs:text` and `hdfs:csv` support writing singl
 
 **Note**: External tables that you create with a writable profile can only be used for `INSERT` operations. If you want to query the data that you inserted, you must create a separate readable external table that references the HDFS directory.
 
-Use the following syntax to create a Greenplum Database writable external table that references an HDFS directory: 
+Use the following syntax to create a WarehousePG writable external table that references an HDFS directory: 
 
 ``` sql
 CREATE WRITABLE EXTERNAL TABLE <table_name> 
@@ -235,7 +235,7 @@ FORMAT '[TEXT|CSV]' (delimiter[=|<space>][E]'<delim_value>');
 [DISTRIBUTED BY (<column_name> [, ... ] ) | DISTRIBUTED RANDOMLY];
 ```
 
-The specific keywords and values used in the [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -245,13 +245,13 @@ The specific keywords and values used in the [CREATE EXTERNAL TABLE](https://doc
 | \<custom&#8209;option\>  | \<custom-option\>s are described below.|
 | FORMAT | Use `FORMAT` `'TEXT'` to write plain, delimited text to \<path-to-hdfs-dir\>.<br> Use `FORMAT` `'CSV'` to write comma-separated value text to \<path-to-hdfs-dir\>. |
 | delimiter    | The delimiter character in the data. For `FORMAT` `'CSV'`, the default \<delim_value\> is a comma (`,`). Preface the \<delim_value\> with an `E` when the value is an escape sequence. Examples: `(delimiter=E'\t')`, `(delimiter ':')`. |
-| DISTRIBUTED BY    | If you want to load data from an existing Greenplum Database table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
+| DISTRIBUTED BY    | If you want to load data from an existing WarehousePG table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
 
 Writable external tables that you create using the `hdfs:text` or the `hdfs:csv` profiles can optionally use record or block compression. You specify the compression codec via a custom option in the `CREATE EXTERNAL TABLE` `LOCATION` clause. The `hdfs:text` and `hdfs:csv` profiles support the following custom write option:
 
 | Option  | Value Description |
 |-------|-------------------------------------|
-| COMPRESSION_CODEC    | The compression codec alias. Supported compression codecs for writing text data include: `default`, `bzip2`, `gzip`, and `uncompressed`. If this option is not provided, Greenplum Database performs no data compression. |
+| COMPRESSION_CODEC    | The compression codec alias. Supported compression codecs for writing text data include: `default`, `bzip2`, `gzip`, and `uncompressed`. If this option is not provided, WarehousePG performs no data compression. |
 
 ### <a id="write_hdfstextsimple_example"></a>Example: Writing Text Data to HDFS
 
@@ -264,13 +264,13 @@ This example utilizes the data schema introduced in [Example: Reading Text Data 
 | number\_of\_orders | int |
 | total\_sales | float8 |
 
-This example also optionally uses the Greenplum Database external table named `pxf_hdfs_textsimple` that you created in that exercise.
+This example also optionally uses the WarehousePG external table named `pxf_hdfs_textsimple` that you created in that exercise.
 
 #### <a id="write_hdfstextsimple_proc" class="no-quick-link"></a>Procedure
 
-Perform the following procedure to create Greenplum Database writable external tables utilizing the same data schema as described above, one of which will employ compression. You will use the PXF `hdfs:text` profile and the default PXF server to write data to the underlying HDFS directory. You will also create a separate, readable external table to read the data that you wrote to the HDFS directory.
+Perform the following procedure to create WarehousePG writable external tables utilizing the same data schema as described above, one of which will employ compression. You will use the PXF `hdfs:text` profile and the default PXF server to write data to the underlying HDFS directory. You will also create a separate, readable external table to read the data that you wrote to the HDFS directory.
 
-1. Create a Greenplum Database writable external table utilizing the data schema described above. Write to the HDFS directory `/data/pxf_examples/pxfwritable_hdfs_textsimple1`. Create the table specifying a comma (`,`) as the delimiter:
+1. Create a WarehousePG writable external table utilizing the data schema described above. Write to the HDFS directory `/data/pxf_examples/pxfwritable_hdfs_textsimple1`. Create the table specifying a comma (`,`) as the delimiter:
 
     ``` sql
     postgres=# CREATE WRITABLE EXTERNAL TABLE pxf_hdfs_writabletbl_1(location text, month text, num_orders int, total_sales float8)
@@ -307,7 +307,7 @@ Perform the following procedure to create Greenplum Database writable external t
 
     Because you specified comma (`,`) as the delimiter when you created the writable external table, this character is the field separator used in each record of the HDFS data.
 
-5. Greenplum Database does not support directly querying a writable external table. To query the data that you just added to HDFS, you must create a readable external Greenplum Database table that references the HDFS directory:
+5. WarehousePG does not support directly querying a writable external table. To query the data that you just added to HDFS, you must create a readable external WarehousePG table that references the HDFS directory:
 
     ``` sql
     postgres=# CREATE EXTERNAL TABLE pxf_hdfs_textsimple_r1(location text, month text, num_orders int, total_sales float8)
@@ -337,7 +337,7 @@ Perform the following procedure to create Greenplum Database writable external t
 
     The `pxf_hdfs_textsimple_r1` table includes the records you individually inserted, as well as the full contents of the `pxf_hdfs_textsimple` table if you performed the optional step.
 
-7. Create a second Greenplum Database writable external table, this time using Gzip compression and employing a colon `:` as the delimiter:
+7. Create a second WarehousePG writable external table, this time using Gzip compression and employing a colon `:` as the delimiter:
 
     ``` sql
     postgres=# CREATE WRITABLE EXTERNAL TABLE pxf_hdfs_writabletbl_2 (location text, month text, num_orders int, total_sales float8)
@@ -362,7 +362,7 @@ Perform the following procedure to create Greenplum Database writable external t
 
     Notice that the colon `:` is the field separator in this HDFS data.
 
-    To query data from the newly-created HDFS directory named `pxfwritable_hdfs_textsimple2`, you can create a readable external Greenplum Database table as described above that references this HDFS directory and specifies `FORMAT 'CSV' (delimiter=':')`.
+    To query data from the newly-created HDFS directory named `pxfwritable_hdfs_textsimple2`, you can create a readable external WarehousePG table as described above that references this HDFS directory and specifies `FORMAT 'CSV' (delimiter=':')`.
 
 ## <a id="about_encoding"></a>About Setting the External Table Encoding
 

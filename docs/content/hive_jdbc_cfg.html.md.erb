@@ -37,11 +37,11 @@ Table heading key:
 |------------------|---------------|----------------|-------------------|
 | `NOSASL` | n/a | No authentication | Must set `jdbc.connection.property.auth` = `noSasl`.  |
 | `NONE`, or not specified | `TRUE` | User name that you provide | Set `jdbc.user`. |
-| `NONE`, or not specified | `TRUE` | Greenplum user name | Set `pxf.service.user.impersonation` to `true` in `jdbc-site.xml`. |
+| `NONE`, or not specified | `TRUE` | WarehousePG user name | Set `pxf.service.user.impersonation` to `true` in `jdbc-site.xml`. |
 | `NONE`, or not specified | `FALSE` | Name of the user who started Hive, typically `hive`  | None |
 | `KERBEROS` | `TRUE` | Identity provided in the PXF Kerberos principal, typically `gpadmin` | Must set `hadoop.security.authentication` to `kerberos` in `jdbc-site.xml`. |
 | `KERBEROS` | `TRUE` | User name that you provide  | Set `hive.server2.proxy.user` in `jdbc.url` and set `hadoop.security.authentication` to `kerberos` in `jdbc-site.xml`.  |
-| `KERBEROS` | `TRUE` | Greenplum user name  | Set `pxf.service.user.impersonation` to `true` and `hadoop.security.authentication` to `kerberos` in `jdbc-site.xml`. |
+| `KERBEROS` | `TRUE` | WarehousePG user name  | Set `pxf.service.user.impersonation` to `true` and `hadoop.security.authentication` to `kerberos` in `jdbc-site.xml`. |
 | `KERBEROS` | `FALSE` | Identity provided in the `jdbc.url` `principal` parameter, typically `hive` |  Must set `hadoop.security.authentication` to `kerberos` in `jdbc-site.xml`. |
 
 **Note**: There are additional configuration steps required when Hive utilizes Kerberos authentication.
@@ -50,7 +50,7 @@ Table heading key:
 
 Perform the following procedure to configure a PXF JDBC server for Hive:
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -111,7 +111,7 @@ Perform the following procedure to configure a PXF JDBC server for Hive:
 
     1. If `hive.server2.enable.doAs` is set to `TRUE` (the default), Hive runs Hadoop operations on behalf of the user connecting to Hive. *Choose/perform one of the following options*:
 
-        **Set** `jdbc.user` to specify the user that has read permission on all Hive data accessed by Greenplum Database. For example, to connect to Hive and run all requests as user `gpadmin`:
+        **Set** `jdbc.user` to specify the user that has read permission on all Hive data accessed by WarehousePG. For example, to connect to Hive and run all requests as user `gpadmin`:
 
         ``` xml
         <property>
@@ -119,7 +119,7 @@ Perform the following procedure to configure a PXF JDBC server for Hive:
             <value>gpadmin</value>
         </property>
         ```
-        **Or**, turn on JDBC server-level user impersonation so that PXF automatically uses the Greenplum Database user name to connect to Hive; uncomment the `pxf.service.user.impersonation` property in `jdbc-site.xml` and set the value to `true:
+        **Or**, turn on JDBC server-level user impersonation so that PXF automatically uses the WarehousePG user name to connect to Hive; uncomment the `pxf.service.user.impersonation` property in `jdbc-site.xml` and set the value to `true:
 
         ``` xml
         <property>
@@ -169,7 +169,7 @@ Perform the following procedure to configure a PXF JDBC server for Hive:
         jdbc:hive2://hs2server:10000/default;principal=hive/hs2server@REALM;saslQop=auth-conf;<b>hive.server2.proxy.user=integration</b>
         </pre>
 
-        **Or**, enable PXF JDBC impersonation in the `pxf-site.xml` file so that PXF automatically uses the Greenplum Database user name to connect to Hive. Add or uncomment the `pxf.service.user.impersonation` property and set the value to `true`. For example:
+        **Or**, enable PXF JDBC impersonation in the `pxf-site.xml` file so that PXF automatically uses the WarehousePG user name to connect to Hive. Add or uncomment the `pxf.service.user.impersonation` property and set the value to `true`. For example:
 
         ``` xml
         <property>
@@ -183,7 +183,7 @@ Perform the following procedure to configure a PXF JDBC server for Hive:
 
 10. Save your changes and exit the editor.
 
-11. Use the `pxf cluster sync` command to copy the new server configuration to the Greenplum Database cluster:
+11. Use the `pxf cluster sync` command to copy the new server configuration to the WarehousePG cluster:
     
     ``` shell
     gpadmin@coordinator$ pxf cluster sync

@@ -15,19 +15,19 @@ The PXF upgrade procedure has two parts. You perform one procedure before, and o
 
 Perform this procedure before you upgrade to a new version of PXF:
 
-1. Log in to the Greenplum Database master host. For example:
+1. Log in to the WarehousePG master host. For example:
 
     ``` shell
     $ ssh gpadmin@<gpmaster>
     ```
 
-2. Identify and note the version of PXF currently running in your Greenplum cluster:
+2. Identify and note the version of PXF currently running in your WarehousePG cluster:
 
     ``` shell
     gpadmin@gpmaster$ pxf version
     ```
 
-2. If the `$GPHOME/pxf` directory exists, and you are running PXF version 5.12.x or older, back up the Greenplum PXF embedded installation. For example:
+2. If the `$GPHOME/pxf` directory exists, and you are running PXF version 5.12.x or older, back up the WarehousePG PXF embedded installation. For example:
 
     ``` shell
     gpadmin@gpmaster$ mkdir $HOME/pxf_gp_backup
@@ -45,7 +45,7 @@ Perform this procedure before you upgrade to a new version of PXF:
 
 After you install the new version of PXF, perform the following procedure:
 
-1. Log in to the Greenplum Database master host. For example:
+1. Log in to the WarehousePG master host. For example:
 
     ``` shell
     $ ssh gpadmin@<gpmaster>
@@ -107,7 +107,7 @@ After you install the new version of PXF, perform the following procedure:
 
             You may need to add this property block to the `pxf-site.xml` file.
 
-4. Synchronize the PXF configuration from the master host to the standby master host and each Greenplum Database segment host. For example:
+4. Synchronize the PXF configuration from the master host to the standby master host and each WarehousePG segment host. For example:
 
     ``` shell
     gpadmin@gpmaster$ pxf cluster sync

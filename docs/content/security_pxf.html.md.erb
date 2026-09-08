@@ -6,15 +6,15 @@ This topic describes the PXF trust model — where the PXF Service gets the user
 
 ## <a id="trustmodel"></a>About the PXF Trust Model
 
-The PXF Service is an HTTP server that receives read and write requests from the Greenplum Database segments. Each request identifies the Greenplum Database user on whose behalf the request runs; the database supplies this identity in the request itself.
+The PXF Service is an HTTP server that receives read and write requests from the WarehousePG segments. Each request identifies the WarehousePG user on whose behalf the request runs; the database supplies this identity in the request itself.
 
-**The PXF Service does not authenticate its clients.** It accepts any well-formed request that reaches its listen address, and it trusts the user identity presented in the request. PXF relies on network isolation of its listen address — not on authenticating callers — to ensure that requests originate from the Greenplum Database deployment it serves.
+**The PXF Service does not authenticate its clients.** It accepts any well-formed request that reaches its listen address, and it trusts the user identity presented in the request. PXF relies on network isolation of its listen address — not on authenticating callers — to ensure that requests originate from the WarehousePG deployment it serves.
 
-A client that can connect to the PXF listen address can therefore submit requests that assert any user identity, without logging in to Greenplum Database. Restricting which clients can reach the PXF listen address is the security boundary.
+A client that can connect to the PXF listen address can therefore submit requests that assert any user identity, without logging in to WarehousePG. Restricting which clients can reach the PXF listen address is the security boundary.
 
 ## <a id="netexposure"></a>Network Exposure
 
-In the default deployment topology, the PXF Service runs on every Greenplum Database host and listens on `localhost:5888`; it is not reachable from the network. In this configuration, only processes running on the Greenplum host itself can send requests to PXF.
+In the default deployment topology, the PXF Service runs on every WarehousePG host and listens on `localhost:5888`; it is not reachable from the network. In this configuration, only processes running on the WarehousePG host itself can send requests to PXF.
 
 Certain configurations require PXF to listen on a non-local address — for example, the [alternate deployment topology](deployment_topos.html#alt_topo), or retrieving monitoring data from another host. Widening the listen address extends the trust boundary to every host that can reach the address and port.
 
@@ -24,7 +24,7 @@ The PXF monitoring endpoints (`health`, `info`, `metrics`, `prometheus` — see 
 
 If you change the PXF listen address from the `localhost` default:
 
-- Restrict network access to the PXF port (default `5888`) to the hosts that must send requests to PXF — the Greenplum Database hosts, and any dedicated monitoring host.
+- Restrict network access to the PXF port (default `5888`) to the hosts that must send requests to PXF — the WarehousePG hosts, and any dedicated monitoring host.
 - Never expose the PXF port outside of the trusted cluster network.
 
 Refer to [Service Listen Address, Host, and Port](cfghostport.html) for the configuration procedures.
@@ -41,4 +41,4 @@ When PXF accesses a Kerberos-secured Hadoop cluster, PXF authenticates to Hadoop
 
 - Keep the default `localhost` listen address unless your deployment requires otherwise.
 - If you widen the listen address, restrict access to the PXF port to trusted cluster hosts, and never expose it outside of the cluster network.
-- Treat operating system access to Greenplum Database hosts as privileged: local processes on a host can send requests to a `localhost`-bound PXF Service.
+- Treat operating system access to WarehousePG hosts as privileged: local processes on a host can send requests to a `localhost`-bound PXF Service.

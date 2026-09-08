@@ -1,5 +1,7 @@
 # PXF Documentation
 
+**Note:** Official WarehousePG PXF documentation is being built at [https://warehouse-pg.io/pxf/6x/](https://warehouse-pg.io/pxf/6x/); this in-repo book remains the exhaustive reference during the migration.
+
 This directory contains the book and markdown source for the PXF docs. You can build the markdown into HTML output using [Bookbinder](https://github.com/cloudfoundry-incubator/bookbinder).  
 
 Bookbinder is a Ruby gem that binds together a unified documentation web application from markdown, html, and/or DITA source material. The source material for bookbinder must be stored either in local directories or in GitHub repositories. Bookbinder runs [middleman](http://middlemanapp.com/) to produce a Rackup app that can be deployed locally or as a Web application.

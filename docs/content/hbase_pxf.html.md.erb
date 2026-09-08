@@ -85,7 +85,7 @@ Create a sample HBase table.
 
 The PXF HBase connector supports a single profile named `hbase`.
 
-Use the following syntax to create a Greenplum Database external table that references an HBase table:
+Use the following syntax to create a WarehousePG external table that references an HBase table:
 
 ``` sql
 CREATE EXTERNAL TABLE <table_name>
@@ -94,7 +94,7 @@ LOCATION ('pxf://<hbase-table-name>?PROFILE=hbase[&SERVER=<server_name>]')
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
 ```
 
-HBase connector-specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) call are described below.
+HBase connector-specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) call are described below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -107,20 +107,20 @@ HBase connector-specific keywords and values used in the Greenplum Database [CRE
 
 ## <a id="datatypemapping"></a>Data Type Mapping
 
-HBase is byte-based; it stores all data types as an array of bytes. To represent HBase data in Greenplum Database, select a data type for your Greenplum Database column that matches the underlying content of the HBase column qualifier values.
+HBase is byte-based; it stores all data types as an array of bytes. To represent HBase data in WarehousePG, select a data type for your WarehousePG column that matches the underlying content of the HBase column qualifier values.
 
 **Note**: PXF does not support complex HBase objects.
 
 
 ## <a id="columnmapping"></a>Column Mapping
 
-You can create a Greenplum Database external table that references all, or a subset of, the column qualifiers defined in an HBase table. PXF supports direct or indirect mapping between a Greenplum Database table column and an HBase table column qualifier.
+You can create a WarehousePG external table that references all, or a subset of, the column qualifiers defined in an HBase table. PXF supports direct or indirect mapping between a WarehousePG table column and an HBase table column qualifier.
 
 ### <a id="directmapping" class="no-quick-link"></a>Direct Mapping
 
-When you use direct mapping to map Greenplum Database external table column names to HBase qualifiers, you specify column-family-qualified HBase qualifier names as quoted values. The PXF HBase connector passes these column names as-is to HBase as it reads the table data.
+When you use direct mapping to map WarehousePG external table column names to HBase qualifiers, you specify column-family-qualified HBase qualifier names as quoted values. The PXF HBase connector passes these column names as-is to HBase as it reads the table data.
 
-For example, to create a Greenplum Database external table accessing the following data:
+For example, to create a WarehousePG external table accessing the following data:
 
 -   qualifier `name` in the column family named `product`
 -   qualifier `zipcode` in the column family named `shipping_info` 
@@ -135,7 +135,7 @@ CREATE EXTERNAL TABLE orderinfo_hbase ("product:name" varchar, "shipping_info:zi
 
 ### <a id="indirectmappingvialookuptable" class="no-quick-link"></a>Indirect Mapping via Lookup Table
 
-When you use indirect mapping to map Greenplum Database external table column names to HBase qualifiers, you specify the mapping in a lookup table that you create in HBase. The lookup table maps a \<column-family\>:\<column-qualifier\> to a column name alias that you specify when you create the Greenplum Database external table. 
+When you use indirect mapping to map WarehousePG external table column names to HBase qualifiers, you specify the mapping in a lookup table that you create in HBase. The lookup table maps a \<column-family\>:\<column-qualifier\> to a column name alias that you specify when you create the WarehousePG external table. 
 
 You must name the HBase PXF lookup table `pxflookup`. And you must define this table with a single column family named `mapping`. For example:
 
@@ -143,15 +143,15 @@ You must name the HBase PXF lookup table `pxflookup`. And you must define this 
 hbase(main):> create 'pxflookup', 'mapping'
 ```
 
-While the direct mapping method is fast and intuitive, using indirect mapping allows you to create a shorter, character-based alias for the HBase \<column-family\>:\<column-qualifier\> name. This better reconciles HBase column qualifier names with Greenplum Database due to the following:
+While the direct mapping method is fast and intuitive, using indirect mapping allows you to create a shorter, character-based alias for the HBase \<column-family\>:\<column-qualifier\> name. This better reconciles HBase column qualifier names with WarehousePG due to the following:
 
--   HBase qualifier names can be very long. Greenplum Database has a 63 character limit on the size of the column name.
--   HBase qualifier names can include binary or non-printable characters. Greenplum Database column names are character-based.
+-   HBase qualifier names can be very long. WarehousePG has a 63 character limit on the size of the column name.
+-   HBase qualifier names can include binary or non-printable characters. WarehousePG column names are character-based.
 
 When populating the `pxflookup` HBase table, add rows to the table such that the:
 
 - row key specifies the HBase table name
-- `mapping` column family qualifier identifies the Greenplum Database column name, and the value identifies the HBase `<column-family>:<column-qualifier>` for which you are creating the alias.
+- `mapping` column family qualifier identifies the WarehousePG column name, and the value identifies the HBase `<column-family>:<column-qualifier>` for which you are creating the alias.
 
 For example, to use indirect mapping with the `order_info` table, add these entries to the `pxflookup` table:
 
@@ -160,7 +160,7 @@ hbase(main):> put 'pxflookup', 'order_info', 'mapping:pname', 'product:name'
 hbase(main):> put 'pxflookup', 'order_info', 'mapping:zip', 'shipping_info:zipcode'
 ```
 
-Then create a Greenplum Database external table using the following `CREATE EXTERNAL TABLE` syntax:
+Then create a WarehousePG external table using the following `CREATE EXTERNAL TABLE` syntax:
 
 ``` sql
 CREATE EXTERNAL TABLE orderinfo_map (pname varchar, zip int)
@@ -172,9 +172,9 @@ CREATE EXTERNAL TABLE orderinfo_map (pname varchar, zip int)
 
 The HBase table row key is a unique identifier for the table row. PXF handles the row key in a special way. 
 
-To use the row key in the Greenplum Database external table query, define the external table using the PXF reserved column named `recordkey.` The `recordkey` column name instructs PXF to return the HBase table record key for each row.
+To use the row key in the WarehousePG external table query, define the external table using the PXF reserved column named `recordkey.` The `recordkey` column name instructs PXF to return the HBase table record key for each row.
 
-Define the `recordkey` using the Greenplum Database data type `bytea`.
+Define the `recordkey` using the WarehousePG data type `bytea`.
 
 For example:
 

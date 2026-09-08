@@ -30,9 +30,9 @@ Create a Trino table named `names` and insert some data into this table:
 
 You must create a JDBC server configuration for Trino, download the Trino driver JAR file to your system, copy the JAR file to the PXF user configuration directory, synchronize the PXF configuration, and then restart PXF.
 
-This procedure will typically be performed by the Greenplum Database administrator.
+This procedure will typically be performed by the WarehousePG administrator.
 
-1. Log in to the Greenplum Database coordinator host:
+1. Log in to the WarehousePG coordinator host:
 
     ```shell
     $ ssh gpadmin@<coordinator>
@@ -43,14 +43,14 @@ This procedure will typically be performed by the Greenplum Database administrat
    See [Trino Documentation - JDBC Driver](https://trino.io/docs/current/client/jdbc.html#installing) for instructions on downloading the Trino JDBC driver.
    The following example downloads the driver and places it under `$PXF_BASE/lib`:
 
-    1. If you did not relocate `$PXF_BASE`, run the following from the Greenplum coordinator:
+    1. If you did not relocate `$PXF_BASE`, run the following from the WarehousePG coordinator:
 
         ```shell
         gpadmin@coordinator$ cd /usr/local/pxf-gp<version>/lib
         gpadmin@coordinator$ wget <url-to-trino-jdbc-driver>
         ```
 
-    2. If you relocated `$PXF_BASE`, run the following from the Greenplum coordinator:
+    2. If you relocated `$PXF_BASE`, run the following from the WarehousePG coordinator:
 
         ```shell
         gpadmin@coordinator$ cd $PXF_BASE/lib
@@ -131,7 +131,7 @@ This procedure will typically be performed by the Greenplum Database administrat
     </configuration>
     ```
 
-1. Synchronize the PXF server configuration to the Greenplum Database cluster:
+1. Synchronize the PXF server configuration to the WarehousePG cluster:
 
     ```shell
     gpadmin@coordinator$ pxf cluster sync

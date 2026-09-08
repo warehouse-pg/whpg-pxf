@@ -41,7 +41,7 @@ You can override the credentials for an S3 server configuration by directly spec
 
 ### <a id="s3-sse"></a>Configuring S3 Server-Side Encryption
 
-PXF supports Amazon Web Service S3 Server-Side Encryption (SSE) for S3 files that you access with readable and writable Greenplum Database external tables that specify the `pxf` protocol and an `s3:*` profile. AWS S3 server-side encryption protects your data at rest; it encrypts your object data as it writes to disk, and transparently decrypts the data for you when you access it.
+PXF supports Amazon Web Service S3 Server-Side Encryption (SSE) for S3 files that you access with readable and writable WarehousePG external tables that specify the `pxf` protocol and an `s3:*` profile. AWS S3 server-side encryption protects your data at rest; it encrypts your object data as it writes to disk, and transparently decrypts the data for you when you access it.
 
 PXF supports the following AWS SSE encryption key management schemes:
 
@@ -145,9 +145,9 @@ To enable SSE-C for a specific S3 bucket, use the property name variants that in
 
 ## <a id="cfg_proc"></a>Example Server Configuration Procedure
 
-In this procedure, you name and add a PXF server configuration in the `$PXF_BASE/servers` directory on the Greenplum Database coordinator host for the S3 Cloud Storage connector. You then use the `pxf cluster sync` command to sync the server configuration(s) to the Greenplum Database cluster.
+In this procedure, you name and add a PXF server configuration in the `$PXF_BASE/servers` directory on the WarehousePG coordinator host for the S3 Cloud Storage connector. You then use the `pxf cluster sync` command to sync the server configuration(s) to the WarehousePG cluster.
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -188,7 +188,7 @@ In this procedure, you name and add a PXF server configuration in the `$PXF_BASE
     ```
 5. Save your changes and exit the editor.
 
-4. Use the `pxf cluster sync` command to copy the new server configuration to the Greenplum Database cluster:
+4. Use the `pxf cluster sync` command to copy the new server configuration to the WarehousePG cluster:
     
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
