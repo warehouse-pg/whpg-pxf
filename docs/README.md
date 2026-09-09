@@ -19,7 +19,6 @@ This directory contains the markdown source (`content/`) and the
 ## Build Tooling (Legacy)
 
 This book was historically rendered with Bookbinder, a retired Ruby
-toolchain. The docker-based build harness that this README previously
-referenced is part of the deprecated `concourse/` tree, and building the
-book locally is no longer supported or verified. The published documentation
-is the official site above.
+toolchain, via a docker harness that lived in the repository's deprecated
+legacy-CI tree. Building the book locally is no longer supported or
+verified. The published documentation is the official site above.
