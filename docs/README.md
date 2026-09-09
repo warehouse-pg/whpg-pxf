@@ -1,38 +1,25 @@
 # PXF Documentation
 
-**Note:** Official WarehousePG PXF documentation is being built at [https://warehouse-pg.io/pxf/6x/](https://warehouse-pg.io/pxf/6x/); this in-repo book remains the exhaustive reference during the migration.
+**Note:** The official WarehousePG PXF documentation is published at
+[https://warehouse-pg.io/pxf/6x/](https://warehouse-pg.io/pxf/6x/) and is the
+maintained reference. This in-repo book remains available while the official
+site reaches full coverage of its content; once parity is reached, this book
+will be retired in its favor.
 
-This directory contains the book and markdown source for the PXF docs. You can build the markdown into HTML output using [Bookbinder](https://github.com/cloudfoundry-incubator/bookbinder).  
+This directory contains the markdown source (`content/`) and the
+[Bookbinder](https://github.com/pivotal-cf/bookbinder) book configuration
+(`book/`) for the PXF docs.
 
-Bookbinder is a Ruby gem that binds together a unified documentation web application from markdown, html, and/or DITA source material. The source material for bookbinder must be stored either in local directories or in GitHub repositories. Bookbinder runs [middleman](http://middlemanapp.com/) to produce a Rackup app that can be deployed locally or as a Web application.
+## Reading the Documentation
 
-This document provides instructions for building the PXF documentation on your local system. It includes the sections:
+- Official rendered documentation: [https://warehouse-pg.io/pxf/6x/](https://warehouse-pg.io/pxf/6x/)
+- The pages under `content/` in this directory are readable directly as
+  markdown.
 
-* [About Bookbinder](#about)
-* [Prerequisites](#prereq)
-* [Building the Documentation](#building)
-* [Getting More Information](#moreinfo)
+## Build Tooling (Legacy)
 
-
-<a name="about"></a>
-## About Bookbinder
-
-You use bookbinder from within a project called a **book**. The book includes a configuration file named `config.yml` that specifies the documentation repositories/directories to use as source material. Bookbinder provides a set of scripts to aggregate those repositories and publish them to various locations in your final web application.
-
-PXF provides a preconfigured **book** in the `docs/book` directory of this repo.  You can use this configuration to build HTML for the PXF docs on your local system.
-
-<a name="building_docker"></a>
-## Building the Documentation Using Docker
-
-1. Navigate to the `concourse/docker/docs` directory of this repo.
-
-2. Follow the instructions in the README.md file.
-
-3. A local version of the documentation should be available for viewing at [http://localhost:9292](http://localhost:9292)
-
-
-<a name="moreinfo"></a>  
-## Getting More Information
-
-Bookbinder provides additional functionality to construct books from multiple Github repos, to perform variable substitution, and also to automatically build documentation in a continuous integration pipeline.  For more information, see [https://github.com/pivotal-cf/bookbinder](https://github.com/pivotal-cf/bookbinder).
-
+This book was historically rendered with Bookbinder, a retired Ruby
+toolchain. The docker-based build harness that this README previously
+referenced is part of the deprecated `concourse/` tree, and building the
+book locally is no longer supported or verified. The published documentation
+is the official site above.
