@@ -407,7 +407,7 @@ SELECT user.id,
 FROM objperrow_json_tbl_stc;
 ```
 
-**Note**: This conversion is possible only when you are using PXF with WarehousePG 6.x; the function `json_array_elements_text()` is not available in Greenplum 5.x.
+**Note**: This conversion is possible only when you are using PXF with WarehousePG 6.x.
 
 If your external table definition uses a single text-type column for a JSON array and you want to read the array into a `TEXT[]` column, you can use the `ALTER EXTERNAL TABLE` command to update the table definition. For example:
 

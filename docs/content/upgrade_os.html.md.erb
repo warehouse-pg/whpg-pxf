@@ -2,9 +2,16 @@
 title: OS Upgrade Considerations for PXF
 ---
 
-All WarehousePG PXF releases support the operating system platforms that your WarehousePG version supports; refer to the [WarehousePG platform requirements](https://warehouse-pg.io/docs/6x/install_guide/platform-requirements.html) for the authoritative list.
+PXF is compatible with these operating system platforms:
 
-If you plan to upgrade the operating system in your WarehousePG cluster hosts and you are running PXF in your WarehousePG installation, you must perform some PXF-specific actions before and after you upgrade the OS.
+| OS Version | PXF Version              |
+|------------|--------------------------|
+| RHEL 8.x   | 6.3+ for WarehousePG 6.20+ |
+| RHEL 8.x   | 6.8+ for WarehousePG 7.x   |
+| RHEL 9.x   | 6.9+ for WarehousePG 6.26+ |
+
+If you plan to upgrade the operating system in your WarehousePG cluster hosts to a new OS and you are running PXF in your WarehousePG installation, please refer to the above table to determine which version of PXF is required.
+You must perform some PXF-specific actions before and after you upgrade the OS.
 
 The following procedures assume that you are upgrading the OS on a different set of hosts than that of the current/running WarehousePG cluster.
 
@@ -12,7 +19,7 @@ The following procedures assume that you are upgrading the OS on a different set
 
 Perform the following steps before you upgrade the operating system:
 
-1. Verify PXF operation in your current cluster **before** you commence the OS upgrade.
+1. Upgrade PXF in your current cluster to at least the version of PXF listed in the table above and verify PXF operation **before** you commence the OS upgrade. For example, if you want to upgrade your WarehousePG 6 cluster to RHEL 8, upgrade to PXF v6.3+.
 
 1. Retain the following PXF user configuration directories, typically located in `/usr/local/pxf-gp6`: `conf/`, `keytabs/`, `lib/`, and `servers/`. If you relocated `$PXF_BASE`, retain the configuration in that directory.
 
