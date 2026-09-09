@@ -356,6 +356,7 @@ Jeffrey I Cohen
 Copyright (c) 2007, 2008, 2009 GreenPlum.  All rights reserved.  
 
 Address bug reports and comments to: jcohen@greenplum.com
+(historical upstream contact)
 
 
 =cut
