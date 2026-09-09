@@ -3,7 +3,7 @@ PXF pg_regress Test Suite
 
 This is a test suite that utilizes PostgreSQL's `pg_regress` testing framework to accomplish end-to-end testing of PXF.
 
-It performs SQL queries via `psql` to 1) prepare data on an external source 2) create either external or foreign tables in Greenplum to query the data via PXF.
+It performs SQL queries via `psql` to 1) prepare data on an external source 2) create either external or foreign tables in WarehousePG to query the data via PXF.
 The `pg_regress` engine can then compare the results of these queries with expected results that we define to determine success or failure.
 
 This is different from our automation framework (`pxf/automation`) which fires up a Java process that uses, e.g. HDFS APIs to prepare the data, then performs SQL queries for the rest.
@@ -13,14 +13,14 @@ Running the tests
 
 ## Pre-requisites
 
-You need a running instance of Greenplum and PXF, along with a local installation of Greenplum (to be able to use the `pg_regress` framework).
-The variables `PGHOST` and `PGPORT` must be pointing at the Greenplum master node, and Greenplum environment scripts like `${GPHOME}/greenplum_path.sh` and `gpdb/gpAux/gpdemo/gpdemo-env.sh` should be sourced.
+You need a running instance of WarehousePG and PXF, along with a local installation of WarehousePG (to be able to use the `pg_regress` framework).
+The variables `PGHOST` and `PGPORT` must be pointing at the WarehousePG master node, and WarehousePG environment scripts like `${GPHOME}/greenplum_path.sh` and `gpdb/gpAux/gpdemo/gpdemo-env.sh` should be sourced.
 `pg_config` must be on your path.
 
 For data prep, the appropriate CLIs are required, as we shell out from SQL to these CLIs. These include `hdfs`, `hbase`, and `beeline`.
 It is expected that these commands are configured correctly for communication with their respective services.
 
-If your external data or Greenplum are remote, it is best to have password-less SSH configured, as some tests may use SCP to transfer prepared data files.
+If your external data or WarehousePG are remote, it is best to have password-less SSH configured, as some tests may use SCP to transfer prepared data files.
 
 Bash 4 or newer is required, as `scripts/substitute.bash` and other helper scripts use Bash 4+ features. macOS ships Bash 3.2; install GNU Bash via Homebrew (`brew install bash`) and invoke `make` through `/opt/homebrew/bin/bash` (Apple Silicon) or `/usr/local/bin/bash` (Intel).
 
@@ -44,7 +44,7 @@ make -C ~/workspace/pxf/regression fdw_smoke_schedule
 
 ## Environment variables
 
-By setting environment variables you can change the location of the Greenplum master, the location of the data prep commands (`hdfs`, etc.), and even the cloud object store that will serve as HDFS proxy.
+By setting environment variables you can change the location of the WarehousePG master, the location of the data prep commands (`hdfs`, etc.), and even the cloud object store that will serve as HDFS proxy.
 
 ### General environment variables
 
@@ -54,7 +54,7 @@ from `PXF_HOME`.
 
 * `PXF_TEST_DEBUG`: set to anything to prevent deletion of data, and to run `pg_regress` in debug mode (optional)
 * `SERVER_CONFIG`: the name of the config directory for your server, under `${PXF_BASE}/servers` (optional). If not set, PXF will use one of `${PXF_BASE}/servers/{default,s3,gs,adl,wasbs}` as appropriate
-* `PGHOST`: the hostname of the master Greenplum node (optional). Needed when Greenplum is remote
+* `PGHOST`: the hostname of the master WarehousePG node (optional). Needed when WarehousePG is remote
 
 ### HCFS-specific variables
 

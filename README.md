@@ -1,6 +1,7 @@
-PXF is built and certified through the GitHub Actions workflows. The legacy Concourse
-pipelines under `concourse/` are deprecated and retained for historical
-reference only.
+PXF is built and certified through GitHub Actions packaging and release
+workflows maintained by EDB; in-repository CI for pull requests is planned.
+The legacy Concourse pipelines under `concourse/` are deprecated and retained
+for historical reference only.
 
 ----------------------------------------------------------------------
 
@@ -10,6 +11,13 @@ Introduction
 PXF is an extensible framework that allows a distributed database like WarehousePG to query external data files, whose metadata is not managed by the database.
 PXF includes built-in connectors for accessing data that exists inside HDFS files, Hive tables, HBase tables, JDBC-accessible databases and more.
 Users can also create their own connectors to other data storage or processing engines.
+
+This repository is a fork of the open-source Greenplum PXF project ([github.com/greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive)), renamed to whpg-pxf and maintained for WarehousePG.
+
+Documentation
+================
+
+Official PXF documentation is available at [https://warehouse-pg.io/pxf/6x/](https://warehouse-pg.io/pxf/6x/) (PXF 6.x documentation; 7.x forthcoming). The in-repo book under [`docs/`](docs/) remains the exhaustive reference during the migration to the official site.
 
 Repository Contents
 ================
@@ -32,7 +40,7 @@ Contains the automation and integration tests for PXF against the various dataso
 Hadoop testing environment to exercise the pxf automation tests
 
 ## concourse/
-Legacy resources for PXF's Concourse Continuous Integration pipelines. Deprecated and retained for historical reference only; the live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`.
+Legacy resources for PXF's Concourse Continuous Integration pipelines. Deprecated and retained for historical reference only; a cleanup of this tree is planned.
 
 ## regression/
 Contains the end-to-end (integration) tests for PXF against the various datasources, utilizing the PostgreSQL testing framework `pg_regress`
@@ -314,7 +322,7 @@ no JDK set for Gradle. Just cancel and retry. It goes away the second time.
 - Save the configuration
 - Restart PXF in DEBUG Mode `PXF_DEBUG=true pxf restart`
 - Debug the new configuration in IntelliJ
-- Run a query in GPDB that uses PXF to debug with IntelliJ
+- Run a query in WarehousePG that uses PXF to debug with IntelliJ
 
 # To run a Kerberized Hadoop Cluster
 

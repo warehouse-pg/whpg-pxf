@@ -4,7 +4,7 @@
 
 `pxf_regress` is a PSQL test runner written in Go that is heavily inspired by
 `pg_regress`. PXF's automation test framework sets up data in external data
-storage (e.g., Hadoop, Amazon S3, etc), creates Greenplum external tables to
+storage (e.g., Hadoop, Amazon S3, etc), creates WarehousePG external tables to
 work with these data sets, and then invokes `pxf_regress` to run SQL test cases
 via `psql` and compare the results with expected output. Instead of matching
 the features of `pg_regress` exactly, this utility currently implements the
@@ -36,7 +36,7 @@ small_data
     └── query02.sql
 ```
 
-There are no command line flags; the GPDB cluster that `pxf_regress` connects
+There are no command line flags; the WarehousePG cluster that `pxf_regress` connects
 to can be customized with standard [Postgres environment variables][1].
 
 ### Why not use `pg_regress`?
@@ -119,4 +119,4 @@ $ tree smoke/small_data
     ```
 
 [1]: https://www.postgresql.org/docs/12/libpq-envars.html
-[2]: https://github.com/greenplum-db/gpdb/blob/main/src/test/regress/gpdiff.pl
+[2]: gpdiff.pl

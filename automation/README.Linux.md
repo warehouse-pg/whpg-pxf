@@ -5,14 +5,14 @@ They are intended to be used in tandem with the information in the main README f
 
 ## Locale Setup
 
-Automation creates a GPDB database using the `ru_RU.CP1251` locale. You can generate the required locale files with
+Automation creates a WarehousePG database using the `ru_RU.CP1251` locale. You can generate the required locale files with
 
 ```sh
 sudo sed -i.bak -e 's/# ru_RU.CP1251.*/ru_RU.CP1251 CP1251/' /etc/locale.gen
 sudo locale-gen
 ```
 
-After generating the locale, restart your GPDB cluster
+After generating the locale, restart your WarehousePG cluster
 
 ```sh
 source $GPHOME/greenplum_path.sh

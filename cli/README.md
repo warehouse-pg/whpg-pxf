@@ -18,11 +18,11 @@
    make install
    ```
 
-1. There is also end to end testing for the pxf-cli located at `pxf/concourse/scripts/cli`. These tests were historically run via the Concourse `dev` pipeline (`MULTINODE=true make -C ~/workspace/pxf/concourse dev`). That Concourse tooling is deprecated and targets infrastructure that is no longer accessible (see [`concourse/README.md`](../concourse/README.md)); the live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`.
+1. There is also end to end testing for the pxf-cli located at `pxf/concourse/scripts/cli`. These tests were historically run via the Concourse `dev` pipeline (`MULTINODE=true make -C ~/workspace/pxf/concourse dev`). That Concourse tooling is deprecated and targets infrastructure that is no longer accessible (see [`concourse/README.md`](../concourse/README.md)).
 
 ## Debugging the CLI on a live system
 
-Because it's hard to mock out a Greenplum cluster, it's useful to debug on a real live cluster. We can do this using the [`delve`](https://github.com/go-delve/delve) project.
+Because it's hard to mock out a WarehousePG cluster, it's useful to debug on a real live cluster. We can do this using the [`delve`](https://github.com/go-delve/delve) project.
 
 1. Install `dlv` command, see [here](https://github.com/go-delve/delve/blob/master/Documentation/installation/linux/install.md) for more details:
 

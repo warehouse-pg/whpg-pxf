@@ -2,14 +2,14 @@
 
 Contains all the PXF automation tests for the various functionalities of PXF.
 The automation framework uses TestNg APIs and tools to complete automatic testing for PXF. Compiling and running TestNg test cases being used via maven.
-The Automation framework also exposes simple APIs for performing actions on services including GPDB, PXF, HDFS, HBase and Hive or to use utilities such data comparison, reading and writing files , using tools such pxf_regress for query analysis and more.
+The Automation framework also exposes simple APIs for performing actions on services including WarehousePG, PXF, HDFS, HBase and Hive or to use utilities such data comparison, reading and writing files , using tools such pxf_regress for query analysis and more.
 
 ## Dependencies
 
 In order to run PXF automation tests the following are needed
 
 1. Running Hadoop cluster
-2. Running GPDB
+2. Running WarehousePG
 3. JDK 8 (required to build the automation jars, which depend on Lombok); JDK 8 or 11 to run
 4. Bash 4 or newer. macOS ships Bash 3.2; install GNU Bash via Homebrew (`brew install bash`) and invoke the regression flow through `/opt/homebrew/bin/bash` (Apple Silicon) or `/usr/local/bin/bash` (Intel).
 
@@ -157,6 +157,8 @@ You can read more about TestNG here <http://testng.org/doc/index.md>
 - `output` - output of run including diff files for each sql file
 
 ## Test Examples
+
+> **Note:** The example code below uses outdated plugin class names and is pending update. PXF rejects the legacy `com.pivotal.pxf.*` prefix with an error directing users to the current `org.greenplum.pxf.*` classes; the shipped profile-to-class mappings are defined in `server/pxf-service/src/main/resources/pxf-profiles-default.xml`.
 
 1. Example 1 (Smoke case)
 

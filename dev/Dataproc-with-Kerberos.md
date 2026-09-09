@@ -88,7 +88,7 @@ It runs through a simple flow with HDFS and Hive to check that you can connect l
     -- Time taken: 8.672 seconds, Fetched: 10 row(s)
     ```
 
-## Greenplum Setup
+## WarehousePG Setup
 
 1. Create a readable external table using the `hdfs:text` profile; the location is set to the HDFS directory in Dataproc that contains the Hive table's data
 
