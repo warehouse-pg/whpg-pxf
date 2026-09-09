@@ -8,9 +8,8 @@ ifeq ($(BUILDNUM),)
 endif
 
 # HADOOP_VERSION is stylistic (only one Apache build line is supported);
-# HADOOP_DISTRO MUST be Apache. CDH and HDP build paths were retired in
-# PTT-1135 Phase 4a (see implementation-plan.md §4a.2). Any other value
-# falls through to a dispatch error below.
+# HADOOP_DISTRO MUST be Apache — the CDH and HDP build paths were retired.
+# Any other value falls through to a dispatch error below.
 HADOOP_VERSION = undefined
 HADOOP_DISTRO = Apache
 
