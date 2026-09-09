@@ -24,31 +24,31 @@ under the License.
 
 PXF provides two management commands:
 
-- [`pxf cluster`](ref/pxf-cluster.html) - manage all PXF Service instances in the Greenplum Database cluster
-- [`pxf`](ref/pxf.html) - manage the PXF Service instance on a specific Greenplum Database host
+- [`pxf cluster`](ref/pxf-cluster.html) - manage all PXF Service instances in the WarehousePG cluster
+- [`pxf`](ref/pxf.html) - manage the PXF Service instance on a specific WarehousePG host
 
 <div class="note"><b>Note:</b> The procedures in this topic assume that you have added the <code>&lt;PXF_INSTALL_DIR>/bin</code> directory to your <code>$PATH</code>.</div>
 
 
 ## <a id="start_pxf"></a>Starting PXF
 
-After configuring PXF, you must start PXF on each host in your Greenplum Database cluster. The PXF Service, once started, runs as the `gpadmin` user on default port 5888. Only the `gpadmin` user can start and stop the PXF Service.
+After configuring PXF, you must start PXF on each host in your WarehousePG cluster. The PXF Service, once started, runs as the `gpadmin` user on default port 5888. Only the `gpadmin` user can start and stop the PXF Service.
 
 If you want to change the default PXF configuration, you must update the configuration before you start PXF, or restart PXF if it is already running. See [About the PXF Configuration Files](config_files.html) for information about the user-customizable PXF configuration properties and the configuration update procedure.
 
 
 ### <a id="start_pxf_prereq" class="no-quick-link"></a>Prerequisites
 
-Before you start PXF in your Greenplum Database cluster, ensure that:
+Before you start PXF in your WarehousePG cluster, ensure that:
 
-- Your Greenplum Database cluster is up and running.
+- Your WarehousePG cluster is up and running.
 - You have previously configured PXF.
  
 ### <a id="start_pxf_proc" class="no-quick-link"></a>Procedure
 
-Perform the following procedure to start PXF on each host in your Greenplum Database cluster.
+Perform the following procedure to start PXF on each host in your WarehousePG cluster.
 
-1. Log in to the Greenplum Database coordinator host:
+1. Log in to the WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -62,17 +62,17 @@ Perform the following procedure to start PXF on each host in your Greenplum Data
 
 ## <a id="stop_pxf"></a>Stopping PXF
 
-If you must stop PXF, for example if you are upgrading PXF, you must stop PXF on each host in your Greenplum Database cluster. Only the `gpadmin` user can stop the PXF Service.
+If you must stop PXF, for example if you are upgrading PXF, you must stop PXF on each host in your WarehousePG cluster. Only the `gpadmin` user can stop the PXF Service.
 
 ### <a id="stop_pxf_prereq" class="no-quick-link"></a>Prerequisites
 
-Before you stop PXF in your Greenplum Database cluster, ensure that your Greenplum Database cluster is up and running.
+Before you stop PXF in your WarehousePG cluster, ensure that your WarehousePG cluster is up and running.
  
 ### <a id="stop_pxf_proc" class="no-quick-link"></a>Procedure
 
-Perform the following procedure to stop PXF on each host in your Greenplum Database cluster.
+Perform the following procedure to stop PXF on each host in your WarehousePG cluster.
 
-1. Log in to the Greenplum Database coordinator host:
+1. Log in to the WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -86,19 +86,19 @@ Perform the following procedure to stop PXF on each host in your Greenplum Datab
 
 ## <a id="restart_pxf"></a>Restarting PXF
 
-If you must restart PXF, for example if you updated PXF user configuration files in `$PXF_BASE/conf`, you run `pxf cluster restart` to stop, and then start, PXF on all hosts in your Greenplum Database cluster.
+If you must restart PXF, for example if you updated PXF user configuration files in `$PXF_BASE/conf`, you run `pxf cluster restart` to stop, and then start, PXF on all hosts in your WarehousePG cluster.
 
 Only the `gpadmin` user can restart the PXF Service.
 
 ### <a id="restart_pxf_prereq" class="no-quick-link"></a>Prerequisites
 
-Before you restart PXF in your Greenplum Database cluster, ensure that your Greenplum Database cluster is up and running.
+Before you restart PXF in your WarehousePG cluster, ensure that your WarehousePG cluster is up and running.
  
 ### <a id="restart_pxf_proc" class="no-quick-link"></a>Procedure
 
-Perform the following procedure to restart PXF in your Greenplum Database cluster.
+Perform the following procedure to restart PXF in your WarehousePG cluster.
 
-1. Log in to the Greenplum Database coordinator host:
+1. Log in to the WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>

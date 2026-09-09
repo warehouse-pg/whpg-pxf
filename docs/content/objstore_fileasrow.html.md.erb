@@ -24,7 +24,7 @@ Use the `<objstore>:text:multi` profile to read multiple files in an object stor
 | MinIO    | s3 |
 | S3    | s3 |
 
-The following syntax creates a Greenplum Database readable external table that references one or more text files in an object store:
+The following syntax creates a WarehousePG readable external table that references one or more text files in an object store:
 
 ``` sql
 CREATE EXTERNAL TABLE <table_name>
@@ -33,7 +33,7 @@ CREATE EXTERNAL TABLE <table_name>
   FORMAT 'CSV');
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|

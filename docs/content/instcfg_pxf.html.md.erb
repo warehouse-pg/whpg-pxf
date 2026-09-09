@@ -1,14 +1,14 @@
 ---
 title: Configuring PXF
 ---
-Your Greenplum Database deployment consists of a coordinator host, a standby coordinator host, and multiple segment hosts. After you configure the Greenplum Platform Extension Framework (PXF), you start a single PXF JVM process (PXF Service) on each Greenplum Database host.
+Your WarehousePG deployment consists of a coordinator host, a standby coordinator host, and multiple segment hosts. After you configure the WarehousePG Platform Extension Framework (PXF), you start a single PXF JVM process (PXF Service) on each WarehousePG host.
 
 PXF provides connectors to Hadoop, Hive, HBase, object stores, network file systems, and external SQL data stores. You must configure PXF to support the connectors that you plan to use.
 
 To configure PXF, you must:
 
-1. Install Java 8 or 11 on each Greenplum Database host as described in [Installing Java for PXF](install_java.html). If your `JAVA_HOME` is different from `/usr/java/default`, you must inform PXF of the $JAVA_HOME setting by specifying its value in the `pxf-env.sh` [configuration file](config_files.html). 
-    - Edit the `$PXF_BASE/conf/pxf-env.sh` file on the Greenplum coordinator host.
+1. Install Java 8 or 11 on each WarehousePG host as described in [Installing Java for PXF](install_java.html). If your `JAVA_HOME` is different from `/usr/java/default`, you must inform PXF of the $JAVA_HOME setting by specifying its value in the `pxf-env.sh` [configuration file](config_files.html). 
+    - Edit the `$PXF_BASE/conf/pxf-env.sh` file on the WarehousePG coordinator host.
 
         ``` shell        
         gpadmin@coordinator$ vi /usr/local/pxf-gp6/conf/pxf-env.sh
@@ -19,7 +19,7 @@ To configure PXF, you must:
         export JAVA_HOME=/usr/lib/jvm/jre
         ```
 
-1. Register the PXF extension with Greenplum Database (see [pxf cluster register](ref/pxf-cluster.html)). Run this command after your first installation of a PXF version 6.x, and/or after you upgrade your Greenplum Database installation:
+1. Register the PXF extension with WarehousePG (see [pxf cluster register](ref/pxf-cluster.html)). Run this command after your first installation of a PXF version 6.x, and/or after you upgrade your WarehousePG installation:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster register

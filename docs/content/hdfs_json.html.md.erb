@@ -90,27 +90,27 @@ Refer to [Introducing JSON](http://www.json.org/) for detailed information about
 
 ## <a id="datatypemap"></a>Data Type Mapping
 
-To represent JSON data in Greenplum Database, map data values that use a primitive data type to Greenplum Database columns of the same type. JSON supports complex data types including projections and arrays.
+To represent JSON data in WarehousePG, map data values that use a primitive data type to WarehousePG columns of the same type. JSON supports complex data types including projections and arrays.
 
 ### <a id="datatypemap_read"></a>Read Mapping
 
 PXF uses the following data type mapping when reading JSON data:
 
-| JSON Data Type    | PXF/Greenplum Data Type |
+| JSON Data Type    | PXF/WarehousePG Data Type |
 |-------------------|-------------------------------------------|
 | boolean | boolean |
 | number  | { bigint &#124; float8 &#124; integer &#124; numeric &#124; real &#124; smallint } |
 | string | text |
 | string (base64-encoded value) | bytea |
-| string (date, time, timestamp, timestamptz in a text format that Greenplum understands)<sup>1</sup> | { date &#124; time &#124; timestamp &#124; timestamptz } |
+| string (date, time, timestamp, timestamptz in a text format that WarehousePG understands)<sup>1</sup> | { date &#124; time &#124; timestamp &#124; timestamptz } |
 | Array (one dimension) of type boolean[] | boolean[] |
 | Array (one dimension) of type number[] | { bigint[] &#124; float8[] &#124; integer[] &#124; numeric[] &#124; real[] &#124; smallint[] } |
 | Array (one dimension) of type string[] (base64-encoded value) | bytea[] |
-| Array (one dimension) of type string[] (date, time, timestamp in a text format that Greenplum understands)<sup>1</sup> | { date[] &#124; time[] &#124; timestamp[] &#124; timestamptz[] } |
+| Array (one dimension) of type string[] (date, time, timestamp in a text format that WarehousePG understands)<sup>1</sup> | { date[] &#124; time[] &#124; timestamp[] &#124; timestamptz[] } |
 | Array (one dimension) of type string[] | text[] |
 | Array of other types | text[] |
 | Object                | Use dot `.` notation to specify each level of projection (nesting) to a member of a primitive or Array type.                                                                                         |
-<sup>1</sup> PXF returns an error if Greenplum cannot convert the date or time string to the target type.
+<sup>1</sup> PXF returns an error if WarehousePG cannot convert the date or time string to the target type.
 
 When reading, you can use N-level projection to map members of nested objects and arrays to primitive data types.
 
@@ -120,7 +120,7 @@ PXF supports writing primitive types and single dimension arrays of primitive ty
 
 PXF uses the following data type mapping when writing JSON data:
 
-| PXF/Greenplum Data Type | JSON Data Type |
+| PXF/WarehousePG Data Type | JSON Data Type |
 |-------------------|----------------------|
 | bigint, float8, integer, numeric, real, smallint | number |
 | boolean | boolean |
@@ -155,7 +155,7 @@ In the example JSON data file excerpt below, `user` is an object composed of fie
   }
 ```
 
-To specify the nested fields in the `user` object directly as Greenplum Database external table columns, use `.` projection:
+To specify the nested fields in the `user` object directly as WarehousePG external table columns, use `.` projection:
 
 ``` pre
 user.id
@@ -164,7 +164,7 @@ user.location
 
 `coordinates` is an object composed of a text field named `type` and an array of integers named `values`. 
 
-To read all of the elements of the `values` array in a single column, define the corresponding Greenplum Database external table column as type `int[]`.
+To read all of the elements of the `values` array in a single column, define the corresponding WarehousePG external table column as type `int[]`.
 
 ``` pre
 "coordinates.values" int[]
@@ -172,7 +172,7 @@ To read all of the elements of the `values` array in a single column, define the
 
 ## <a id="profile_cet"></a>Creating the External Table
 
-Use the `hdfs:json` profile to read or write JSON-format data in HDFS. The following syntax creates a Greenplum Database external table that references such a file:
+Use the `hdfs:json` profile to read or write JSON-format data in HDFS. The following syntax creates a WarehousePG external table that references such a file:
 
 ``` sql
 CREATE [WRITABLE] EXTERNAL TABLE <table_name>
@@ -182,7 +182,7 @@ FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import'|'pxfwritable_export')
 [DISTRIBUTED BY (<column_name> [, ... ] ) | DISTRIBUTED RANDOMLY];
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -210,8 +210,8 @@ The `hdfs:json` profile supports the following custom **write** options:
 | Option  | Value Description |
 |-------|-------------------------------------|
 | ROOT=\<value\>    | When writing to a single JSON object, identifies the name of the root-level object attribute. |
-| COMPRESSION_CODEC    | The compression codec alias. Supported compression codecs for writing json data include: `default`, `bzip2`, `gzip`, and `uncompressed`. If this option is not provided, Greenplum Database performs no data compression. |
-| DISTRIBUTED BY    | If you are loading data from an existing Greenplum Database table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
+| COMPRESSION_CODEC    | The compression codec alias. Supported compression codecs for writing json data include: `default`, `bzip2`, `gzip`, and `uncompressed`. If this option is not provided, WarehousePG performs no data compression. |
+| DISTRIBUTED BY    | If you are loading data from an existing WarehousePG table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
 
 When you specify compression for a JSON write operation, PXF names the files that it writes `<basename>.<json_file_type>.<compression_extension>`. For example: `jan_sales.jsonl.gz`.
 
@@ -296,11 +296,11 @@ $ hdfs dfs -put objperrow.jsonl /data/pxf_examples/
 $ hdfs dfs -put singleobj.json /data/pxf_examples/
 ```
 
-Once the data is loaded to HDFS, you can use Greenplum Database and PXF to query and add to the JSON data.
+Once the data is loaded to HDFS, you can use WarehousePG and PXF to query and add to the JSON data.
 
 ### <a id="read_example1"></a>Example: Single Object Per Row (Read)
 
-Use the following [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) SQL command to create a readable external table that references the single-object-per-row JSON data file and uses the PXF default server.
+Use the following [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) SQL command to create a readable external table that references the single-object-per-row JSON data file and uses the PXF default server.
 
 ```sql
 CREATE EXTERNAL TABLE objperrow_json_tbl(
@@ -373,7 +373,7 @@ LOCATION('pxf://data/pxf_examples/objperrow.jsonl?PROFILE=hdfs:json')
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
 ```
 
-**Note**: When you use this method to identify specific array elements, PXF provides _only_ those values to Greenplum Database, not the whole JSON array.
+**Note**: When you use this method to identify specific array elements, PXF provides _only_ those values to WarehousePG, not the whole JSON array.
 
 If your existing external table definition uses array element projection and you want to read the array into a `TEXT[]` column, you can use the `ALTER EXTERNAL TABLE` command to update the table definition. For example:
 
@@ -385,7 +385,7 @@ If you choose to alter the external table definition in this manner, be sure to 
 
 #### <a id="singletextcol"></a> Specifying a Single Text-type Column
 
-PXF supports accessing all of the elements within an array as a single string containing the serialized JSON array by defining the corresponding Greenplum table column with one of the following data types: `TEXT`, `VARCHAR`, or `BPCHAR`.
+PXF supports accessing all of the elements within an array as a single string containing the serialized JSON array by defining the corresponding WarehousePG table column with one of the following data types: `TEXT`, `VARCHAR`, or `BPCHAR`.
 
 ```sql
 CREATE EXTERNAL TABLE objperrow_json_tbl_stc(
@@ -399,7 +399,7 @@ LOCATION('pxf://data/pxf_examples/objperrow.jsonl?PROFILE=hdfs:json')
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
 ```
 
-If you retrieve the JSON array in a single text-type column and wish to convert the JSON array serialized as `TEXT` back into a native Greenplum array type, you can use the example query below:
+If you retrieve the JSON array in a single text-type column and wish to convert the JSON array serialized as `TEXT` back into a native WarehousePG array type, you can use the example query below:
 
 ```sql
 SELECT user.id,
@@ -407,7 +407,7 @@ SELECT user.id,
 FROM objperrow_json_tbl_stc;
 ```
 
-**Note**: This conversion is possible only when you are using PXF with Greenplum Database 6.x; the function `json_array_elements_text()` is not available in Greenplum 5.x.
+**Note**: This conversion is possible only when you are using PXF with WarehousePG 6.x.
 
 If your external table definition uses a single text-type column for a JSON array and you want to read the array into a `TEXT[]` column, you can use the `ALTER EXTERNAL TABLE` command to update the table definition. For example:
 
@@ -421,7 +421,7 @@ If you choose to alter the external table definition in this manner, be sure to 
 
 To write JSON data, you create a writable external table that references the name of a directory on HDFS. When you insert records into the writable external table, PXF writes the block(s) of data that you insert to one or more files in the directory that you specified. In the default case (single object per row), PXF writes the data to a `.jsonl` file. When you specify a `ROOT` attribute (single object per file), PXF writes to a `.json` file.
 
-> **Note** When writing JSON data, PXF supports only scalar or one dimensional arrays of Greenplum data types. PXF does not support column projection when writing JSON data.
+> **Note** When writing JSON data, PXF supports only scalar or one dimensional arrays of WarehousePG data types. PXF does not support column projection when writing JSON data.
 
 Writable external tables can only be used for `INSERT` operations. If you want to query the data that you inserted, you must create a separate readable external table that references the HDFS directory and read from that table.
 
@@ -431,7 +431,7 @@ The write examples use a data schema similar to that of the read examples.
 
 In this example, we add data to a directory named `jsopr`.
 
-Use the following [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) SQL command to create a writable external table that writes JSON data in single-object-per-row format and uses the PXF default server.
+Use the following [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) SQL command to create a writable external table that writes JSON data in single-object-per-row format and uses the PXF default server.
 
 ```sql
 CREATE WRITABLE EXTERNAL TABLE add_objperrow_json_tbl(
@@ -490,7 +490,7 @@ Notice that PXF creates a flat JSON structure.
 
 ### <a id="write_example2"></a>Example: Single Object Per File (Write)
 
-Use the following [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) SQL command to create a writable external table that writes JSON data in single object format and uses the PXF default server.
+Use the following [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) SQL command to create a writable external table that writes JSON data in single object format and uses the PXF default server.
 
 You must specify the `ROOT` keyword and associated value in the `LOCATION` clause. For example:
 

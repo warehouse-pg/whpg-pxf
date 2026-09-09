@@ -7,11 +7,11 @@ Because a single PXF Service (JVM) serves multiple segments on a segment host, t
 
 ## <a id="pxf-heapcfg"></a>Increasing the JVM Memory for PXF
 
-Each PXF Service running on a Greenplum Database host is configured with a default maximum Java heap size of 2GB and an initial heap size of 1GB. If the hosts in your Greenplum Database cluster have an ample amount of memory, try increasing the maximum heap size to a value between 3-4GB. Set the initial and maximum heap size to the same value if possible.
+Each PXF Service running on a WarehousePG host is configured with a default maximum Java heap size of 2GB and an initial heap size of 1GB. If the hosts in your WarehousePG cluster have an ample amount of memory, try increasing the maximum heap size to a value between 3-4GB. Set the initial and maximum heap size to the same value if possible.
 
-Perform the following procedure to increase the heap size for the PXF Service running on each host in your Greenplum Database cluster.
+Perform the following procedure to increase the heap size for the PXF Service running on each host in your WarehousePG cluster.
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -31,13 +31,13 @@ Perform the following procedure to increase the heap size for the PXF Service ru
 
 3. Save the file and exit the editor.
 
-4. Use the `pxf cluster sync` command to copy the updated `pxf-env.sh` file to the Greenplum Database cluster. For example:
+4. Use the `pxf cluster sync` command to copy the updated `pxf-env.sh` file to the WarehousePG cluster. For example:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
 
-5. Restart PXF on each Greenplum Database host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
+5. Restart PXF on each WarehousePG host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
 
 
 ## <a id="pxf-cfgoom"></a>Configuring Out of Memory Condition Actions
@@ -55,7 +55,7 @@ You can configure the PXF JVM to activate/deactivate the following actions when 
 
 ### <a id="pxf-cfgoom-autoterm"></a>Auto-Terminating the PXF Server
 
-By default, PXF is configured such that when the PXF JVM detects an out of memory condition on a Greenplum host, it automatically runs a script that terminates the PXF Service running on the host. The `PXF_OOM_KILL` environment variable in the `$PXF_BASE/conf/pxf-env.sh` configuration file governs this auto-terminate behavior.
+By default, PXF is configured such that when the PXF JVM detects an out of memory condition on a WarehousePG host, it automatically runs a script that terminates the PXF Service running on the host. The `PXF_OOM_KILL` environment variable in the `$PXF_BASE/conf/pxf-env.sh` configuration file governs this auto-terminate behavior.
 
 When auto-terminate is activated and the PXF JVM detects an OOM condition and terminates the PXF Service on the host:
 
@@ -96,7 +96,7 @@ Refer to the configuration [procedure](#pxf-cfgoom_proc) below for the instructi
 
 Auto-termination of the PXF Service on OOM is deactivated by default. Heap dump generation on OOM is deactivated by default. To configure one or both of these properties, perform the following procedure:
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -130,18 +130,18 @@ Auto-termination of the PXF Service on OOM is deactivated by default. Heap dump 
 
 5. Save the `pxf-env.sh` file and exit the editor.
 
-6. Use the `pxf cluster sync` command to copy the updated `pxf-env.sh` file to the Greenplum Database cluster. For example:
+6. Use the `pxf cluster sync` command to copy the updated `pxf-env.sh` file to the WarehousePG cluster. For example:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
 
-7. Restart PXF on each Greenplum Database host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
+7. Restart PXF on each WarehousePG host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
 
 
 ## <a id="pxf-threadcfg"></a>Another Option for Resource-Constrained PXF Segment Hosts
 
-If increasing the maximum heap size is not suitable for your Greenplum Database deployment, try decreasing the number of concurrent working threads configured for PXF's embedded Tomcat web server. A decrease in the number of running threads will prevent any PXF server from exhausting its memory, while ensuring that current queries run to completion (albeit a bit slower). Tomcat's default behavior is to queue requests until a thread is free, or the queue is exhausted.
+If increasing the maximum heap size is not suitable for your WarehousePG deployment, try decreasing the number of concurrent working threads configured for PXF's embedded Tomcat web server. A decrease in the number of running threads will prevent any PXF server from exhausting its memory, while ensuring that current queries run to completion (albeit a bit slower). Tomcat's default behavior is to queue requests until a thread is free, or the queue is exhausted.
 
 The default maximum number of Tomcat threads for PXF is 200. The `pxf.max.threads` property in the `pxf-application.properties` configuration file controls this setting.
 
@@ -149,9 +149,9 @@ If you plan to run large workloads on a large number of files in an external Hiv
 
 **Note**: Keep in mind that an increase in the thread count correlates with an increase in memory consumption.
 
-Perform the following procedure to set the maximum number of Tomcat threads for the PXF Service running on each host in your Greenplum Database deployment.
+Perform the following procedure to set the maximum number of Tomcat threads for the PXF Service running on each host in your WarehousePG deployment.
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -171,11 +171,11 @@ Perform the following procedure to set the maximum number of Tomcat threads for 
 
 3. Save the file and exit the editor.
 
-4. Use the `pxf cluster sync` command to copy the updated `pxf-application.properties` file to the Greenplum Database cluster. For example:
+4. Use the `pxf cluster sync` command to copy the updated `pxf-application.properties` file to the WarehousePG cluster. For example:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
 
-5. Restart PXF on each Greenplum Database host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
+5. Restart PXF on each WarehousePG host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
 

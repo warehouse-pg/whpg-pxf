@@ -17,13 +17,13 @@ The PXF upgrade procedure has three steps. You perform one pre-install procedure
 
 Perform this procedure before you upgrade to a new version of PXF:
 
-1. Log in to the Greenplum Database coordinator host. For example:
+1. Log in to the WarehousePG coordinator host. For example:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
     ```
 
-1. Identify and note the version of PXF currently running in your Greenplum cluster:
+1. Identify and note the version of PXF currently running in your WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf version
@@ -32,7 +32,7 @@ Perform this procedure before you upgrade to a new version of PXF:
 
 1. Identify the file system location of the `$PXF_CONF` setting in your PXF 5.x PXF installation; you will need this later. If you are unsure of the location, you can find the value in `pxf-env-default.sh`.
 
-1. Stop PXF on each Greenplum host as described in [Stopping PXF](cfginitstart_pxf.html#stop_pxf).
+1. Stop PXF on each WarehousePG host as described in [Stopping PXF](cfginitstart_pxf.html#stop_pxf).
 
 ## <a id="pxfinst"></a>Step 2: Installing PXF 6.x
 
@@ -44,7 +44,7 @@ Perform this procedure before you upgrade to a new version of PXF:
 
 After you install the new version of PXF, perform the following procedure:
 
-1. Log in to the Greenplum Database coordinator host. For example:
+1. Log in to the WarehousePG coordinator host. For example:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -132,20 +132,20 @@ After you install the new version of PXF, perform the following procedure:
 
             You may need to add this property block to the `pxf-site.xml` file.
 
-1. Register the PXF 6.x extension files with Greenplum Database (see [pxf cluster register](ref/pxf-cluster.html)). `$GPHOME` must be set when you run this command.
+1. Register the PXF 6.x extension files with WarehousePG (see [pxf cluster register](ref/pxf-cluster.html)). `$GPHOME` must be set when you run this command.
 
     ``` shell
     gpadmin@coordinator$ pxf cluster register
     ```
 
-    The `register` command copies only the `pxf.control` extension file to the Greenplum cluster. In PXF 6.x, the PXF extension `.sql` file and library `pxf.so` reside in `<PXF_INSTALL_DIR>/gpextable`. You may choose to remove these now-unused files from the Greenplum Database installation *on the Greenplum Database coordinator host, the standby coordinator host, and all segment hosts*. For example, to remove the files on the coordinator host:
+    The `register` command copies only the `pxf.control` extension file to the WarehousePG cluster. In PXF 6.x, the PXF extension `.sql` file and library `pxf.so` reside in `<PXF_INSTALL_DIR>/gpextable`. You may choose to remove these now-unused files from the WarehousePG installation *on the WarehousePG coordinator host, the standby coordinator host, and all segment hosts*. For example, to remove the files on the coordinator host:
 
     ``` shell
     gpadmin@coordinator$ rm $GPHOME/share/postgresql/extension/pxf--1.0.sql
     gpadmin@coordinator$ rm $GPHOME/lib/postgresql/pxf.so
     ```
 
-1. PXF 6.x includes a new version of the `pxf` extension. You must update the extension in every Greenplum database in which you are using PXF. A database superuser or the database owner must run this SQL command in the `psql` subsystem or in an SQL script:
+1. PXF 6.x includes a new version of the `pxf` extension. You must update the extension in every WarehousePG database in which you are using PXF. A database superuser or the database owner must run this SQL command in the `psql` subsystem or in an SQL script:
 
     ``` sql
     ALTER EXTENSION pxf UPDATE;
@@ -167,15 +167,15 @@ After you install the new version of PXF, perform the following procedure:
     1. Add the location of this JAR to `$HBASE_CLASSPATH` on each HBase node.
     1. Restart HBase on each node.
 
-1. In PXF 6.x, the PXF Service runs on all Greenplum Database hosts. If you used PXF 5.x to access Kerberos-secured HDFS, you must now generate principals and keytabs for the Greenplum coordinator and standby coordinator hosts, and distribute these to the hosts as described in [Configuring PXF for Secure HDFS](pxf_kerbhdfs.html#procedure).
+1. In PXF 6.x, the PXF Service runs on all WarehousePG hosts. If you used PXF 5.x to access Kerberos-secured HDFS, you must now generate principals and keytabs for the WarehousePG coordinator and standby coordinator hosts, and distribute these to the hosts as described in [Configuring PXF for Secure HDFS](pxf_kerbhdfs.html#procedure).
 
-4. Synchronize the PXF 6.x configuration from the coordinator host to the standby coordinator host and each Greenplum Database segment host. For example:
+4. Synchronize the PXF 6.x configuration from the coordinator host to the standby coordinator host and each WarehousePG segment host. For example:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
  
-5. Start PXF on each Greenplum host. For example:
+5. Start PXF on each WarehousePG host. For example:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster start

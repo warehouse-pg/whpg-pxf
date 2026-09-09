@@ -27,9 +27,9 @@ PXF is installed with connectors to Azure Blob Storage, Azure Data Lake Storage 
 
 Before working with object store data using PXF, ensure that:
 
-- You have configured PXF, and PXF is running on each Greenplum Database host. See [Configuring PXF](instcfg_pxf.html) for additional information.
+- You have configured PXF, and PXF is running on each WarehousePG host. See [Configuring PXF](instcfg_pxf.html) for additional information.
 - You have configured the PXF Object Store Connectors that you plan to use. Refer to [Configuring Connectors to Azure and Google Cloud Storage Object Stores](objstore_cfg.html) and [Configuring Connectors to MinIO, AWS S3, and Dell ECS Object Stores](s3_objstore_cfg.html) for instructions.
-- Time is synchronized between the Greenplum Database hosts and the external object store systems.
+- Time is synchronized between the WarehousePG hosts and the external object store systems.
 
 
 ## <a id="objstore_connectors"></a>Connectors, Data Formats, and Profiles
@@ -80,7 +80,7 @@ Similarly, the PXF connectors to Google Cloud Storage, and S3-compatible object 
 | AvroSequenceFile | gs:AvroSequenceFile | s3:AvroSequenceFile | Read, Write |
 | [SequenceFile](objstore_seqfile.html) | gs:SequenceFile | s3:SequenceFile | Read, Write |
 
-You provide the profile name when you specify the `pxf` protocol on a `CREATE EXTERNAL TABLE` command to create a Greenplum Database external table that references a file or directory in the specific object store.
+You provide the profile name when you specify the `pxf` protocol on a `CREATE EXTERNAL TABLE` command to create a WarehousePG external table that references a file or directory in the specific object store.
 
 ## <a id="sample_ddl"></a>Sample CREATE EXTERNAL TABLE Commands
 
