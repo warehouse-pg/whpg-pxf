@@ -1,5 +1,11 @@
 # Changelog
 
+Entries for 6.10.1 and earlier document the ancestral open-source Greenplum
+PXF project. PR links in those entries reference the original repository,
+which has been archived as
+[greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive), and
+may not resolve. Releases from 6.10.2 onward are cut from this repository.
+
 ## 7.0.0 (unreleased)
 
 Major release: PXF now targets the **HBase 2.x** and **Hive 4.x** client
