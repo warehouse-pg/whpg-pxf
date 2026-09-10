@@ -24,6 +24,7 @@
 #include "libchurl.h"
 
 #include "pxf_option.h"
+#include "pxf_pg_compat.h"
 
 #include "commands/copy.h"
 #include "cdb/cdbvars.h"
@@ -51,7 +52,7 @@ typedef struct PxfFdwScanState
 #endif
 	List	   *retrieved_attrs;
 	PxfOptions *options;
-	CopyState	cstate;
+	CopyFromState cstate;
 	ProjectionInfo *projectionInfo;
 } PxfFdwScanState;
 
@@ -60,7 +61,7 @@ typedef struct PxfFdwScanState
  */
 typedef struct PxfFdwModifyState
 {
-	CopyState	cstate;			/* state of writing to PXF */
+	CopyToState cstate;			/* state of writing to PXF */
 
 	CHURL_HANDLE churl_handle;	/* curl handle */
 	CHURL_HEADERS churl_headers;	/* curl headers */

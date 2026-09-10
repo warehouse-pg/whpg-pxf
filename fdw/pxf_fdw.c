@@ -11,6 +11,7 @@
 #include "pxf_fdw.h"
 #include "pxf_bridge.h"
 #include "pxf_filter.h"
+#include "pxf_pg_compat.h"
 
 #include "access/reloptions.h"
 #if PG_VERSION_NUM >= 90600
@@ -101,7 +102,8 @@ static PxfFdwModifyState *InitForeignModify(Relation relation);
 static void FinishForeignModify(PxfFdwModifyState *pxfmstate);
 static void InitCopyState(PxfFdwScanState *pxfsstate);
 static void InitCopyStateForModify(PxfFdwModifyState *pxfmstate);
-static CopyState BeginCopyTo(Relation forrel, List *options);
+static CopyToState BeginCopyTo(Relation forrel, List *options);
+static void EndCopyToModify(CopyToState cstate);
 static void PxfBeginScanErrorCallback(void *arg);
 static void PxfCopyFromErrorCallback(void *arg);
 
@@ -285,12 +287,18 @@ pxfGetForeignPaths(PlannerInfo *root,
 								   NULL,	/* default pathtarget */
 #endif
 								   baserel->rows,
+#if PG_VERSION_NUM >= 130000
+								   0,	/* disabled_nodes (PG18) */
+#endif
 								   DEFAULT_PXF_FDW_STARTUP_COST,
 								   total_cost,
 								   NIL, /* no pathkeys */
 								   NULL,	/* no outer rel either */
 #if PG_VERSION_NUM >= 90500
 								   NULL,	/* no extra plan */
+#endif
+#if PG_VERSION_NUM >= 130000
+								   NIL, /* no fdw_restrictinfo (PG17) */
 #endif
 								   fpinfo->retrieved_attrs);
 
@@ -678,7 +686,7 @@ pxfExecForeignInsert(EState *estate,
 		resultRelInfo->ri_FdwState = pxfmstate;
 	}
 
-	CopyState	cstate = pxfmstate->cstate;
+	CopyToState cstate = pxfmstate->cstate;
 #if PG_VERSION_NUM < 90600
 	Relation	relation = resultRelInfo->ri_RelationDesc;
 	TupleDesc	tupDesc = RelationGetDescr(relation);
@@ -754,7 +762,7 @@ FinishForeignModify(PxfFdwModifyState *pxfmstate)
 	if (pxfmstate == NULL)
 		return;
 
-	EndCopyFrom(pxfmstate->cstate);
+	EndCopyToModify(pxfmstate->cstate);
 	pxfmstate->cstate = NULL;
 	PxfBridgeCleanup(pxfmstate);
 
@@ -781,7 +789,7 @@ pxfIsForeignRelUpdatable(Relation rel)
 static void
 InitCopyState(PxfFdwScanState *pxfsstate)
 {
-	CopyState	cstate;
+	CopyFromState cstate;
 
 	PxfBridgeImportStart(pxfsstate);
 
@@ -794,6 +802,9 @@ InitCopyState(PxfFdwScanState *pxfsstate)
 						   NULL,
 #endif
 						   pxfsstate->relation,
+#if PG_VERSION_NUM >= 130000
+						   NULL,	/* whereClause */
+#endif
 						   NULL,
 						   false,	/* is_program */
 						   &PxfBridgeRead,	/* data_source_cb */
@@ -859,7 +870,7 @@ static void
 InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 {
 	List	   *copy_options;
-	CopyState	cstate;
+	CopyToState cstate;
 
 	copy_options = pxfmstate->options->copy_options;
 
@@ -870,8 +881,15 @@ InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 	 */
 	cstate = BeginCopyTo(pxfmstate->relation, copy_options);
 
-	/* Initialize 'out_functions', like CopyTo() would. */
+#if PG_VERSION_NUM < 130000
 
+	/*
+	 * On WarehousePG 6/7 BeginCopyToForeignTable() leaves the output
+	 * functions, the row buffer and the per-row memory context to its caller,
+	 * so set up here what the normal CopyTo() codepath would have.  On
+	 * WarehousePG 19 all three are initialized by BeginCopyToForeignTable()
+	 * itself, and repeating the work here would leak the allocations it made.
+	 */
 	TupleDesc	tupDesc = RelationGetDescr(pxfmstate->relation);
 #if PG_VERSION_NUM >= 90600
 	Form_pg_attribute attr = tupDesc->attrs;
@@ -913,6 +931,7 @@ InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 											   ALLOCSET_DEFAULT_MINSIZE,
 											   ALLOCSET_DEFAULT_INITSIZE,
 											   ALLOCSET_DEFAULT_MAXSIZE);
+#endif
 
 	pxfmstate->cstate = cstate;
 }
@@ -920,25 +939,37 @@ InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 /*
  * Set up CopyState for writing to a foreign table.
  */
-static CopyState
+static CopyToState
 BeginCopyTo(Relation forrel, List *options)
 {
-	CopyState	cstate;
+	CopyToState cstate;
 
 	Assert(forrel->rd_rel->relkind == RELKIND_FOREIGN_TABLE);
 
 	cstate = BeginCopyToForeignTable(forrel, options);
+
+	/*
+	 * Writes from a foreign table always happen on the segment that owns the
+	 * row, so override whatever dispatch mode the server picked.
+	 */
 	cstate->dispatch_mode = COPY_DIRECT;
+
+#if PG_VERSION_NUM < 130000
 
 	/*
 	 * We use COPY_CALLBACK to mean that the each line should be left in
 	 * fe_msgbuf. There is no actual callback!
+	 *
+	 * WarehousePG 19 gives this its own destination, COPY_DEST_EXTABLE, which
+	 * BeginCopyToForeignTable() has already selected, so there is nothing to
+	 * override there.
 	 */
 	cstate->copy_dest = COPY_CALLBACK;
 
 	/*
 	 * Some more initialization, that in the normal COPY TO codepath, is done
-	 * in CopyTo() itself.
+	 * in CopyTo() itself.  BeginCopyToForeignTable() does this itself on
+	 * WarehousePG 19.
 	 */
 	cstate->null_print_client = cstate->null_print; /* default */
 	if (cstate->need_transcoding)
@@ -946,8 +977,26 @@ BeginCopyTo(Relation forrel, List *options)
 														cstate->null_print_len,
 														cstate->file_encoding,
 														cstate->enc_conversion_proc);
+#endif
 
 	return cstate;
+}
+
+/*
+ * Release the resources held by a write-side copy state.
+ *
+ * This used to call EndCopyFrom(), which was only ever correct because both
+ * directions shared one CopyState type.  There is no file or program behind a
+ * foreign-table write, so all that is owed is the memory.
+ */
+static void
+EndCopyToModify(CopyToState cstate)
+{
+	if (cstate == NULL)
+		return;
+
+	MemoryContextDelete(cstate->copycontext);
+	pfree(cstate);
 }
 
 /*
@@ -985,13 +1034,13 @@ void
 PxfCopyFromErrorCallback(void *arg)
 {
     PxfFdwScanState *pxfsstate = (PxfFdwScanState *) arg;
-    CopyState	cstate = pxfsstate->cstate;
+    CopyFromState cstate = pxfsstate->cstate;
     char		curlineno_str[32];
 
     snprintf(curlineno_str, sizeof(curlineno_str), UINT64_FORMAT,
              cstate->cur_lineno);
 
-    if (cstate->binary)
+    if (PXF_COPY_OPTS(cstate).binary)
     {
         /* can't usefully display the data */
         if (cstate->cur_attname)
