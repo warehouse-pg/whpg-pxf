@@ -1,4 +1,4 @@
-> **NOTE.** The Concourse *CI pipeline* that originally invoked this module is deprecated — the live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`. **This `ipa-multinode-hadoop` Terraform module itself is still in use**, though: it provisions fresh GCE VMs in your own GCP project (`TF_VAR_gcp_project`) and is driven by the local kerberized-dev flow `dev/ipa-cluster.bash` (see [`dev/IPA.md`](../../dev/IPA.md)). It does **not** depend on the retired Pivotal infrastructure.
+> **NOTE.** The Concourse *CI pipeline* that originally invoked this module is deprecated; the module itself is still used by the local dev flow `dev/ipa-cluster.bash` (see [`dev/IPA.md`](../../dev/IPA.md)). An update is planned.
 
 # PXF CI Terraform
 

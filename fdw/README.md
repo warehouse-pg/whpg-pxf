@@ -1,6 +1,6 @@
-# PXF Foreign Data Wrapper for Greenplum and PostgreSQL
+# PXF Foreign Data Wrapper for WarehousePG
 
-This Greenplum extension implements a Foreign Data Wrapper (FDW) for PXF.
+This WarehousePG extension implements a Foreign Data Wrapper (FDW) for PXF.
 
 PXF is a query federation engine that accesses data residing in external systems
 such as Hadoop, Hive, HBase, relational databases, S3, Google Cloud Storage,
@@ -10,7 +10,7 @@ among other external systems.
 
 ## Compile
 
-To compile the PXF foreign data wrapper, we need a Greenplum 6+ installation and libcurl.
+To compile the PXF foreign data wrapper, we need a WarehousePG 6+ installation and libcurl.
 
     export PATH=/usr/local/greenplum-db/bin/:$PATH
 

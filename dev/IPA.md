@@ -67,7 +67,7 @@ If the script executes successfully and you follow the post-execution steps, you
 
 3. a GCP firewall rule allowing your IP address only to access the Hadoop services via their public IP addresses. 
 
-You can create PXF external tables in the Greenplum database running locally on your workstation and use
+You can create PXF external tables in the WarehousePG database running locally on your workstation and use
 the `hdfs-ipa` PXF configuration server to test against your new HA multi-node Hadoop cluster.
 
 ## Working with the cluster
