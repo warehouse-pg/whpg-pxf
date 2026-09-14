@@ -202,6 +202,22 @@ jobs:
           distribution: temurin
           java-version: '11'
           cache: maven
+      # The org.jsystemtest artifacts (the test framework the automation
+      # tree is built on) were never published to Maven Central, and their
+      # only public host (maven.top-q.co.il) intermittently blocks CI
+      # providers. A mirrored copy lives in this repository's
+      # jsystem-deps-* release; seed it into the local maven repository so
+      # resolution never depends on that host. Bump procedure in the
+      # release notes.
+      - name: Seed the vendored JSystem artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download jsystem-deps-6.0.01 \
+            -R "$GITHUB_REPOSITORY" \
+            -p 'jsystem-m2-*.tar.gz' -D "$RUNNER_TEMP" --clobber
+          mkdir -p ~/.m2/repository
+          tar xzf "$RUNNER_TEMP"/jsystem-m2-*.tar.gz -C ~/.m2/repository
       - name: Compile the automation tree
         env:
           # release-6.x's pom still declares a Google artifact-registry

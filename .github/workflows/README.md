@@ -68,12 +68,23 @@ Current matrix exclusions, each with the reason in the workflow file:
 ### Caches
 
 `setup-java`/`setup-go` cache the gradle, maven, and go dependency
-trees, keyed on the respective lockfiles/build files. Note for
-`automation-compile`: the jsystem test-framework artifacts resolve from
-`maven.top-q.co.il`, which is occasionally unavailable; the maven cache
-(kept warm by the weekly lane) makes that a cold-cache-only risk. If a
-run fails resolving `org.jsystemtest:*`, re-run it once the host is
-reachable again.
+trees, keyed on the respective lockfiles/build files. Note that
+`pull_request` runs can only restore caches created in the target
+branch's scope, so a PR may start cold even when branch pushes were
+warm.
+
+Note for `automation-compile`: the jsystem test-framework artifacts
+(`org.jsystemtest:*`) were never published to Maven Central, and their
+only public host (`maven.top-q.co.il`) intermittently blocks CI
+providers — so the job seeds a mirrored copy from this repository's
+`jsystem-deps-*` release into `~/.m2` before maven runs; resolution
+never depends on that host. Local developers hitting the same
+resolution failure can do the same:
+
+```bash
+gh release download jsystem-deps-6.0.01 -R warehouse-pg/whpg-pxf -p 'jsystem-m2-*.tar.gz' -D /tmp
+tar xzf /tmp/jsystem-m2-6.0.01.tar.gz -C ~/.m2/repository
+```
 
 ### Reproducing the jobs locally
 
