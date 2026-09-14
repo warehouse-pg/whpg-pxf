@@ -48,8 +48,11 @@ caches warm (GitHub evicts caches unused for ~7 days).
   `release-6.x` (schedules only fire from the default branch, so the
   other branch is checked out explicitly).
 - `server-unit` additionally runs a **JDK 11 test lane**: the build
-  stays on JDK 8, but the tests execute on JDK 11 — the runtime the PXF
-  server daemon actually uses (`./gradlew test -PtestJvm=...`).
+  stays on JDK 8, but the tests execute on JDK 11 (`./gradlew test
+  -PtestJvm=...`). PXF supports running on Java 8 or Java 11 (see the
+  docs' "Installing Java for PXF" page); every other test execution
+  happens on JDK 8, so without this lane the Java 11 runtime would
+  never be exercised by tests at all.
 - On any failure, the run opens (or comments on) a GitHub issue labeled
   `ci-weekly-failure` — scheduled failures block nobody's PR and would
   otherwise go unnoticed.

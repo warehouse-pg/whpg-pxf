@@ -51,8 +51,9 @@ jobs:
   # ---------------------------------------------------------------------
   # server-unit: the full Java unit-test suite (~1,800 tests).
   # Build and tests run on JDK 8 (the build's requirement); the weekly
-  # schedule adds a lane that executes the tests on JDK 11 (the runtime
-  # the PXF server daemon actually uses in production).
+  # schedule adds a lane that executes the tests on JDK 11 — a supported
+  # production runtime (PXF runs on Java 8 or 11) that no other test
+  # execution exercises.
   # ---------------------------------------------------------------------
   server-unit:
     name: server-unit${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}${{ matrix.test-java != '8' && format(' [test-jdk{0}]', matrix.test-java) || '' }}

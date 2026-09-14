@@ -473,8 +473,9 @@ configure(javaProjects) {
     }
 
     test {
-        // Optionally run tests on a different JVM than the (JDK 8) build JVM,
-        // e.g. the newer JDK the PXF server daemon actually runs on:
+        // Optionally run tests on a different JVM than the (JDK 8) build JVM.
+        // PXF supports running on Java 8 or Java 11; this lets CI exercise
+        // the tests on the newer supported runtime too:
         //   ./gradlew test -PtestJvm=/path/to/jdk
         if (project.hasProperty('testJvm')) {
             executable = "${project.property('testJvm')}/bin/java"
