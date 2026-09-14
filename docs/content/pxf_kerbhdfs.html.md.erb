@@ -109,7 +109,7 @@ The following table identifies the impersonation and service user settings, and 
 
 | Impersonation  | Service&nbsp;User |  PXF Configuration | Hadoop&nbsp;Configuration&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
 |----------------|-------------------|--------------------|-----------|
-|  false         | Identity of the Kerberos principal | Perform the [Configuration Procedure](#procedure.html) in this topic, and then turn off user impersonation as described in [Configure PXF User Impersonation](pxfuserimpers.html#pxf_cfg_impers). | None required. |
+|  false         | Identity of the Kerberos principal | Perform the [Configuration Procedure](#procedure) in this topic, and then turn off user impersonation as described in [Configure PXF User Impersonation](pxfuserimpers.html#pxf_cfg_impers). | None required. |
 
 ### <a id="custom_hadoop"></a>Accessing Hadoop as a &lt;custom> User
 
@@ -339,7 +339,7 @@ On the Greenplum Database coordinator host, complete the configuration of the PX
 1. If you want to access Hadoop as the Greenplum Database user:
 
     1. Activate user impersonation as described in [Configure PXF User Impersonation](pxfuserimpers.html#pxf_cfg_impers) (this is the default setting).
-    1. *If you want to use Kerberos constrained delegation*, [activate](#enable_kdc) it for the server, and configure AD or IPA to provide the PXF Kerberos principal with the delegation rights for the Greenplum end users.
+    1. *If you want to use Kerberos constrained delegation*, [activate](#enable_kcd) it for the server, and configure AD or IPA to provide the PXF Kerberos principal with the delegation rights for the Greenplum end users.
     2. *If you did not activate Kerberos constrained delegation*, configure Hadoop proxying for the *primary* component of the Kerberos principal as described in [Configure Hadoop Proxying](pxfuserimpers.html#hadoop). For example, if your principal is `gpadmin/_HOST@EXAMPLE.COM`, configure proxying for the Hadoop user `gpadmin`.
 
 1. If you want to access Hadoop using the identity of the Kerberos principal, deactivate user impersonation as described in [Configure PXF User Impersonation](pxfuserimpers.html#pxf_cfg_impers).
