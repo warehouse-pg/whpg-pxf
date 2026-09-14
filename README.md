@@ -1,5 +1,8 @@
-**PXF Build** [![Concourse Build Status](http://ci.ud.gpdb.pivotal.io/api/v1/teams/main/pipelines/pxf-build/badge)](https://ci.ud.gpdb.pivotal.io/teams/main/pipelines/pxf-build) |
-**PXF Certification** [![Concourse Build Status](http://ci.ud.gpdb.pivotal.io/api/v1/teams/main/pipelines/pxf-certification/badge)](https://ci.ud.gpdb.pivotal.io/teams/main/pipelines/pxf-certification)
+[![PXF CI](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml/badge.svg?branch=release-6.x)](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml)
+
+Pull requests targeting this branch run the in-repository
+[PXF CI](.github/workflows/README.md) workflow: unit tests, CLI tests, a
+compile check for the integration-test tree, and static docs checks.
 
 ----------------------------------------------------------------------
 
