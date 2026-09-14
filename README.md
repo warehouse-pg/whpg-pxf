@@ -6,17 +6,24 @@
 Introduction
 ============
 
-PXF is an extensible framework that allows a distributed database like Greenplum to query external data files, whose metadata is not managed by the database.
+PXF is an extensible framework that allows a distributed database like WarehousePG to query external data files, whose metadata is not managed by the database.
 PXF includes built-in connectors for accessing data that exists inside HDFS files, Hive tables, HBase tables, JDBC-accessible databases and more.
 Users can also create their own connectors to other data storage or processing engines.
+
+This repository is a fork of the open-source Greenplum PXF project ([github.com/greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive)), renamed to whpg-pxf and maintained for WarehousePG.
+
+Documentation
+================
+
+Official PXF documentation is available at [https://warehouse-pg.io/pxf/6x/](https://warehouse-pg.io/pxf/6x/). The in-repo book under [`docs/`](docs/) remains the exhaustive reference during the migration to the official site.
 
 Repository Contents
 ================
 ## external-table/
-Contains the Greenplum extension implementing an External Table protocol handler
+Contains the WarehousePG extension implementing an External Table protocol handler
 
 ## fdw/
-Contains the Greenplum extension implementing a Foreign Data Wrapper (FDW) for PXF
+Contains the WarehousePG extension implementing a Foreign Data Wrapper (FDW) for PXF
 
 ## server/
 Contains the server side code of PXF along with the PXF Service and all the Plugins
@@ -37,11 +44,11 @@ Resources for PXF's Continuous Integration pipelines
 Contains the end-to-end (integration) tests for PXF against the various datasources, utilizing the PostgreSQL testing framework `pg_regress`
 
 ## downloads/
-An empty directory that serves as a staging location for Greenplum RPMs for the development Docker image
+An empty directory that serves as a staging location for WarehousePG RPMs for the development Docker image
 
 PXF Development
 =================
-Below are the steps to build and install PXF along with its dependencies including Greenplum and Hadoop.
+Below are the steps to build and install PXF along with its dependencies including WarehousePG and Hadoop.
 
 To start, ensure you have a `~/workspace` directory and have cloned the `pxf` and its prerequisites (shown below) under it.
 (The name `workspace` is not strictly required but will be used throughout this guide.)
@@ -49,7 +56,7 @@ To start, ensure you have a `~/workspace` directory and have cloned the `pxf` an
 mkdir -p ~/workspace
 cd ~/workspace
 
-git clone https://github.com/greenplum-db/pxf.git
+git clone https://github.com/warehouse-pg/whpg-pxf.git pxf
 ```
 Alternatively, you may create a symlink to your existing repo folder.
 ```bash
@@ -61,13 +68,13 @@ ln -s ~/<git_repos_root> ~/workspace
 To build PXF, you must have:
 
 1. GCC compiler, `make` system, `unzip` package, `maven` for running integration tests
-2. Installed Greenplum DB
+2. Installed WarehousePG DB
 
-    Either download and install Greenplum RPM or build Greenplum from the source by following instructions in the [GPDB README](https://github.com/greenplum-db/gpdb).
+    Either download and install the WarehousePG RPM or build WarehousePG from source by following instructions in the [WarehousePG README](https://github.com/warehouse-pg/warehouse-pg).
 
-    Assuming you have installed Greenplum into `/usr/local/greenplum-db` directory, run its environment script:
+    Assuming you have installed WarehousePG into `/usr/edb/whpg6` directory, run its environment script:
     ```
-    source /usr/local/greenplum-db/greenplum_path.sh
+    source /usr/edb/whpg6/greenplum_path.sh
     ```
 
 3. JDK 1.8 or JDK 11 to compile/run
@@ -112,10 +119,10 @@ make test
 
 ## How to Install PXF
 
-To install PXF, first make sure that the user has sufficient permissions in the `$GPHOME` and `$PXF_HOME` directories to perform the installation. It's recommended to change ownership to match the installing user. For example, when installing PXF as user `gpadmin` under `/usr/local/greenplum-db`:
+To install PXF, first make sure that the user has sufficient permissions in the `$GPHOME` and `$PXF_HOME` directories to perform the installation. It's recommended to change ownership to match the installing user. For example, when installing PXF as user `gpadmin` under `/usr/edb/whpg6`:
 
 ```bash
-export GPHOME=/usr/local/greenplum-db
+export GPHOME=/usr/edb/whpg6
 export PXF_HOME=/usr/local/pxf
 export PXF_BASE=${HOME}/pxf-base
 chown -R gpadmin:gpadmin "${GPHOME}" "${PXF_HOME}"
@@ -139,7 +146,7 @@ pxf start
 If `${HOME}/pxf-base` does not exist, `pxf prepare` will create the directory for you. This command should only need to be run once.
 
 ## Re-installing PXF after making changes
-Note: Local development with PXF requires a running Greenplum cluster.
+Note: Local development with PXF requires a running WarehousePG cluster.
 
 Once the desired changes have been made, there are 2 options to re-install PXF:
 
@@ -352,7 +359,7 @@ no JDK set for Gradle. Just cancel and retry. It goes away the second time.
 - Save the configuration
 - Restart PXF in DEBUG Mode `PXF_DEBUG=true pxf restart`
 - Debug the new configuration in IntelliJ
-- Run a query in GPDB that uses PXF to debug with IntelliJ
+- Run a query in WarehousePG that uses PXF to debug with IntelliJ
 
 # To run a Kerberized Hadoop Cluster
 
