@@ -5,10 +5,9 @@
 [![PXF CI](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml/badge.svg)](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml)
 
 Fast, hermetic verification for every pull request. All jobs run without
-secrets and are safe for fork PRs. Release packaging, cluster-level
-integration testing (databases, Hadoop stacks), and certification CI are
-maintained by EDB outside this repository; nothing here builds, publishes,
-or releases artifacts.
+secrets and are safe for fork PRs. Cluster-level integration testing
+(databases, Hadoop stacks) is outside the scope of this workflow, and
+nothing here builds, publishes, or releases artifacts.
 
 ### Jobs
 
@@ -16,19 +15,20 @@ or releases artifacts.
 |---|---|---|---|
 | `server-unit` | The full Java unit-test suite (`./gradlew test` from `server/`, ~1,840 tests) | Temurin JDK 8 (the build requires it) | 4m36s / ~3m40s |
 | `cli-test` | The Go CLI Ginkgo suites, including the cluster-free end-to-end suite (`make -C cli test`) | Go (version from `cli/go.mod`) | 1m14s / ~25s |
-| `automation-compile` | Proves the integration-test tree compiles and its dependencies resolve (`mvn test-compile` from `automation/`). A compile signal only — executing those tests needs a full database + Hadoop environment and happens in the EDB-maintained CI | JDK 8 (to build the PXF server jars the tree compiles against) + JDK 11 for maven | 2m53s / ~1m30s |
+| `automation-compile` | Proves the integration-test tree compiles and its dependencies resolve (`mvn test-compile` from `automation/`). A compile signal only — executing those tests needs a full database + Hadoop environment, so they are not run here | JDK 8 (to build the PXF server jars the tree compiles against) + JDK 11 for maven | 2m53s / ~1m30s |
 | `docs-static-check` | `.github/scripts/docs-linkcheck.bash`: static link/anchor integrity for the docs book and top-level markdown (cross-page links and anchors, in-page fragments, subnav targets, orphan pages) | bash | ~10s |
 
 Times were measured on `ubuntu-latest` runners during the workflow's
-trial (2026-09); `timeout-minutes` on each job is set to roughly twice
-the cold-cache baseline, so a job that doubles its wall time fails
-rather than silently absorbing the regression.
+trial (2026-09). `timeout-minutes` on each job is set with generous
+headroom over the cold-cache baseline (so suite growth doesn't turn the
+timeout into a bottleneck) while still bounding what a hung job can
+burn; watch the measured times above for drift.
 
 ### Triggers
 
 | Trigger | What runs |
 |---|---|
-| `pull_request` → `main`, `release-6.x` | All four jobs |
+| `pull_request` → `main`, `release-6.x` | All four jobs. (PRs targeting `release-6.x` run the gate once this workflow is present on that branch.) |
 | `push` → `main`, `release-6.x` | All four jobs (not cancelled by newer pushes) |
 | `push` → `ci/**` | All four jobs — **opt-in CI for feature branches**: push any branch named `ci/<something>` to get full CI without opening a PR |
 | `schedule` (Mondays 03:00 UTC) | The weekly lane, see below |

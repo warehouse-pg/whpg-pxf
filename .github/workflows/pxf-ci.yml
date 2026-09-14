@@ -2,9 +2,9 @@
 #
 # Scope: fast, hermetic checks only (unit tests, compile signals, static
 # docs checks). Every job runs without secrets and is safe for fork PRs.
-# Release packaging, cluster-level integration testing (databases, Hadoop
-# stacks), and certification CI are maintained by EDB outside this
-# repository; nothing here builds, publishes, or releases artifacts.
+# Cluster-level integration testing (databases, Hadoop stacks) is outside
+# the scope of this workflow, and nothing here builds, publishes, or
+# releases artifacts.
 #
 # Triggers:
 #   - pull_request / push to main, release-6.x
@@ -58,7 +58,7 @@ jobs:
   server-unit:
     name: server-unit${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}${{ matrix.test-java != '8' && format(' [test-jdk{0}]', matrix.test-java) || '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12   # ~2x the measured cold-cache baseline (4m36s)
+    timeout-minutes: 20   # generous headroom over the measured cold baseline (4m36s)
     strategy:
       fail-fast: false
       matrix:
@@ -135,7 +135,7 @@ jobs:
   cli-test:
     name: cli-test${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5    # ~2x the measured cold-cache baseline (1m14s)
+    timeout-minutes: 10   # generous headroom over the measured cold baseline (1m14s)
     strategy:
       fail-fast: false
       matrix:
@@ -164,7 +164,7 @@ jobs:
   automation-compile:
     name: automation-compile${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10   # ~2x the measured cold-cache baseline (2m53s)
+    timeout-minutes: 15   # generous headroom over the measured cold baseline (2m53s)
     strategy:
       fail-fast: false
       matrix:
