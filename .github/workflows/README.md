@@ -107,12 +107,3 @@ bash .github/scripts/docs-linkcheck.bash
    `workflow_dispatch` trigger) with `debug_enabled` checked: on
    failure the job opens a tmate session and prints the SSH string in
    the log.
-
-### Policies
-
-- **No auto-retries.** A test that flakes gets investigated and, if
-  necessary, a tracked exclusion — not a silent rerun.
-- **Secret-free.** PR jobs reference no secrets (fork PRs receive none
-  anyway); the weekly issue step uses only the workflow's own token.
-- Third-party actions are pinned by commit SHA; official `actions/*`
-  are pinned by major version.
