@@ -54,11 +54,11 @@ The PXF Hive connector supports several data formats, and has defined the follow
 The PXF Hive connector supports primitive and complex data types.
 
 ### <a id="hive_datatypemap_prim" class="no-quick-link"></a>Primitive Data Types
-To represent Hive data in Greenplum Database, map data values that use a primitive data type to Greenplum Database columns of the same type.
+To represent Hive data in WarehousePG, map data values that use a primitive data type to WarehousePG columns of the same type.
 
 The following table summarizes external mapping rules for Hive primitive types.
 
-| Hive Data Type  | Greenplum Data Type |
+| Hive Data Type  | WarehousePG Data Type |
 |-------|---------------------------|
 | boolean    | bool |
 | int   | int4 |
@@ -76,7 +76,7 @@ The following table summarizes external mapping rules for Hive primitive types.
 
 ### <a id="hive_datatypemap_complex" class="no-quick-link"></a>Complex Data Types
 
-Hive supports complex data types including array, struct, map, and union. PXF maps each of these complex types to `text`. You can create Greenplum Database functions or application code to extract subcomponents of these complex data types.
+Hive supports complex data types including array, struct, map, and union. PXF maps each of these complex types to `text`. You can create WarehousePG functions or application code to extract subcomponents of these complex data types.
 
 Examples using complex data types with the `hive` and `hive:orc` profiles are provided later in this topic.
 
@@ -177,14 +177,14 @@ location:hdfs://<namenode>:<port>/apps/hive/warehouse/sales_info
 
 ## <a id="hive_queryextdata"></a>Querying External Hive Data
 
-You can create a Greenplum Database external table to access Hive table data.   As described previously, the PXF Hive connector defines specific profiles to support different file formats. These profiles are named `hive`, `hive:text`, `hive:rc`, and `hive:orc`. 
+You can create a WarehousePG external table to access Hive table data.   As described previously, the PXF Hive connector defines specific profiles to support different file formats. These profiles are named `hive`, `hive:text`, `hive:rc`, and `hive:orc`. 
 
 
 The `hive:text` and `hive:rc` profiles are specifically optimized for text and RCFile formats, respectively. The `hive:orc` profile is optimized for ORC file formats. The `hive` profile is optimized for all file storage types; you can use the `hive` profile when the underlying Hive table is composed of multiple partitions with differing file formats.
 
 PXF uses column projection to increase query performance when you access a Hive table using the `hive`, `hive:rc`, or `hive:orc` profiles.
 
-Use the following syntax to create a Greenplum Database external table that references a Hive table:
+Use the following syntax to create a WarehousePG external table that references a Hive table:
 
 ``` sql
 CREATE EXTERNAL TABLE <table_name>
@@ -194,7 +194,7 @@ LOCATION ('pxf://<hive-db-name>.<hive-table-name>
 FORMAT 'CUSTOM|TEXT' (FORMATTER='pxfwritable_import' | delimiter='<delim>')
 ```
 
-Hive connector-specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) call are described below.
+Hive connector-specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) call are described below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -219,7 +219,7 @@ You can use the `hive` and `hive:text` profiles to access Hive table data stored
 
 ### <a id="hive_hive_example" class="no-quick-link"></a>Example: Using the hive Profile
 
-Use the `hive` profile to create a readable Greenplum Database external table that references the Hive `sales_info` textfile format table that you created earlier.
+Use the `hive` profile to create a readable WarehousePG external table that references the Hive `sales_info` textfile format table that you created earlier.
 
 1. Create the external table:
 
@@ -246,7 +246,7 @@ Use the `hive` profile to create a readable Greenplum Database external table th
 
 ### <a id="hive_hivetext_example" class="no-quick-link"></a>Example: Using the hive:text Profile
 
-Use the PXF `hive:text` profile to create a readable Greenplum Database external table from the Hive `sales_info` textfile format table that you created earlier.
+Use the PXF `hive:text` profile to create a readable WarehousePG external table from the Hive `sales_info` textfile format table that you created earlier.
 
 1. Create the external table:
 
@@ -309,7 +309,7 @@ Use the `hive:rc` profile to query RCFile-formatted data in a Hive table.
     hive> SELECT * FROM sales_info_rcfile;
     ```
 
-4. Use the PXF `hive:rc` profile to create a readable Greenplum Database external table that references the Hive `sales_info_rcfile` table that you created in the previous steps. For example:
+4. Use the PXF `hive:rc` profile to create a readable WarehousePG external table that references the Hive `sales_info_rcfile` table that you created in the previous steps. For example:
 
     ``` sql
     postgres=# CREATE EXTERNAL TABLE salesinfo_hivercprofile(location text, month text, number_of_orders int, total_sales float8)
@@ -398,7 +398,7 @@ In the following example, you will create a Hive table stored in ORC format and 
     Timing is on.
     ```
 
-4. Use the PXF `hive:orc` profile to create a Greenplum Database external table that references the Hive table named `sales_info_ORC` you created in Step 1. The `FORMAT` clause must specify `'CUSTOM'`. The `hive:orc` `CUSTOM` format supports only the built-in `'pxfwritable_import'` `formatter`.
+4. Use the PXF `hive:orc` profile to create a WarehousePG external table that references the Hive table named `sales_info_ORC` you created in Step 1. The `FORMAT` clause must specify `'CUSTOM'`. The `hive:orc` `CUSTOM` format supports only the built-in `'pxfwritable_import'` `formatter`.
 
     ``` sql
     postgres=> CREATE EXTERNAL TABLE salesinfo_hiveORCprofile(location text, month text, number_of_orders int, total_sales float8)
@@ -434,7 +434,7 @@ In the following example, you will use the vectorized `hive:orc` profile to quer
     $ psql -d postgres
     ```
 
-2. Use the PXF `hive:orc` profile to create a readable Greenplum Database external table that references the Hive table named `sales_info_ORC` that you created in Step 1 of the previous example. The `FORMAT` clause must specify `'CUSTOM'`. The `hive:orc` `CUSTOM` format supports only the built-in `'pxfwritable_import'` `formatter`.
+2. Use the PXF `hive:orc` profile to create a readable WarehousePG external table that references the Hive table named `sales_info_ORC` that you created in Step 1 of the previous example. The `FORMAT` clause must specify `'CUSTOM'`. The `hive:orc` `CUSTOM` format supports only the built-in `'pxfwritable_import'` `formatter`.
 
     ``` sql
     postgres=> CREATE EXTERNAL TABLE salesinfo_hiveVectORC(location text, month text, number_of_orders int, total_sales float8)
@@ -462,7 +462,7 @@ In the following example, you will use the vectorized `hive:orc` profile to quer
 
 ## <a id="hive_parquet"></a>Accessing Parquet-Format Hive Tables
 
-The PXF `hive` profile supports both non-partitioned and partitioned Hive tables that use the Parquet storage format. Map the table columns using equivalent Greenplum Database data types. For example, if a Hive table is created in the `default` schema using:
+The PXF `hive` profile supports both non-partitioned and partitioned Hive tables that use the Parquet storage format. Map the table columns using equivalent WarehousePG data types. For example, if a Hive table is created in the `default` schema using:
 
 ``` sql
 hive> CREATE TABLE hive_parquet_table (location string, month string,
@@ -470,7 +470,7 @@ hive> CREATE TABLE hive_parquet_table (location string, month string,
         STORED AS parquet;
 ```
 
-Define the Greenplum Database external table:
+Define the WarehousePG external table:
 
 ``` sql
 postgres=# CREATE EXTERNAL TABLE pxf_parquet_table (location text, month text, number_of_orders int, total_sales double precision)
@@ -485,7 +485,7 @@ postgres=# SELECT month, number_of_orders FROM pxf_parquet_table;
 ```
 ## <a id="hive_avro"></a>Accessing Avro-Format Hive Tables
 
-The PXF `hive` profile supports accessing Hive tables that use the Avro storage format. Map the table columns using equivalent Greenplum Database data types. For example, if a Hive table is created in the `default` schema using:
+The PXF `hive` profile supports accessing Hive tables that use the Avro storage format. Map the table columns using equivalent WarehousePG data types. For example, if a Hive table is created in the `default` schema using:
 
 ```sql
 hive> CREATE TABLE hive_avro_data_table (id int, name string, user_id string)
@@ -494,7 +494,7 @@ hive> CREATE TABLE hive_avro_data_table (id int, name string, user_id string)
 	OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat';
 ```
 
-Define the Greenplum Database external table:
+Define the WarehousePG external table:
 
 ```sql
 postgres=# CREATE EXTERNAL TABLE userinfo_hiveavro(id int, name text, user_id text)
@@ -585,7 +585,7 @@ When you specify an array field in a Hive table, you must identify the terminato
     ...
     ```
 
-6. Use the PXF `hive` profile to create a readable Greenplum Database external table that references the Hive table named `table_complextypes`:
+6. Use the PXF `hive` profile to create a readable WarehousePG external table that references the Hive table named `table_complextypes`:
 
     ``` sql
     postgres=# CREATE EXTERNAL TABLE complextypes_hiveprofile(index int, name text, intarray text, propmap text)
@@ -593,7 +593,7 @@ When you specify an array field in a Hive table, you must identify the terminato
                FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
     ```
 
-    Notice that the integer array and map complex types are mapped to Greenplum Database data type text.
+    Notice that the integer array and map complex types are mapped to WarehousePG data type text.
 
 7. Query the external table:
 
@@ -665,7 +665,7 @@ In the following example, you will create and populate a Hive table stored in OR
     $ psql -d postgres
     ```
 
-4. Use the PXF `hive:orc` profile to create a readable Greenplum Database external table from the Hive table named `table_complextypes_ORC` you created in Step 1. The `FORMAT` clause must specify `'CUSTOM'`. The `hive:orc` `CUSTOM` format supports only the built-in `'pxfwritable_import'` `formatter`.
+4. Use the PXF `hive:orc` profile to create a readable WarehousePG external table from the Hive table named `table_complextypes_ORC` you created in Step 1. The `FORMAT` clause must specify `'CUSTOM'`. The `hive:orc` `CUSTOM` format supports only the built-in `'pxfwritable_import'` `formatter`.
 
     ``` sql
     postgres=> CREATE EXTERNAL TABLE complextypes_hiveorc(index int, name text, intarray text, propmap text)
@@ -673,7 +673,7 @@ In the following example, you will create and populate a Hive table stored in OR
                  FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
     ```
 
-    Notice that the integer array and map complex types are again mapped to Greenplum Database data type text.
+    Notice that the integer array and map complex types are again mapped to WarehousePG data type text.
 
 5. Query the external table:
 
@@ -704,7 +704,7 @@ The PXF Hive Connector partition filtering support for Hive string and integral 
 - The logical operators `AND` and `OR` are supported when used with the relational operators mentioned above.
 - The `LIKE` string operator is not supported.
 
-To take advantage of PXF partition filtering pushdown, the Hive and PXF partition field names must be the same. Otherwise, PXF ignores partition filtering and the filtering is performed on the Greenplum Database side, impacting performance.
+To take advantage of PXF partition filtering pushdown, the Hive and PXF partition field names must be the same. Otherwise, PXF ignores partition filtering and the filtering is performed on the WarehousePG side, impacting performance.
 
 <div class="note"><b>Note:</b> The PXF Hive connector filters only on partition columns, not on other table attributes. Additionally, filter pushdown is supported only for those data types and operators identified above.</div>
 
@@ -713,7 +713,7 @@ PXF filter pushdown is enabled by default. You configure PXF filter pushdown as 
 
 ### <a id="hive_homog_part"></a>Example: Using the hive Profile to Access Partitioned Homogenous Data
 
-In this example, you use the `hive` profile to query a Hive table named `sales_part` that you partition on the `delivery_state` and `delivery_city` fields. You then create a Greenplum Database external table to query `sales_part`. The procedure includes specific examples that illustrate filter pushdown.
+In this example, you use the `hive` profile to query a Hive table named `sales_part` that you partition on the `delivery_state` and `delivery_city` fields. You then create a WarehousePG external table to query `sales_part`. The procedure includes specific examples that illustrate filter pushdown.
 
 1. Create a Hive table named `sales_part` with two partition columns, `delivery_state` and `delivery_city:`
 
@@ -785,7 +785,7 @@ In this example, you use the `hive` profile to query a Hive table named `sales_p
     postgres=# SELECT * FROM pxf_sales_part WHERE delivery_city = 'Sacramento' AND cname = 'cube';
     ```
 
-    The query filters the `delivery_city` partition `Sacramento`. The filter on `cname` is not pushed down, since it is not a partition column. It is performed on the Greenplum Database side after all the data in the `Sacramento` partition is transferred for processing.
+    The query filters the `delivery_city` partition `Sacramento`. The filter on `cname` is not pushed down, since it is not a partition column. It is performed on the WarehousePG side after all the data in the `Sacramento` partition is transferred for processing.
 
 7. Query (with pushdown) for all records where `delivery_state` is `CALIFORNIA`:
 
@@ -866,7 +866,7 @@ In this example, you create a partitioned Hive external table. The table is comp
     $ psql -d postgres
     ```
 
-8. Use the PXF `hive` profile to create a readable Greenplum Database external table that references the Hive `hive_multiformpart` external table that you created in the previous steps:
+8. Use the PXF `hive` profile to create a readable WarehousePG external table that references the Hive `hive_multiformpart` external table that you created in the previous steps:
 
     ``` sql
     postgres=# CREATE EXTERNAL TABLE pxf_multiformpart(location text, month text, number_of_orders int, total_sales float8, year text)
@@ -906,7 +906,7 @@ In this example, you create a partitioned Hive external table. The table is comp
 
 This topic describes a difference in query results between Hive and PXF queries when Hive tables use a default partition. When dynamic partitioning is enabled in Hive, a partitioned table may store data in a default partition. Hive creates a default partition when the value of a partitioning column does not match the defined type of the column (for example, when a NULL value is used for any partitioning column). In Hive, any query that includes a filter on a partition column *excludes* any data that is stored in the table's default partition.
 
-Similar to Hive, PXF represents a table's partitioning columns as columns that are appended to the end of the table. However, PXF translates any column value in a default partition to a NULL value. This means that a Greenplum Database query that includes an `IS NULL` filter on a partitioning column can return different results than the same Hive query.
+Similar to Hive, PXF represents a table's partitioning columns as columns that are appended to the end of the table. However, PXF translates any column value in a default partition to a NULL value. This means that a WarehousePG query that includes an `IS NULL` filter on a partitioning column can return different results than the same Hive query.
 
 Consider a Hive partitioned table that is created with the statement:
 
@@ -932,7 +932,7 @@ In Hive, any query that filters on the partition column omits data in the defaul
 hive> SELECT * FROM sales WHERE xdate IS null;
 ```
 
-However, if you map this Hive table to a PXF external table in Greenplum Database, all default partition values are translated into actual NULL values. In Greenplum Database, running the same query against the PXF external table returns row 4 as the result, because the filter matches the NULL value.
+However, if you map this Hive table to a PXF external table in WarehousePG, all default partition values are translated into actual NULL values. In WarehousePG, running the same query against the PXF external table returns row 4 as the result, because the filter matches the NULL value.
 
 Keep this behavior in mind when you run `IS NULL` queries on Hive partitioned tables.
 

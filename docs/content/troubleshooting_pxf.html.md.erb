@@ -32,9 +32,9 @@ The following table describes some errors you may encounter while using PXF:
 | PXF server error : Input path does not exist: hdfs://\<namenode\>:8020/\<path-to-file\> | **Cause**: The HDFS file that you specified in \<path-to-file\> does not exist. <br>**Solution**: Provide the path to an existing HDFS file. |
 | PXF server error : NoSuchObjectException(message:\<schema\>.\<hivetable\> table not found) | **Cause**: The Hive table that you specified with \<schema\>.\<hivetable\> does not exist. <br>**Solution**: Provide the name of an existing Hive table. |
 | PXF server error : Failed connect to localhost:5888; Connection refused (\<segment-id\> slice\<N\> \<segment-host\>:\<port\> pid=\<process-id\>)<br> ... |**Cause**: The PXF Service is not running on \<segment-host\>.<br>**Solution**: Restart PXF on \<segment-host\>. |
-| PXF server error: Permission denied: user=\<user\>, access=READ, inode=&quot;\<filepath\>&quot;:-rw------- | **Cause**: The Greenplum Database user that ran the PXF operation does not have permission to access the underlying Hadoop service (HDFS or Hive). See [Configuring the Hadoop User, User Impersonation, and Proxying](pxfuserimpers.html). |
+| PXF server error: Permission denied: user=\<user\>, access=READ, inode=&quot;\<filepath\>&quot;:-rw------- | **Cause**: The WarehousePG user that ran the PXF operation does not have permission to access the underlying Hadoop service (HDFS or Hive). See [Configuring the Hadoop User, User Impersonation, and Proxying](pxfuserimpers.html). |
 | PXF server error: PXF service could not be reached. PXF is not running in the tomcat container | **Cause**: The `pxf` extension was updated to a new version but the PXF server has not been updated to a compatible version. <br>**Solution**: Ensure that the PXF server has been updated and restarted on all hosts. |
-| ERROR: could not load library "/usr/local/greenplum-db-x.x.x/lib/postgresql/pxf.so" | **Cause**: Some steps have not been completed after a Greenplum Database upgrade or migration, such as `pxf cluster register`. <br>**Solution**: Make sure you follow the steps outlined for [PXF Upgrade and Migration](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/pxf-pxf_upgrade_migration.html. | 
+| ERROR: could not load library "/usr/local/greenplum-db-x.x.x/lib/postgresql/pxf.so" | **Cause**: Some steps have not been completed after a WarehousePG upgrade or migration, such as `pxf cluster register`. <br>**Solution**: Make sure you follow the steps outlined for PXF Upgrade and Migration | 
 
 Most PXF error messages include a `HINT` that you can use to resolve the error, or to collect more information to identify the error.
 
@@ -62,16 +62,16 @@ export PXF_JVM_OPTS="<current_settings> -Duser.timezone=America/Chicago"
 
 You can use the `PXF_JVM_OPTS` property to set other Java options as well.
 
-As described in previous sections, you must synchronize the updated PXF configuration to the Greenplum Database cluster and restart the PXF Service on each host.
+As described in previous sections, you must synchronize the updated PXF configuration to the WarehousePG cluster and restart the PXF Service on each host.
 
 
 ## <a id="pxf-tblpart"></a>About PXF External Table Child Partitions
 
-Greenplum Database supports partitioned tables, and permits exchanging a leaf child partition with a PXF external table.
+WarehousePG supports partitioned tables, and permits exchanging a leaf child partition with a PXF external table.
 
-When you read from a partitioned Greenplum table where one or more partitions is a PXF external table and there is no data backing the external table path, PXF returns an error and the query fails. This default PXF behavior is not optimal in the partitioned table case; an empty child partition is valid and should not cause a query on the parent table to fail.
+When you read from a partitioned WarehousePG table where one or more partitions is a PXF external table and there is no data backing the external table path, PXF returns an error and the query fails. This default PXF behavior is not optimal in the partitioned table case; an empty child partition is valid and should not cause a query on the parent table to fail.
 
-The `IGNORE_MISSING_PATH` PXF custom option is a boolean that specifies the action to take when the external table path is missing or invalid. The default value is `false`, PXF returns an error when it encounters a missing path. If the external table is a child partition of a Greenplum table, you want PXF to ignore a missing path error, so set this option to `true`.
+The `IGNORE_MISSING_PATH` PXF custom option is a boolean that specifies the action to take when the external table path is missing or invalid. The default value is `false`, PXF returns an error when it encounters a missing path. If the external table is a child partition of a WarehousePG table, you want PXF to ignore a missing path error, so set this option to `true`.
 
 For example, PXF ignores missing path errors generated from the following external table:
 
@@ -96,7 +96,7 @@ PXF uses the `hive-site.xml` `hive.metastore.failure.retries` property setting t
 
 Perform the following procedure to configure the number of Hive MetaStore connection retries that PXF will attempt; you may be required to add the `hive.metastore.failure.retries` property to the `hive-site.xml` file:
 
-1. Log in to the Greenplum Database coordinator host.
+1. Log in to the WarehousePG coordinator host.
 
 1. Identify the name of your Hive PXF server.
 
@@ -111,7 +111,7 @@ Perform the following procedure to configure the number of Hive MetaStore connec
 
 1. Save the file and exit the editor.
 
-1. Synchronize the PXF configuration to all hosts in your Greenplum Database cluster:
+1. Synchronize the PXF configuration to all hosts in your WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
@@ -125,9 +125,9 @@ By default, PXF does not bundle the LZO compression library. If the Hadoop clust
 
 1. Locate the LZO library in the Hadoop installation directory on the Hadoop NameNode. For example, the file system location of the library may be `/usr/lib/hadoop-lzo/lib/hadoop-lzo.jar`.
 
-1. Log in to the Greenplum Database coordinator host.
+1. Log in to the WarehousePG coordinator host.
 
-1. Copy `hadoop-lzo.jar` from the Hadoop NameNode to the PXF configuration directory on the Greenplum Database coordinator host. For example, if `$PXF_BASE` is `/usr/local/pxf-gp6`:
+1. Copy `hadoop-lzo.jar` from the Hadoop NameNode to the PXF configuration directory on the WarehousePG coordinator host. For example, if `$PXF_BASE` is `/usr/local/pxf-gp6`:
 
     ``` shell
     gpadmin@coordinator$ scp <hadoop-user>@<namenode-host>:/usr/lib/hadoop-lzo/lib/hadoop-lzo.jar /usr/local/pxf-gp6/lib/
@@ -157,15 +157,15 @@ To remedy this situation, specify an executable directory for the Snappy `tempdi
 
     A `noexec` option in the `mount` output indicates that the directory is not executable.
 
-    Perform this check on each Greenplum Database host.
+    Perform this check on each WarehousePG host.
 
 1. If the `mount` command output for `/tmp` does not include `noexec`, the directory is executable. Exit this procedure, the workaround will not address your issue.
 
     If the `mount` command output for `/tmp` includes `noexec`, continue.
 
-1. Log in to the Greenplum Database coordinator host.
+1. Log in to the WarehousePG coordinator host.
 
-1. Stop PXF on the Greenplum Database cluster:
+1. Stop PXF on the WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster stop
@@ -199,8 +199,8 @@ If you are using PXF to read from a Hive table `STORED AS ORC` and one or more c
 
 The workaround described in this section applies when all of the following hold true:
 
-- The Greenplum Database PXF external table that you created specifies the `hive:orc` profile.
-- The Greenplum Database PXF external table that you created specifies the `VECTORIZE=false` (the default) setting.
+- The WarehousePG PXF external table that you created specifies the `hive:orc` profile.
+- The WarehousePG PXF external table that you created specifies the `VECTORIZE=false` (the default) setting.
 - There is a case mis-match between the column names specified in the Hive table schema and the column names specified in the ORC embedded schema.
 - You confirm that the field names in the ORC embedded schema are not all in lowercase by performing the following tasks:
     1. Run `DESC FORMATTED <table-name>` in the `hive` subsystem and note the returned `location`; for example, `location:hdfs://namenode/hive/warehouse/<table-name>`.
@@ -218,7 +218,7 @@ The workaround described in this section applies when all of the following hold 
 
 *To remedy this situation, perform the following procedure*:
 
-1. Log in to the Greenplum Database coordinator host.
+1. Log in to the WarehousePG coordinator host.
 
 1. Identify the name of your Hadoop PXF server configuration.
 
@@ -238,7 +238,7 @@ The workaround described in this section applies when all of the following hold 
     </property>
     ```
 
-1. Synchronize the PXF server configuration to your Greenplum Database cluster:
+1. Synchronize the PXF server configuration to your WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync

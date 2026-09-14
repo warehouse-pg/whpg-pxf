@@ -36,11 +36,11 @@ Apache Avro is a data serialization framework where the data is serialized in a 
 
 ### <a id="profile_hdfsavrodatamap"></a>Data Type Mapping
 
-The Avro specification defines [primitive](https://avro.apache.org/docs/current/spec.html#schema_primitive), [complex](https://avro.apache.org/docs/current/spec.html#schema_complex), and [logical](https://avro.apache.org/docs/current/spec.html#Logical+Types) types.
+The Avro specification defines [primitive](https://avro.apache.org/docs/1.11.4/specification/#primitive-types), [complex](https://avro.apache.org/docs/1.11.4/specification/#complex-types), and [logical](https://avro.apache.org/docs/1.11.4/specification/#logical-types) types.
 
-To represent Avro primitive data types and Avro arrays of primitive types in Greenplum Database, map data values to Greenplum Database columns of the same type. 
+To represent Avro primitive data types and Avro arrays of primitive types in WarehousePG, map data values to WarehousePG columns of the same type. 
 
-Avro supports other complex data types including arrays of non-primitive types, maps, records, enumerations, and fixed types. Map top-level fields of these complex data types to the Greenplum Database `text` type. While PXF does not natively support reading these types, you can create Greenplum Database functions or application code to extract or further process subcomponents of these complex data types.
+Avro supports other complex data types including arrays of non-primitive types, maps, records, enumerations, and fixed types. Map top-level fields of these complex data types to the WarehousePG `text` type. While PXF does not natively support reading these types, you can create WarehousePG functions or application code to extract or further process subcomponents of these complex data types.
 
 Avro supports logical data types including date, decimal, duration, time, timestamp, and uuid types.
 
@@ -50,7 +50,7 @@ Avro supports logical data types including date, decimal, duration, time, timest
 
 PXF uses the following data type mapping when reading Avro data:
 
-| Avro Data Type     | PXF/Greenplum Data Type    |
+| Avro Data Type     | PXF/WarehousePG Data Type    |
 |--------------------|----------------------------|
 | boolean | boolean |
 | bytes | bytea |
@@ -83,7 +83,7 @@ PXF uses the following data type mapping when writing Avro data:
 
 <a id="g2_type_mapping_table"></a>
 
-| PXF/Greenplum Data Type | Avro Data Type |
+| PXF/WarehousePG Data Type | Avro Data Type |
 |-------------------|----------------------|
 | bigint | long |
 | boolean | boolean |
@@ -103,7 +103,7 @@ PXF uses the following data type mapping when writing Avro data:
 | enum, record | string |
 
 </br><sup>1</sup>&nbsp;PXF right-pads <code>char[<i>n</i>]</code> types to length <code><i>n</i></code>, if required, with white space.
-</br><sup>2</sup>&nbsp;PXF converts Greenplum <code>smallint</code> types to <code>int</code> before it writes the Avro data. Be sure to read the field into an <code>int</code>.
+</br><sup>2</sup>&nbsp;PXF converts WarehousePG <code>smallint</code> types to <code>int</code> before it writes the Avro data. Be sure to read the field into an <code>int</code>.
 
 
 ### <a id="topic_tr3_dpg_ts__section_m2p_ztg_ts"></a>Avro Schemas and Data
@@ -123,15 +123,15 @@ You can specify an Avro schema on both read and write operations to HDFS. You ca
 | writable   | yes | PXF uses the specified schema. |
 | writable   | no | PXF creates the Avro schema based on the external table definition. |
 
-When you provide the Avro schema file to PXF, the file must reside in the same location on each Greenplum Database host **or** the file may reside on the Hadoop file system. PXF first searches for an absolute file path on the Greenplum hosts. If PXF does not find the schema file there, it searches for the file relative to the PXF classpath. If PXF cannot find the schema file locally, it searches for the file on HDFS.
+When you provide the Avro schema file to PXF, the file must reside in the same location on each WarehousePG host **or** the file may reside on the Hadoop file system. PXF first searches for an absolute file path on the WarehousePG hosts. If PXF does not find the schema file there, it searches for the file relative to the PXF classpath. If PXF cannot find the schema file locally, it searches for the file on HDFS.
 
-The `$PXF_BASE/conf` directory is in the PXF classpath. PXF can locate an Avro schema file that you add to this directory on every Greenplum Database host.
+The `$PXF_BASE/conf` directory is in the PXF classpath. PXF can locate an Avro schema file that you add to this directory on every WarehousePG host.
 
 See [Writing Avro Data](#topic_avro_writedata) for additional schema considerations when writing Avro data to HDFS.
 
 ## <a id="profile_cet"></a>Creating the External Table
 
-Use the `hdfs:avro` profile to read or write Avro-format data in HDFS. The following syntax creates a Greenplum Database readable external table that references such a file:
+Use the `hdfs:avro` profile to read or write Avro-format data in HDFS. The following syntax creates a WarehousePG readable external table that references such a file:
 
 ``` sql
 CREATE [WRITABLE] EXTERNAL TABLE <table_name>
@@ -141,7 +141,7 @@ FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import'|'pxfwritable_export');
 [DISTRIBUTED BY (<column_name> [, ... ] ) | DISTRIBUTED RANDOMLY];
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -150,7 +150,7 @@ The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL
 | SERVER=\<server_name\>    | The named server configuration that PXF uses to access the data. PXF uses the `default` server if not specified. |
 | \<custom&#8209;option\>  | \<custom-option\>s are discussed below.|
 | FORMAT 'CUSTOM' | Use `FORMAT` '`CUSTOM`' with `(FORMATTER='pxfwritable_export')` (write) or `(FORMATTER='pxfwritable_import')` (read). |
-| DISTRIBUTED BY | If you want to load data from an existing Greenplum Database table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
+| DISTRIBUTED BY | If you want to load data from an existing WarehousePG table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
 
 <a id="customopts"></a>
 
@@ -164,7 +164,7 @@ The `hdfs:avro` profile supports the following \<custom-option\>s:
 | COLLECTION_DELIM | The delimiter character(s) placed between entries in a top-level array, map, or record field when PXF maps an Avro complex data type to a text column. The default is the comma (`,`) character. (Read)|
 | MAPKEY_DELIM | The delimiter character(s) placed between the key and value of a map entry when PXF maps an Avro complex data type to a text column. The default is the colon `:` character. (Read)|
 | RECORDKEY_DELIM | The delimiter character(s) placed between the field name and value of a record entry when PXF maps an Avro complex data type to a text column. The default is the colon `:` character. (Read)|
-| SCHEMA | The absolute path to the Avro schema file on the Greenplum host or on HDFS, or the relative path to the schema file on the host. (Read and Write)|
+| SCHEMA | The absolute path to the Avro schema file on the WarehousePG host or on HDFS, or the relative path to the schema file on the host. (Read and Write)|
 | IGNORE_MISSING_PATH | A Boolean value that specifies the action to take when \<path-to-hdfs-file\> is missing or invalid. The default value is `false`, PXF returns an error in this situation. When the value is `true`, PXF ignores missing path errors and returns an empty fragment. (Read) |
 
 The PXF `hdfs:avro` profile supports encoding- and compression-related write options. You specify these write options in the `CREATE WRITABLE EXTERNAL TABLE` `LOCATION` clause. The `hdfs:avro` profile supports the following custom write options:
@@ -285,7 +285,7 @@ Perform the following steps to create a sample Avro data file conforming to the 
 Perform the following operations to create and query an external table that references the `pxf_avro.avro` file that you added to HDFS in the previous section. When creating the table:
 
 -  Use the PXF default server.
--  Map the top-level primitive fields, `id` (type long) and `username` (type string), to their equivalent Greenplum Database types (bigint and text). 
+-  Map the top-level primitive fields, `id` (type long) and `username` (type string), to their equivalent WarehousePG types (bigint and text). 
 -  Map the `followers` field to a text array (text[]).
 -  Map the remaining complex fields to type text.
 -  Explicitly set the record, map, and collection delimiters using the `hdfs:avro` profile custom options.
@@ -333,7 +333,7 @@ The PXF HDFS connector `hdfs:avro` profile supports writing Avro data to HDFS. W
 
 When you create a writable external table to write data to an Avro file, each table row is an Avro record and each table column is an Avro field.
 
-If you do not specify a `SCHEMA` file, PXF generates a schema for the Avro file based on the Greenplum Database external table definition. PXF assigns the name of the external table column to the Avro field name. Because Avro has a `null` type and Greenplum external tables do not support the `NOT NULL` column qualifier, PXF wraps each data type in an Avro `union` of the mapped type and `null`. For example, for a writable external table column that you define with the Greenplum Database `text` data type, PXF generates the following schema element:
+If you do not specify a `SCHEMA` file, PXF generates a schema for the Avro file based on the WarehousePG external table definition. PXF assigns the name of the external table column to the Avro field name. Because Avro has a `null` type and WarehousePG external tables do not support the `NOT NULL` column qualifier, PXF wraps each data type in an Avro `union` of the mapped type and `null`. For example, for a writable external table column that you define with the WarehousePG `text` data type, PXF generates the following schema element:
 
 ``` pre
 ["string", "null"]
@@ -344,7 +344,7 @@ PXF returns an error if you provide a schema that does not include a `union` of 
 PXF supports writing only Avro primitive data types and Avro Arrays of the types identified in [Data Type Write Mapping](#datatype_map_Write). PXF does not support writing complex types to Avro:
 
 - When you specify a `SCHEMA` file in the `LOCATION`, the schema must include only primitive data types.
-- When PXF generates the schema, it writes any complex type that you specify in the writable external table column definition to the Avro file as a single Avro `string` type. For example, if you write an array of the Greenplum `numeric` type, PXF converts the array to a `string`, and you must read this data with a Greenplum `text`-type column.
+- When PXF generates the schema, it writes any complex type that you specify in the writable external table column definition to the Avro file as a single Avro `string` type. For example, if you write an array of the WarehousePG `numeric` type, PXF converts the array to a `string`, and you must read this data with a WarehousePG `text`-type column.
 
 
 ### <a id="topic_avrowrite_example"></a>Example: Writing Avro Data

@@ -50,9 +50,9 @@ The template configuration file for Google Cloud Storage is `<PXF_INSTALL_DIR>/t
 
 ## <a id="cfg_proc"></a>Example Server Configuration Procedure
 
-In this procedure, you name and add a PXF server configuration in the `$PXF_BASE/servers` directory on the Greenplum Database coordinator host for the Google Cloud Storate (GCS) connector. You then use the `pxf cluster sync` command to sync the server configuration(s) to the Greenplum Database cluster.
+In this procedure, you name and add a PXF server configuration in the `$PXF_BASE/servers` directory on the WarehousePG coordinator host for the Google Cloud Storate (GCS) connector. You then use the `pxf cluster sync` command to sync the server configuration(s) to the WarehousePG cluster.
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -93,7 +93,7 @@ In this procedure, you name and add a PXF server configuration in the `$PXF_BASE
     ```
 5. Save your changes and exit the editor.
 
-4. Use the `pxf cluster sync` command to copy the new server configurations to the Greenplum Database cluster:
+4. Use the `pxf cluster sync` command to copy the new server configurations to the WarehousePG cluster:
     
     ``` shell
     gpadmin@coordinator$ pxf cluster sync

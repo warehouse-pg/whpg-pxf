@@ -80,17 +80,17 @@ Perform the following steps to create an Oracle table named `countries` in the s
 
 You must create a JDBC server configuration for Oracle, download the Oracle driver JAR file to your system, copy the JAR file to the PXF user configuration directory, synchronize the PXF configuration, and then restart PXF.
 
-This procedure will typically be performed by the Greenplum Database administrator.
+This procedure will typically be performed by the WarehousePG administrator.
 
-1. Download the Oracle JDBC driver and place it under `$PXF_BASE/lib` of your Greenplum Database coordinator host. If you [relocated $PXF_BASE](about_pxf_dir.html#movebase), make sure you use the updated location. You can download a Oracle JDBC driver from your preferred download location. The following example places a driver downloaded from Oracle webiste under `$PXF_BASE/lib` of the Greenplum Database coordinator:
+1. Download the Oracle JDBC driver and place it under `$PXF_BASE/lib` of your WarehousePG coordinator host. If you [relocated $PXF_BASE](about_pxf_dir.html#movebase), make sure you use the updated location. You can download a Oracle JDBC driver from your preferred download location. The following example places a driver downloaded from Oracle webiste under `$PXF_BASE/lib` of the WarehousePG coordinator:
 
-    1. If you did not relocate `$PXF_BASE`, run the following from the Greenplum coordinator:
+    1. If you did not relocate `$PXF_BASE`, run the following from the WarehousePG coordinator:
 
         ```shell
         gpadmin@coordinator$ scp ojdbc10.jar gpadmin@coordinator:/usr/local/pxf-gp<version>/lib/
         ```
 
-    2. If you relocated `$PXF_BASE`, run the following from the Greenplum coordinator:
+    2. If you relocated `$PXF_BASE`, run the following from the WarehousePG coordinator:
 
         ```shell
         gpadmin@coordinator$ scp ojdbc10.jar gpadmin@coordinator:$PXF_BASE/lib/
@@ -131,7 +131,7 @@ This procedure will typically be performed by the Greenplum Database administrat
     </configuration>  
     ```
 
-3. Synchronize the PXF server configuration to the Greenplum Database cluster:
+3. Synchronize the PXF server configuration to the WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync

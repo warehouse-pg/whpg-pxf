@@ -2,18 +2,18 @@
 title: Installing Java for PXF
 ---
 
-PXF is a Java service. It requires a Java 8 or Java 11 installation on each Greenplum Database host.
+PXF is a Java service. It requires a Java 8 or Java 11 installation on each WarehousePG host.
 
 
 ## <a id="prereq"></a>Prerequisites
 
-Ensure that you have access to, or superuser permissions to install, Java 8 or Java 11 on each Greenplum Database host.
+Ensure that you have access to, or superuser permissions to install, Java 8 or Java 11 on each WarehousePG host.
 
 ## <a id="proc"></a>Procedure
 
-Perform the following procedure to install Java on the coordinator host, standby coordinator host, and on each segment host in your Greenplum Database cluster. You will use the `gpssh` utility where possible to run a command on multiple hosts.
+Perform the following procedure to install Java on the coordinator host, standby coordinator host, and on each segment host in your WarehousePG cluster. You will use the `gpssh` utility where possible to run a command on multiple hosts.
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -25,9 +25,9 @@ Perform the following procedure to install Java on the coordinator host, standby
     gpadmin@coordinator$ rpm -qa | grep java
     ```
 
-3. If the system does not include a Java version 8 or 11 installation, install one of these Java versions on the coordinator host, standby coordinator host, and on each Greenplum Database segment host.
+3. If the system does not include a Java version 8 or 11 installation, install one of these Java versions on the coordinator host, standby coordinator host, and on each WarehousePG segment host.
 
-    1. Create a text file that lists your Greenplum Database standby coordinator host and segment hosts, one host name per line. For example, a file named `gphostfile` may include:
+    1. Create a text file that lists your WarehousePG standby coordinator host and segment hosts, one host name per line. For example, a file named `gphostfile` may include:
 
         ``` pre
         coordinator

@@ -2,22 +2,17 @@
 title: Introduction to PXF
 ---
 
-The Greenplum Platform Extension Framework (PXF) provides *connectors* that enable you to access data stored in sources external to your Greenplum Database deployment. These connectors map an external data source to a Greenplum Database *external table* definition. When you create the Greenplum Database external table, you identify the external data store and the format of the data via a *server* name and a *profile* name that you provide in the command.
+**Note:** Official WarehousePG PXF documentation is being built at [https://warehouse-pg.io/pxf/6x/](https://warehouse-pg.io/pxf/6x/); this in-repo book remains the exhaustive reference during the migration.
 
-You can query the external table via Greenplum Database, leaving the referenced data in place. Or, you can use the external table to load the data into Greenplum Database for higher performance.
+The WarehousePG Platform Extension Framework (PXF) provides *connectors* that enable you to access data stored in sources external to your WarehousePG deployment. PXF for WarehousePG derives from the open-source Greenplum PXF project ([github.com/greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive)). These connectors map an external data source to a WarehousePG *external table* definition. When you create the WarehousePG external table, you identify the external data store and the format of the data via a *server* name and a *profile* name that you provide in the command.
+
+You can query the external table via WarehousePG, leaving the referenced data in place. Or, you can use the external table to load the data into WarehousePG for higher performance.
 
 ## <a id="suppplat"></a> Supported Platforms
 
 ### <a id="os"></a> Operating Systems
 
-PXF is compatible with these operating system platforms and Greenplum Database versions:
-
-| OS Version | Greenplum Version |
-|--------------|-----------------|
-| RHEL 7.x, CentOS 7.x | 5.21.2+, 6.x     |
-| OEL 7.x, Ubuntu 18.04 LTS | 6.x   |
-| RHEL 8.x | 6.20+, 7.x   |
-| RHEL 9.x | 6.26+   |
+PXF is compatible with WarehousePG 6 and WarehousePG 7. PXF runs on the operating system platforms that your WarehousePG version supports; refer to the [WarehousePG platform requirements](https://warehouse-pg.io/docs/6x/install_guide/platform-requirements.html) for the authoritative list.
 
 ### <a id="java"></a> Java
 
@@ -36,7 +31,7 @@ PXF bundles all of the Hadoop JAR files on which it depends, and supports the fo
 
 ## <a id="arch"></a> Architectural Overview
 
-Your Greenplum Database deployment consists of a coordinator host, a standby coordinator host, and multiple segment hosts. A single PXF Service process runs on each Greenplum Database host. The PXF Service process running on a segment host allocates a worker thread for each segment instance on the host that participates in a query against an external table. The PXF Services on multiple segment hosts communicate with the external data store in parallel. The PXF Service process running on the coordinator and standby coordinator hosts are not currently involved in data transfer; these processes may be used for other purposes in the future.
+Your WarehousePG deployment consists of a coordinator host, a standby coordinator host, and multiple segment hosts. A single PXF Service process runs on each WarehousePG host. The PXF Service process running on a segment host allocates a worker thread for each segment instance on the host that participates in a query against an external table. The PXF Services on multiple segment hosts communicate with the external data store in parallel. The PXF Service process running on the coordinator and standby coordinator hosts are not currently involved in data transfer; these processes may be used for other purposes in the future.
 
 
 ## <a id="more"></a> About Connectors, Servers, and Profiles
@@ -45,7 +40,7 @@ Your Greenplum Database deployment consists of a coordinator host, a standby coo
 
 A PXF *Server* is a named configuration for a connector. A server definition provides the information required for PXF to access an external data source. This configuration information is data-store-specific, and may include server location, access credentials, and other relevant properties.
 
-The Greenplum Database administrator will configure at least one server definition for each external data store that they will allow Greenplum Database users to access, and will publish the available server names as appropriate.
+The WarehousePG administrator will configure at least one server definition for each external data store that they will allow WarehousePG users to access, and will publish the available server names as appropriate.
 
 You specify a `SERVER=<server_name>` setting when you create the external table to identify the server configuration from which to obtain the configuration and credentials to access the external data store.
 
@@ -55,7 +50,7 @@ Finally, a PXF *profile* is a named mapping identifying a specific data format o
 
 ## <a id="create_external_table"></a>Creating an External Table
 
-PXF implements a Greenplum Database protocol named `pxf` that you can use to create an external table that references data in an external data store. The syntax for a [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command that specifies the `pxf` protocol follows:
+PXF implements a WarehousePG protocol named `pxf` that you can use to create an external table that references data in an external data store. The syntax for a [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command that specifies the `pxf` protocol follows:
 
 ``` sql
 CREATE [WRITABLE] EXTERNAL TABLE <table_name>

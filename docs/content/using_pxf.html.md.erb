@@ -21,13 +21,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Greenplum Platform Extension Framework (PXF) implements a protocol named `pxf` that you can use to create an external table that references data in an external data store. The PXF protocol and Java service are packaged as a Greenplum Database extension.
+The WarehousePG Platform Extension Framework (PXF) implements a protocol named `pxf` that you can use to create an external table that references data in an external data store. The PXF protocol and Java service are packaged as a WarehousePG extension.
 
 You must enable the PXF extension in each database in which you plan to use the framework to access external data. You must also explicitly `GRANT` permission to the `pxf` protocol to those users/roles who require access.
 
 ## <a id="enable-pxf-ext"></a>Enabling PXF in a Database
 
-You must explicitly register the PXF extension in each Greenplum Database in which you plan to use the extension. You must have Greenplum Database administrator privileges to register an extension.
+You must explicitly register the PXF extension in each WarehousePG database in which you plan to use the extension. You must have WarehousePG administrator privileges to register an extension.
 
 Perform the following procedure for **_each_** database in which you want to use PXF:
 
@@ -37,7 +37,7 @@ Perform the following procedure for **_each_** database in which you want to use
     gpadmin@coordinator$ psql -d <dbname> -U gpadmin
     ```
 
-2. Create the PXF extension. You must have Greenplum Database administrator privileges to create an extension. For example:
+2. Create the PXF extension. You must have WarehousePG administrator privileges to create an extension. For example:
 
     ``` sql
     dbname=# CREATE EXTENSION pxf;
@@ -48,7 +48,7 @@ Perform the following procedure for **_each_** database in which you want to use
 
 ## <a id="unreg-pxf-ext"></a>Unregistering PXF from a Database
 
-When you no longer want to use PXF on a specific database, you must explicitly drop the PXF extension for that database. You must have Greenplum Database administrator privileges to drop an extension.
+When you no longer want to use PXF on a specific database, you must explicitly drop the PXF extension for that database. You must have WarehousePG administrator privileges to drop an extension.
 
 1. Connect to the database as the `gpadmin` user:
 
@@ -67,7 +67,7 @@ When you no longer want to use PXF on a specific database, you must explicitly d
 
 ## <a id="access_pxf"></a>Granting a Role Access to PXF
 
-To read external data with PXF, you create an external table with the `CREATE EXTERNAL TABLE` command that specifies the `pxf` protocol. You must specifically grant `SELECT` permission to the `pxf` protocol to all non-`SUPERUSER` Greenplum Database roles that require such access.
+To read external data with PXF, you create an external table with the `CREATE EXTERNAL TABLE` command that specifies the `pxf` protocol. You must specifically grant `SELECT` permission to the `pxf` protocol to all non-`SUPERUSER` WarehousePG roles that require such access.
 
 To grant a specific role access to the `pxf` protocol, use the `GRANT` command. For example, to grant the role named `bill` read access to data referenced by an external table created with the `pxf` protocol:
 
@@ -75,7 +75,7 @@ To grant a specific role access to the `pxf` protocol, use the `GRANT` command. 
 GRANT SELECT ON PROTOCOL pxf TO bill;
 ```
 
-To write data to an external data store with PXF, you create an external table with the `CREATE WRITABLE EXTERNAL TABLE` command that specifies the `pxf` protocol. You must specifically grant `INSERT` permission to the `pxf` protocol to all non-`SUPERUSER` Greenplum Database roles that require such access. For example:
+To write data to an external data store with PXF, you create an external table with the `CREATE WRITABLE EXTERNAL TABLE` command that specifies the `pxf` protocol. You must specifically grant `INSERT` permission to the `pxf` protocol to all non-`SUPERUSER` WarehousePG roles that require such access. For example:
 
 ``` sql
 GRANT INSERT ON PROTOCOL pxf TO bill;
