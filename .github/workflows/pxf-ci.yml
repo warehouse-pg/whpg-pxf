@@ -3,8 +3,8 @@
 # Scope: fast, hermetic checks only (unit tests, compile signals, static
 # docs checks). Every job runs without secrets and is safe for fork PRs.
 # Cluster-level integration testing (databases, Hadoop stacks) is outside
-# the scope of this workflow, and nothing here builds, publishes, or
-# releases artifacts.
+# the scope of this workflow, and nothing here publishes or releases
+# artifacts — build outputs are transient to each job.
 #
 # Triggers:
 #   - pull_request / push to main, release-6.x

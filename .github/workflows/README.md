@@ -7,7 +7,8 @@
 Fast, hermetic verification for every pull request. All jobs run without
 secrets and are safe for fork PRs. Cluster-level integration testing
 (databases, Hadoop stacks) is outside the scope of this workflow, and
-nothing here builds, publishes, or releases artifacts.
+nothing here publishes or releases artifacts — build outputs are
+transient to each job.
 
 ### Jobs
 
@@ -88,21 +89,27 @@ tar xzf /tmp/jsystem-m2-6.0.01.tar.gz -C ~/.m2/repository
 
 ### Reproducing the jobs locally
 
+All commands run from the repository root (each recipe uses a subshell,
+so nothing changes your working directory), with `JDK8_HOME` and
+`JDK11_HOME` set to local JDK installations — the server build needs
+JDK 8 (it does not compile on newer JDKs) and the maven recipe runs on
+JDK 11:
+
 ```bash
-# server-unit
-cd server && ./gradlew test
+# server-unit (JDK 8)
+(cd server && JAVA_HOME=$JDK8_HOME ./gradlew test)
 
 # cli-test (bootstraps ginkgo into cli/bin itself)
 make -C cli test
 
 # automation-compile (the tree compiles against a few PXF server jars)
-cd server && ./gradlew jar
+(cd server && JAVA_HOME=$JDK8_HOME ./gradlew jar)
 mkdir -p /tmp/pxf-lib
 for jar in server/pxf-*/build/libs/pxf-*.jar; do
   name=$(basename "$jar"); cp "$jar" "/tmp/pxf-lib/${name%%-[0-9]*}.jar"
 done
 d=$(mktemp -d) && jar cf /tmp/pxf-lib/pxf-extras.jar -C "$d" .
-cd automation && mvn -B test-compile -Dpxf.lib=/tmp/pxf-lib
+(cd automation && JAVA_HOME=$JDK11_HOME mvn -B test-compile -Dpxf.lib=/tmp/pxf-lib)
 
 # docs-static-check
 bash .github/scripts/docs-linkcheck.bash

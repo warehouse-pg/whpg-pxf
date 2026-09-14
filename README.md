@@ -1,6 +1,6 @@
 [![PXF CI](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml/badge.svg)](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml)
 
-Every pull request runs the in-repository
+Pull requests targeting `main` run the in-repository
 [PXF CI](.github/workflows/README.md) workflow: unit tests, CLI tests, a
 compile check for the integration-test tree, and static docs checks.
 The legacy Concourse pipelines under `concourse/` are deprecated and retained
