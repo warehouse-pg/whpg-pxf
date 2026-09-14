@@ -120,6 +120,8 @@ make
 
 # Only run unit tests
 make test
+# (the same unit and CLI tests run automatically on every pull request
+#  via the PXF CI workflow — see .github/workflows/README.md)
 ```
 
 ## How to Install PXF

@@ -15,6 +15,11 @@ In order to run PXF automation tests the following are needed
 
 ## Build & Test
 
+> Note: this tree is compile-checked (`mvn test-compile`) on every pull
+> request by the [PXF CI](../.github/workflows/README.md) workflow's
+> `automation-compile` job. Running the tests themselves requires the full
+> environment described below.
+
 ### SSH Setup
 
 The PXF automation project uses an old SSH2 Java library that does not support newer key exchange algorithms (`KexAlgorithms`).
