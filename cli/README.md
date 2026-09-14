@@ -8,6 +8,9 @@
    ```
    make test
    ```
+   The same Ginkgo suites (`cmd` and the cluster-free `end_to_end`) also run
+   automatically on every pull request via the
+   [PXF CI](../.github/workflows/README.md) workflow's `cli-test` job.
 
 1. Build the CLI
    ```

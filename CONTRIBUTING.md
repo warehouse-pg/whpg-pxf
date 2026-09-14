@@ -31,6 +31,11 @@ for details.
 
 - Submit a pull request (PR).
 
+    - The [PXF CI](.github/workflows/README.md) workflow runs automatically
+      on pull requests targeting `main` (unit tests, CLI tests, a compile
+      check for the integration-test tree, and static docs checks) — please
+      keep it green.
+
     - Create a [pull request from your fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/.creating-a-pull-request-from-a-fork).
 
     - Address PR feedback with fixup and/or squash commits.

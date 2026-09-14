@@ -1,0 +1,307 @@
+# PXF CI — the pull-request verification gate.
+#
+# Scope: fast, hermetic checks only (unit tests, compile signals, static
+# docs checks). Every job runs without secrets and is safe for fork PRs.
+# Cluster-level integration testing (databases, Hadoop stacks) is outside
+# the scope of this workflow, and nothing here publishes or releases
+# artifacts — build outputs are transient to each job.
+#
+# Triggers:
+#   - pull_request / push to main, release-6.x
+#   - push to ci/** (opt-in CI on feature branches, no PR needed)
+#   - weekly schedule: same jobs as a rot-check on main AND release-6.x,
+#     plus a JDK 11 test lane for server-unit; failures open/update a
+#     GitHub issue labeled `ci-weekly-failure`
+#   - workflow_dispatch (optional tmate debug session on failure)
+#
+# See .github/workflows/README.md for the operating manual.
+
+name: PXF CI
+
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('[CI] PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title)
+      || format('[CI] {0}: {1}', github.ref_name, github.event_name) }}
+
+on:
+  pull_request:
+    branches: [main, release-6.x]
+  push:
+    # ci/** = opt-in CI for feature branches: push a branch named
+    # ci/<anything> and the full workflow runs without needing a PR.
+    branches: [main, release-6.x, 'ci/**']
+  schedule:
+    - cron: '0 3 * * 1'   # Mondays 03:00 UTC — weekly rot-check + cache warmth
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Start a tmate debug session if a job fails'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release-6.x' }}
+
+jobs:
+
+  # ---------------------------------------------------------------------
+  # server-unit: the full Java unit-test suite (~1,800 tests).
+  # Build and tests run on JDK 8 (the build's requirement); the weekly
+  # schedule adds a lane that executes the tests on JDK 11 — a supported
+  # production runtime (PXF runs on Java 8 or 11) that no other test
+  # execution exercises.
+  # ---------------------------------------------------------------------
+  server-unit:
+    name: server-unit${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}${{ matrix.test-java != '8' && format(' [test-jdk{0}]', matrix.test-java) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20   # generous headroom over the measured cold baseline (4m36s)
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
+        test-java: ${{ github.event_name == 'schedule' && fromJSON('["8", "11"]') || fromJSON('["8"]') }}
+        exclude:
+          # The JDK 11 test lane needs the testJvm hook in server/build.gradle,
+          # which release-6.x does not carry. Drop this exclude if/when that
+          # change is backported; without it the lane would silently run the
+          # tests on JDK 8 while claiming JDK 11.
+          - ref: release-6.x
+            test-java: '11'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-java@v4
+        if: matrix.test-java == '11'
+        with:
+          distribution: temurin
+          java-version: '11'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+      # Explicit gradle cache instead of setup-java's built-in one: this job
+      # is the SINGLE WRITER of the gradle cache key. automation-compile
+      # restores the same key read-only — its build dependencies are a subset
+      # of the test dependencies warmed here — so a faster-finishing
+      # automation-compile can never pin a half-warmed cache under the
+      # immutable key.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle', 'server/gradle.properties', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+      - name: Run unit tests
+        run: |
+          cd server
+          if [ "${{ matrix.test-java }}" = "11" ]; then
+            # Fails loudly if the JDK 11 toolchain is missing, and puts the
+            # actual test JVM version in the log.
+            "$JAVA_HOME_11_X64/bin/java" -version
+            ./gradlew --no-daemon test "-PtestJvm=$JAVA_HOME_11_X64"
+          else
+            ./gradlew --no-daemon test
+          fi
+      - name: Upload test results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: server-unit-test-results${{ matrix.ref && format('-{0}', matrix.ref) || '' }}-jdk${{ matrix.test-java }}
+          path: server/*/build/test-results/test/
+          if-no-files-found: ignore
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### server-unit (${{ job.status }})"
+            if compgen -G "server/*/build/test-results/test/*.xml" > /dev/null; then
+              awk -F'"' '
+                /<testsuite[ >]/ {
+                  for (i = 1; i < NF; i++) {
+                    if ($i ~ /tests=$/)    t += $(i+1)
+                    if ($i ~ /failures=$/) f += $(i+1)
+                    if ($i ~ /errors=$/)   e += $(i+1)
+                    if ($i ~ /skipped=$/)  s += $(i+1)
+                  }
+                }
+                END { printf "%d tests, %d failures, %d errors, %d skipped\n", t, f, e, s }
+              ' server/*/build/test-results/test/*.xml
+            else
+              echo "no test results found"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Debug session (dispatch-only, opt-in)
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113   # v3.24
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled
+
+  # ---------------------------------------------------------------------
+  # cli-test: Ginkgo suites for the Go CLI (unit + cluster-free
+  # end-to-end). `make test` bootstraps ginkgo into cli/bin itself.
+  # ---------------------------------------------------------------------
+  cli-test:
+    name: cli-test${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10   # generous headroom over the measured cold baseline (1m14s)
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - run: make -C cli test
+      - name: Job summary
+        if: always()
+        run: echo "### cli-test (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # automation-compile: proves the integration-test tree compiles and its
+  # dependencies resolve. A COMPILE signal only — executing these tests
+  # needs a full database + Hadoop environment and happens elsewhere.
+  # The tree compiles against a handful of PXF server jars (system-scope
+  # dependencies), so those are built first with gradle under JDK 8;
+  # maven then compiles the tree under JDK 11 (its real toolchain).
+  # ---------------------------------------------------------------------
+  automation-compile:
+    name: automation-compile${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # generous headroom over the measured cold baseline (2m53s)
+    strategy:
+      fail-fast: false
+      matrix:
+        # Weekly runs check main only: release-6.x's pom still resolves the
+        # jsystem test-framework artifacts through a retired, credentialed
+        # artifact registry, so the tree cannot compile on a plain runner
+        # there. Add release-6.x here once its pom resolves from public
+        # repositories the way main's does.
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+      # Restore-only: server-unit is the single writer of this key (see the
+      # comment there). This job's gradle needs are a subset of what
+      # server-unit warms, so it borrows that cache and never saves a
+      # partial one.
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle', 'server/gradle.properties', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+      - name: Build the PXF server jars the automation tree compiles against
+        run: |
+          cd server && ./gradlew --no-daemon jar
+          lib_dir="$RUNNER_TEMP/pxf-lib"
+          mkdir -p "$lib_dir"
+          for jar in pxf-*/build/libs/pxf-*.jar; do
+            name=$(basename "$jar")
+            cp "$jar" "$lib_dir/${name%%-[0-9]*}.jar"
+          done
+          # pxf-extras is an optional MapR-era shim; an empty jar satisfies
+          # the pom (same trick automation/Makefile uses).
+          tmp_dir=$(mktemp -d)
+          jar cf "$lib_dir/pxf-extras.jar" -C "$tmp_dir" .
+          ls -l "$lib_dir"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+      # The org.jsystemtest artifacts (the test framework the automation
+      # tree is built on) were never published to Maven Central, and their
+      # only public host (maven.top-q.co.il) intermittently blocks CI
+      # providers. A mirrored copy lives in this repository's
+      # jsystem-deps-* release; seed it into the local maven repository so
+      # resolution never depends on that host. Bump procedure in the
+      # release notes.
+      - name: Seed the vendored JSystem artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download jsystem-deps-6.0.01 \
+            -R "$GITHUB_REPOSITORY" \
+            -p 'jsystem-m2-*.tar.gz' -D "$RUNNER_TEMP" --clobber
+          mkdir -p ~/.m2/repository
+          tar xzf "$RUNNER_TEMP"/jsystem-m2-*.tar.gz -C ~/.m2/repository
+      - name: Compile the automation tree
+        env:
+          # release-6.x's pom still declares a Google artifact-registry
+          # repository; this stops its wagon plugin from probing for GCE
+          # credentials (same env automation/Makefile sets). No-op on main.
+          NO_GCE_CHECK: 'true'
+        run: cd automation && mvn -B test-compile -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
+      - name: Job summary
+        if: always()
+        run: echo "### automation-compile (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # docs-static-check: static link/anchor integrity for the docs book and
+  # the top-level markdown files. Cheap enough to run on every event.
+  # ---------------------------------------------------------------------
+  docs-static-check:
+    name: docs-static-check${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5    # the sweep itself takes ~10s; checkout dominates
+    strategy:
+      fail-fast: false
+      matrix:
+        # Weekly runs check main only: the sweep script ships on main.
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - run: bash .github/scripts/docs-linkcheck.bash
+      - name: Job summary
+        if: always()
+        run: echo "### docs-static-check (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # weekly-failure-issue: scheduled failures block nobody's PR, so they
+  # are otherwise silent. Open (or update) a labeled issue on red.
+  # ---------------------------------------------------------------------
+  weekly-failure-issue:
+    name: weekly-failure-issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [server-unit, cli-test, automation-compile, docs-static-check]
+    if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update the weekly-failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create ci-weekly-failure --repo "$GITHUB_REPOSITORY" \
+            --description "A scheduled CI run failed" --color B60205 --force
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label ci-weekly-failure --state open \
+            --json number --jq '.[0].number // empty')
+          body="A scheduled PXF CI run failed: $RUN_URL"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Weekly scheduled CI run is failing" \
+              --label ci-weekly-failure --body "$body"
+          fi

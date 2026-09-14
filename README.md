@@ -1,5 +1,8 @@
-PXF is built and certified through GitHub Actions packaging and release
-workflows maintained by EDB; in-repository CI for pull requests is planned.
+[![PXF CI](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml/badge.svg)](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml)
+
+Pull requests targeting `main` run the in-repository
+[PXF CI](.github/workflows/README.md) workflow: unit tests, CLI tests, a
+compile check for the integration-test tree, and static docs checks.
 The legacy Concourse pipelines under `concourse/` are deprecated and retained
 for historical reference only.
 
@@ -117,6 +120,8 @@ make
 
 # Only run unit tests
 make test
+# (the same unit and CLI tests run automatically on every pull request
+#  via the PXF CI workflow — see .github/workflows/README.md)
 ```
 
 ## How to Install PXF
