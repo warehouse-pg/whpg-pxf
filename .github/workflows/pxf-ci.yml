@@ -84,7 +84,19 @@ jobs:
         with:
           distribution: temurin
           java-version: '8'
-          cache: gradle
+      # Explicit gradle cache instead of setup-java's built-in one: this job
+      # is the SINGLE WRITER of the gradle cache key. automation-compile
+      # restores the same key read-only — its build dependencies are a subset
+      # of the test dependencies warmed here — so a faster-finishing
+      # automation-compile can never pin a half-warmed cache under the
+      # immutable key.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle', 'server/gradle.properties', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
       - name: Run unit tests
         run: |
           cd server
@@ -182,7 +194,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '8'
-          cache: gradle
+      # Restore-only: server-unit is the single writer of this key (see the
+      # comment there). This job's gradle needs are a subset of what
+      # server-unit warms, so it borrows that cache and never saves a
+      # partial one.
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle', 'server/gradle.properties', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
       - name: Build the PXF server jars the automation tree compiles against
         run: |
           cd server && ./gradlew --no-daemon jar
