@@ -64,13 +64,6 @@ jobs:
       matrix:
         ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
         test-java: ${{ github.event_name == 'schedule' && fromJSON('["8", "11"]') || fromJSON('["8"]') }}
-        exclude:
-          # The JDK 11 test lane needs the testJvm hook in server/build.gradle,
-          # which release-6.x does not carry. Drop this exclude if/when that
-          # change is backported; without it the lane would silently run the
-          # tests on JDK 8 while claiming JDK 11.
-          - ref: release-6.x
-            test-java: '11'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -180,12 +173,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Weekly runs check main only: release-6.x's pom still resolves the
-        # jsystem test-framework artifacts through a retired, credentialed
-        # artifact registry, so the tree cannot compile on a plain runner
-        # there. Add release-6.x here once its pom resolves from public
-        # repositories the way main's does.
-        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -242,9 +230,9 @@ jobs:
           tar xzf "$RUNNER_TEMP"/jsystem-m2-*.tar.gz -C ~/.m2/repository
       - name: Compile the automation tree
         env:
-          # release-6.x's pom still declares a Google artifact-registry
-          # repository; this stops its wagon plugin from probing for GCE
-          # credentials (same env automation/Makefile sets). No-op on main.
+          # Kept for older checkouts whose pom still declared a Google
+          # artifact-registry repository; a harmless no-op now that both
+          # branches resolve from public repositories.
           NO_GCE_CHECK: 'true'
         run: cd automation && mvn -B test-compile -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
       - name: Job summary
@@ -262,8 +250,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Weekly runs check main only: the sweep script ships on main.
-        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
     steps:
       - uses: actions/checkout@v4
         with:
