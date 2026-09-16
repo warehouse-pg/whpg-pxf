@@ -38,10 +38,30 @@ burn; watch the measured times above for drift.
 Concurrency: for every ref except `main` and `release-6.x`, a newer run
 cancels an in-progress one.
 
-> Note for this branch (`release-6.x`): the weekly schedule only fires
-> from the repository's default branch, so the schedule trigger in this
-> branch's copy of the workflow is inert — main's weekly lane checks out
-> and tests `release-6.x` explicitly.
+### Which copy of this workflow runs?
+
+This workflow exists on both `main` and `release-6.x`. Event-driven
+triggers always use the copy on the branch involved; only the weekly
+schedule is centralized, because GitHub evaluates `schedule:` triggers
+solely on the repository's default branch — a schedule block on any
+other branch is inert.
+
+```
+EVENT                          WHICH COPY RUNS?
+─────────────────────────────  ─────────────────────────────────────
+PR → main                      main's copy          ← self-contained
+push to main                   main's copy          ← self-contained
+PR → release-6.x               release-6.x's copy   ← self-contained
+push to release-6.x            release-6.x's copy   ← self-contained
+
+Monday 03:00 UTC (schedule)    main's copy — the only option there is
+                                 ├── leg: checkout main        → test it
+                                 └── leg: checkout release-6.x → test it
+```
+
+That is why enabling or excluding a weekly leg for release-6.x is an
+edit to main's copy of this file, even though the sources being tested
+are release-6.x's.
 
 ### The weekly lane
 
@@ -65,9 +85,7 @@ caches warm (GitHub evicts caches unused for ~7 days).
 
 All four jobs (and the JDK 11 lane) run against both branches — the
 prerequisites (the `testJvm` hook, a pom that resolves from public
-repositories, and the sweep script) ship with this branch; the matrix
-entries that enable the release-6.x legs take effect on main via the
-companion change there.
+repositories, and the sweep script) exist on both branches.
 
 ### Caches
 
