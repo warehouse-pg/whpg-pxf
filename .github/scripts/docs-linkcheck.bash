@@ -154,10 +154,14 @@ for page in "${erb_pages[@]}"; do
   html_name="$(basename "$page" .md.erb)"      # e.g. cfg_server.html
   case " $ORPHAN_ALLOWLIST " in *" $html_name "*) continue ;; esac
   case " $subnav_pages " in *" $html_name "*) continue ;; esac
+  # Escape regex metacharacters (the '.' in '.html') before interpolating
+  # into the pattern — unescaped, a near-matching string in another page
+  # (e.g. 'cfg_serverXhtml') would falsely mark a real orphan as linked.
+  html_esc=$(printf '%s' "$html_name" | sed 's/[.[\*^$]/\\&/g')
   linked=0
   for other in "${erb_pages[@]}"; do
     [ "$other" = "$page" ] && continue
-    if grep -qE "\]\(([^)]*/)?$html_name(#[^)]*)?\)" "$other"; then
+    if grep -qE "\]\(([^)]*/)?${html_esc}(#[^)]*)?\)" "$other"; then
       linked=1
       break
     fi

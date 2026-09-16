@@ -14,7 +14,7 @@ transient to each job.
 
 | Job | What it runs | Toolchain | Measured time (cold / warm cache) |
 |---|---|---|---|
-| `server-unit` | The full Java unit-test suite (`./gradlew test` from `server/`, ~1,840 tests) | Temurin JDK 8 (the build requires it) | 4m36s / ~3m40s |
+| `server-unit` | The full Java unit-test suite (`./gradlew test` from `server/`) | Temurin JDK 8 (the build requires it) | 4m36s / ~3m40s |
 | `cli-test` | The Go CLI Ginkgo suites, including the cluster-free end-to-end suite (`make -C cli test`) | Go (version from `cli/go.mod`) | 1m14s / ~25s |
 | `automation-compile` | Proves the integration-test tree compiles and its dependencies resolve (`mvn test-compile` from `automation/`). A compile signal only — executing those tests needs a full database + Hadoop environment, so they are not run here | JDK 8 (to build the PXF server jars the tree compiles against) + JDK 11 for maven | 2m53s / ~1m30s |
 | `docs-static-check` | `.github/scripts/docs-linkcheck.bash`: static link/anchor integrity for the docs book and top-level markdown (cross-page links and anchors, in-page fragments, subnav targets, orphan pages) | bash | ~10s |
@@ -29,7 +29,7 @@ burn; watch the measured times above for drift.
 
 | Trigger | What runs |
 |---|---|
-| `pull_request` → `main`, `release-6.x` | All four jobs. (PRs targeting `release-6.x` run the gate once this workflow is present on that branch.) |
+| `pull_request` → `main`, `release-6.x` | All four jobs (each branch runs its own copy of this workflow) |
 | `push` → `main`, `release-6.x` | All four jobs (not cancelled by newer pushes) |
 | `push` → `ci/**` | All four jobs — **opt-in CI for feature branches**: push any branch named `ci/<something>` to get full CI without opening a PR |
 | `schedule` (Mondays 03:00 UTC) | The weekly lane, see below |
@@ -63,13 +63,11 @@ caches warm (GitHub evicts caches unused for ~7 days).
   `ci-weekly-failure` — scheduled failures block nobody's PR and would
   otherwise go unnoticed.
 
-Current matrix exclusions, each with the reason in the workflow file:
-
-| Excluded | Why | Unblocks when |
-|---|---|---|
-| JDK 11 lane on `release-6.x` | that branch lacks the `testJvm` hook in `server/build.gradle`; the leg would silently run on JDK 8 | the hook is backported |
-| `automation-compile` on `release-6.x` | that branch's pom resolves the jsystem artifacts through a retired, credentialed artifact registry | its pom resolves from public repositories the way main's does |
-| `docs-static-check` on `release-6.x` | the sweep script ships on main | the script is backported |
+All four jobs (and the JDK 11 lane) run against both branches — the
+prerequisites (the `testJvm` hook, a pom that resolves from public
+repositories, and the sweep script) ship with this branch; the matrix
+entries that enable the release-6.x legs take effect on main via the
+companion change there.
 
 ### Caches
 
