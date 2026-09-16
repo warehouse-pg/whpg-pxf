@@ -7,8 +7,7 @@ Bookbinder is a Ruby gem that binds together a unified documentation web applica
 This document provides instructions for building the PXF documentation on your local system. It includes the sections:
 
 * [About Bookbinder](#about)
-* [Prerequisites](#prereq)
-* [Building the Documentation](#building)
+* [Building the Documentation](#building_docker)
 * [Getting More Information](#moreinfo)
 
 
