@@ -38,6 +38,31 @@ burn; watch the measured times above for drift.
 Concurrency: for every ref except `main` and `release-6.x`, a newer run
 cancels an in-progress one.
 
+### Which copy of this workflow runs?
+
+This workflow exists on both `main` and `release-6.x`. Event-driven
+triggers always use the copy on the branch involved; only the weekly
+schedule is centralized, because GitHub evaluates `schedule:` triggers
+solely on the repository's default branch — a schedule block on any
+other branch is inert.
+
+```
+EVENT                          WHICH COPY RUNS?
+─────────────────────────────  ─────────────────────────────────────
+PR → main                      main's copy          ← self-contained
+push to main                   main's copy          ← self-contained
+PR → release-6.x               release-6.x's copy   ← self-contained
+push to release-6.x            release-6.x's copy   ← self-contained
+
+Monday 03:00 UTC (schedule)    main's copy — the only option there is
+                                 ├── leg: checkout main        → test it
+                                 └── leg: checkout release-6.x → test it
+```
+
+That is why enabling or excluding a weekly leg for release-6.x is an
+edit to main's copy of this file, even though the sources being tested
+are release-6.x's.
+
 ### The weekly lane
 
 Scheduled runs exist to catch rot that PR traffic doesn't: broken
@@ -60,8 +85,7 @@ caches warm (GitHub evicts caches unused for ~7 days).
 
 All four jobs (and the JDK 11 lane) run against both branches — the
 prerequisites (the `testJvm` hook, a pom that resolves from public
-repositories, and the sweep script) exist on `release-6.x` since the
-workflow was backported there.
+repositories, and the sweep script) exist on both branches.
 
 ### Caches
 
