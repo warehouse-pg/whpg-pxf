@@ -135,7 +135,7 @@ Note: If you get an error saying that the jar does not exist, ensure that you ha
 ### General Automation Architecture
 
 TestNG is a powerful Java testing framework very similar to junit which supports several features like grouping, parallel run and test events listeners.
-You can read more about TestNG here <http://testng.org/doc/index.md>
+You can read more about TestNG here <https://testng.org/>
 
 ## Guidelines for creating a new test for PXF automation
 
@@ -312,7 +312,7 @@ In IntelliJ, create an `Automation Debug` configuration:
 There are 2 different JVMs running when automation tests. The first is the automation application itself that can be debugged. The second is the PXF server that the automation suite is testing.
 Setting the `PXF_TEST_DEBUG` flag in the automation app will also set the flag `PXF_DEBUG` to enable debugging of the PXF server itself if the automation restarts PXF server during some of the tests. This is done so that a debugger can be connected to a PXF server restarted by the automation tests.
 
-Follow the steps [here](https://github.com/greenplum-db/pxf#debugging-the-locally-running-instance-of-pxf-server-using-intellij) to set up a PXF server debug configuration if it is not already done.
+Follow the steps in the root [README.md](../README.md#debugging-the-locally-running-instance-of-pxf-server-using-intellij) to set up a PXF server debug configuration if it is not already done.
 
 1. Run automation with `PXF_TEST_DEBUG=true` to connect to the automation debug session.
 2. Attach to the automation debug session

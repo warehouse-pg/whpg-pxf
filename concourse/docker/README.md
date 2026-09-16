@@ -1,3 +1,5 @@
+> **⚠️ DEPRECATED.** This Concourse pipeline tooling targets infrastructure (`ci.ud.gpdb.pivotal.io`, `gs://data-gpdb-ud-*`, `gcr.io/data-gpdb-ud/*`) that is no longer accessible. It is retained as historical reference only.
+
 # Docker container for Greenplum development/testing
 
 ## Requirements

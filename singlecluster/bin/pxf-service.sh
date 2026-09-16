@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-############################
-# dov.dorin at gopivotal.com
-############################
-
 usage="Usage: `basename $0` <start|stop|restart|init|status> <node_id>"
 
 if [ $# -ne 2 ]; then

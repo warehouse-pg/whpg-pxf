@@ -1,3 +1,8 @@
+> **Note:** The `public-repo-1.hortonworks.com` URLs in the examples
+> below no longer resolve (the domain is gone). These scripts and their
+> instructions are retained as historical reference for how the
+> `singlecluster` tarballs were originally produced.
+
 # Tools
 
 ## Compress HDP

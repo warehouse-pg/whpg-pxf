@@ -1,3 +1,5 @@
+> **⚠️ DEPRECATED.** This Concourse pipeline tooling targets infrastructure (`ci.ud.gpdb.pivotal.io`, `gs://data-gpdb-ud-*`, `gcr.io/data-gpdb-ud/*`) that is no longer accessible. It is retained as historical reference only.
+
 # How to build development docker images locally
 
 Build the docker images on your local system. To build the following docker
