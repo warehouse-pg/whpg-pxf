@@ -91,11 +91,13 @@ repositories, and the sweep script) exist on both branches.
 
 The maven and go dependency trees are cached by `setup-java`/`setup-go`,
 keyed on the respective lockfiles/build files. The gradle cache uses
-explicit cache steps with a **single writer**: `server-unit` (which
-warms the fullest dependency set, build + test) both restores and
-saves; `automation-compile` restores the same key read-only, since its
+explicit cache steps with a **single writer**: the JDK 8 leg of
+`server-unit` (which warms the fullest dependency set, build + test)
+restores and saves; everything else — the weekly JDK 11 leg and
+`automation-compile` — restores the same key read-only, since their
 gradle needs are a subset — cache keys are immutable once saved, so a
-faster-finishing job must never pin a half-warmed cache. Note that
+faster-finishing job or matrix leg must never pin a half-warmed cache.
+Note that
 `pull_request` runs can only restore caches created in the target
 branch's scope, so a PR may start cold even when branch pushes were
 warm.
