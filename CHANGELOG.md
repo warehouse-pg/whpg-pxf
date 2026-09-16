@@ -1,5 +1,25 @@
 # Changelog
 
+Entries for 6.10.1 and earlier document the ancestral open-source Greenplum
+PXF project. PR links in those entries reference the original repository,
+which has been archived as
+[greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive), and
+may not resolve. Releases from 6.10.2 onward are cut from this repository.
+
+## 6.10.2
+
+### Enhancements:
+
+- Add support for the `timestamptz` type to the JDBC profile
+- Replace the ADL profile with the ABFSS profile, supporting Azure Data Lake Storage Gen2
+- Refactor position tracking for multi-line JSON files
+- Adjust PXF error handling when determining client disconnects
+
+### Library updates:
+
+- Bump Tomcat to 9.0.87
+- Bump Spring Framework to 5.3.33
+
 ## 6.10.1 (03/27/2024)
 
 ### Bug Fixes:
