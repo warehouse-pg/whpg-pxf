@@ -49,7 +49,7 @@ concurrency:
 jobs:
 
   # ---------------------------------------------------------------------
-  # server-unit: the full Java unit-test suite (~1,800 tests).
+  # server-unit: the full Java unit-test suite.
   # Build and tests run on JDK 8 (the build's requirement); the weekly
   # schedule adds a lane that executes the tests on JDK 11 — a supported
   # production runtime (PXF runs on Java 8 or 11) that no other test
@@ -64,13 +64,6 @@ jobs:
       matrix:
         ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
         test-java: ${{ github.event_name == 'schedule' && fromJSON('["8", "11"]') || fromJSON('["8"]') }}
-        exclude:
-          # The JDK 11 test lane needs the testJvm hook in server/build.gradle,
-          # which release-6.x does not carry. Drop this exclude if/when that
-          # change is backported; without it the lane would silently run the
-          # tests on JDK 8 while claiming JDK 11.
-          - ref: release-6.x
-            test-java: '11'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,13 +77,22 @@ jobs:
         with:
           distribution: temurin
           java-version: '8'
-      # Explicit gradle cache instead of setup-java's built-in one: this job
-      # is the SINGLE WRITER of the gradle cache key. automation-compile
-      # restores the same key read-only — its build dependencies are a subset
-      # of the test dependencies warmed here — so a faster-finishing
-      # automation-compile can never pin a half-warmed cache under the
-      # immutable key.
+      # Explicit gradle cache instead of setup-java's built-in one: the
+      # JDK 8 leg of this job is the SINGLE WRITER of the gradle cache key.
+      # Everything else — the weekly JDK 11 leg below and automation-compile —
+      # restores the same key read-only (their gradle needs are a subset of
+      # the test dependencies warmed here), so no faster-finishing job can
+      # pin a half-warmed cache under the immutable key.
       - uses: actions/cache@v4
+        if: matrix.test-java == '8'
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('server/**/*.gradle', 'server/gradle.properties', 'server/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+      - uses: actions/cache/restore@v4
+        if: matrix.test-java != '8'
         with:
           path: |
             ~/.gradle/caches
@@ -101,6 +103,11 @@ jobs:
         run: |
           cd server
           if [ "${{ matrix.test-java }}" = "11" ]; then
+            # Fail loudly if this ref lacks the testJvm hook — without it,
+            # gradle silently ignores the property and the tests would run
+            # on JDK 8 while this leg claims JDK 11.
+            grep -q "testJvm" build.gradle || {
+              echo "ERROR: server/build.gradle on this ref has no testJvm hook"; exit 1; }
             # Fails loudly if the JDK 11 toolchain is missing, and puts the
             # actual test JVM version in the log.
             "$JAVA_HOME_11_X64/bin/java" -version
@@ -180,12 +187,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Weekly runs check main only: release-6.x's pom still resolves the
-        # jsystem test-framework artifacts through a retired, credentialed
-        # artifact registry, so the tree cannot compile on a plain runner
-        # there. Add release-6.x here once its pom resolves from public
-        # repositories the way main's does.
-        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -242,9 +244,9 @@ jobs:
           tar xzf "$RUNNER_TEMP"/jsystem-m2-*.tar.gz -C ~/.m2/repository
       - name: Compile the automation tree
         env:
-          # release-6.x's pom still declares a Google artifact-registry
-          # repository; this stops its wagon plugin from probing for GCE
-          # credentials (same env automation/Makefile sets). No-op on main.
+          # Kept for older checkouts whose pom still declared a Google
+          # artifact-registry repository; a harmless no-op now that both
+          # branches resolve from public repositories.
           NO_GCE_CHECK: 'true'
         run: cd automation && mvn -B test-compile -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
       - name: Job summary
@@ -262,8 +264,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Weekly runs check main only: the sweep script ships on main.
-        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
     steps:
       - uses: actions/checkout@v4
         with:

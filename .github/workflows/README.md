@@ -14,7 +14,7 @@ transient to each job.
 
 | Job | What it runs | Toolchain | Measured time (cold / warm cache) |
 |---|---|---|---|
-| `server-unit` | The full Java unit-test suite (`./gradlew test` from `server/`, ~1,840 tests) | Temurin JDK 8 (the build requires it) | 4m36s / ~3m40s |
+| `server-unit` | The full Java unit-test suite (`./gradlew test` from `server/`) | Temurin JDK 8 (the build requires it) | 4m36s / ~3m40s |
 | `cli-test` | The Go CLI Ginkgo suites, including the cluster-free end-to-end suite (`make -C cli test`) | Go (version from `cli/go.mod`) | 1m14s / ~25s |
 | `automation-compile` | Proves the integration-test tree compiles and its dependencies resolve (`mvn test-compile` from `automation/`). A compile signal only — executing those tests needs a full database + Hadoop environment, so they are not run here | JDK 8 (to build the PXF server jars the tree compiles against) + JDK 11 for maven | 2m53s / ~1m30s |
 | `docs-static-check` | `.github/scripts/docs-linkcheck.bash`: static link/anchor integrity for the docs book and top-level markdown (cross-page links and anchors, in-page fragments, subnav targets, orphan pages) | bash | ~10s |
@@ -29,7 +29,7 @@ burn; watch the measured times above for drift.
 
 | Trigger | What runs |
 |---|---|
-| `pull_request` → `main`, `release-6.x` | All four jobs. (PRs targeting `release-6.x` run the gate once this workflow is present on that branch.) |
+| `pull_request` → `main`, `release-6.x` | All four jobs (each branch runs its own copy of this workflow) |
 | `push` → `main`, `release-6.x` | All four jobs (not cancelled by newer pushes) |
 | `push` → `ci/**` | All four jobs — **opt-in CI for feature branches**: push any branch named `ci/<something>` to get full CI without opening a PR |
 | `schedule` (Mondays 03:00 UTC) | The weekly lane, see below |
@@ -37,6 +37,31 @@ burn; watch the measured times above for drift.
 
 Concurrency: for every ref except `main` and `release-6.x`, a newer run
 cancels an in-progress one.
+
+### Which copy of this workflow runs?
+
+This workflow exists on both `main` and `release-6.x`. Event-driven
+triggers always use the copy on the branch involved; only the weekly
+schedule is centralized, because GitHub evaluates `schedule:` triggers
+solely on the repository's default branch — a schedule block on any
+other branch is inert.
+
+```
+EVENT                          WHICH COPY RUNS?
+─────────────────────────────  ─────────────────────────────────────
+PR → main                      main's copy          ← self-contained
+push to main                   main's copy          ← self-contained
+PR → release-6.x               release-6.x's copy   ← self-contained
+push to release-6.x            release-6.x's copy   ← self-contained
+
+Monday 03:00 UTC (schedule)    main's copy — the only option there is
+                                 ├── leg: checkout main        → test it
+                                 └── leg: checkout release-6.x → test it
+```
+
+That is why enabling or excluding a weekly leg for release-6.x is an
+edit to main's copy of this file, even though the sources being tested
+are release-6.x's.
 
 ### The weekly lane
 
@@ -58,23 +83,21 @@ caches warm (GitHub evicts caches unused for ~7 days).
   `ci-weekly-failure` — scheduled failures block nobody's PR and would
   otherwise go unnoticed.
 
-Current matrix exclusions, each with the reason in the workflow file:
-
-| Excluded | Why | Unblocks when |
-|---|---|---|
-| JDK 11 lane on `release-6.x` | that branch lacks the `testJvm` hook in `server/build.gradle`; the leg would silently run on JDK 8 | the hook is backported |
-| `automation-compile` on `release-6.x` | that branch's pom resolves the jsystem artifacts through a retired, credentialed artifact registry | its pom resolves from public repositories the way main's does |
-| `docs-static-check` on `release-6.x` | the sweep script ships on main | the script is backported |
+All four jobs (and the JDK 11 lane) run against both branches — the
+prerequisites (the `testJvm` hook, a pom that resolves from public
+repositories, and the sweep script) exist on both branches.
 
 ### Caches
 
 The maven and go dependency trees are cached by `setup-java`/`setup-go`,
 keyed on the respective lockfiles/build files. The gradle cache uses
-explicit cache steps with a **single writer**: `server-unit` (which
-warms the fullest dependency set, build + test) both restores and
-saves; `automation-compile` restores the same key read-only, since its
+explicit cache steps with a **single writer**: the JDK 8 leg of
+`server-unit` (which warms the fullest dependency set, build + test)
+restores and saves; everything else — the weekly JDK 11 leg and
+`automation-compile` — restores the same key read-only, since their
 gradle needs are a subset — cache keys are immutable once saved, so a
-faster-finishing job must never pin a half-warmed cache. Note that
+faster-finishing job or matrix leg must never pin a half-warmed cache.
+Note that
 `pull_request` runs can only restore caches created in the target
 branch's scope, so a PR may start cold even when branch pushes were
 warm.
