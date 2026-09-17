@@ -12,19 +12,19 @@ title: About the Configuration Files
 
 ## <a id="chg_config"></a>Modifying the PXF Configuration
 
-When you update a PXF configuration file, you must synchronize the changes to all hosts in the Greenplum Database cluster and then restart PXF for the changes to take effect.
+When you update a PXF configuration file, you must synchronize the changes to all hosts in the WarehousePG cluster and then restart PXF for the changes to take effect.
 
 Procedure:
 
 1. Update the configuration file(s) of interest.
 
-1. Synchronize the PXF configuration to all hosts in the Greenplum Database cluster:
+1. Synchronize the PXF configuration to all hosts in the WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
 
-1. (Re)start PXF on all Greenplum hosts:
+1. (Re)start PXF on all WarehousePG hosts:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster restart
@@ -77,5 +77,5 @@ The [Logging](cfg_logging.html) advanced configuration topic describes how to en
 
 ## <a id="pxfprofiledef"></a>pxf-profiles.xml
 
-PXF defines its default profiles in the [`pxf-profiles-default.xml`](https://github.com/greenplum-db/pxf/blob/main/server/pxf-service/src/main/resources/pxf-profiles-default.xml) file. If you choose to add a custom profile, you configure the profile in `pxf-profiles.xml`.
+PXF defines its default profiles in the [`pxf-profiles-default.xml`](https://github.com/warehouse-pg/whpg-pxf/blob/release-6.x/server/pxf-service/src/main/resources/pxf-profiles-default.xml) file. If you choose to add a custom profile, you configure the profile in `pxf-profiles.xml`.
 

@@ -42,7 +42,7 @@ The PXF `<objstore>:SequenceFile` profiles support reading and writing binary da
 | MinIO    | s3 |
 | S3    | s3 |
 
-Use the following syntax to create a Greenplum Database external table that references an HDFS directory. When you insert records into a writable external table, the block(s) of data that you insert are written to one or more files in the directory that you specified.
+Use the following syntax to create a WarehousePG external table that references an HDFS directory. When you insert records into a writable external table, the block(s) of data that you insert are written to one or more files in the directory that you specified.
 
 ``` sql
 CREATE [WRITABLE] EXTERNAL TABLE <table_name> 
@@ -53,7 +53,7 @@ FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import'|'pxfwritable_export')
 [DISTRIBUTED BY (<column_name> [, ... ] ) | DISTRIBUTED RANDOMLY];
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -62,7 +62,7 @@ The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL
 | SERVER=\<server_name\>    | The named server configuration that PXF uses to access the data. |
 | \<custom&#8209;option\>=\<value\> | SequenceFile-specific custom options are described in the [PXF HDFS SequenceFile documentation](hdfs_seqfile.html#customopts). |
 | FORMAT 'CUSTOM' | Use `FORMAT` '`CUSTOM`' with `(FORMATTER='pxfwritable_export')` (write) or `(FORMATTER='pxfwritable_import')` (read). |
-| DISTRIBUTED BY    | If you want to load data from an existing Greenplum Database table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
+| DISTRIBUTED BY    | If you want to load data from an existing WarehousePG table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
 
 If you are accessing an S3 object store, you can provide S3 credentials via custom options in the `CREATE EXTERNAL TABLE` command as described in [Overriding the S3 Server Configuration with DDL](access_s3.html#s3_override).
 

@@ -2,7 +2,7 @@
 title: Reading a Multi-Line Text File into a Single Table Row
 ---
 
-You can use the PXF HDFS connector to read one or more multi-line text files in HDFS each as a single table row. This may be useful when you want to read multiple files into the same Greenplum Database external table, for example when individual JSON files each contain a separate record.
+You can use the PXF HDFS connector to read one or more multi-line text files in HDFS each as a single table row. This may be useful when you want to read multiple files into the same WarehousePG external table, for example when individual JSON files each contain a separate record.
 
 PXF supports reading only text and JSON files in this manner.
 
@@ -20,7 +20,7 @@ You can read single- and multi-line files into a single table row, including fil
 
 PXF reads the complete file data into a single row and column. When you create the external table to read multiple files, you must ensure that all of the files that you want to read are of the same (text or JSON) type. You must also specify a single `text` or `json` column, depending upon the file type.
 
-The following syntax creates a Greenplum Database readable external table that references one or more text or JSON files on HDFS:
+The following syntax creates a WarehousePG readable external table that references one or more text or JSON files on HDFS:
 
 ``` sql
 CREATE EXTERNAL TABLE <table_name>
@@ -29,7 +29,7 @@ CREATE EXTERNAL TABLE <table_name>
 FORMAT 'CSV');
 ```
 
-The keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -42,7 +42,7 @@ The keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](h
 
 **Note**: The `hdfs:text:multi` profile does not support additional custom or format options when you specify the `FILE_AS_ROW=true` option.
 
-For example, if `/data/pxf_examples/jdir` identifies an HDFS directory that contains a number of JSON files, the following statement creates a Greenplum Database external table that references all of the files in that directory:
+For example, if `/data/pxf_examples/jdir` identifies an HDFS directory that contains a number of JSON files, the following statement creates a WarehousePG external table that references all of the files in that directory:
 
 ``` sql
 CREATE EXTERNAL TABLE pxf_readjfiles(j1 json)
@@ -52,7 +52,7 @@ FORMAT 'CSV';
 
 When you query the `pxf_readjfiles` table with a `SELECT` statement, PXF returns the contents of each JSON file in `jdir/` as a separate row in the external table.
 
-When you read JSON files, you can use the JSON functions provided in Greenplum Database to access individual data fields in the JSON record. For example, if the `pxf_readjfiles` external table above reads a JSON file that contains this JSON record:
+When you read JSON files, you can use the JSON functions provided in WarehousePG to access individual data fields in the JSON record. For example, if the `pxf_readjfiles` external table above reads a JSON file that contains this JSON record:
 
 ``` json
 {
@@ -84,7 +84,7 @@ SELECT json_array_elements(j1->'root')->'record_obj'->'user'->'id'
 (1 rows)
 ```
 
-Refer to [Working with JSON Data](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/admin_guide-query-topics-json-data.html) in the Greenplum Documentation for specific information on manipulating JSON data in Greenplum.
+Refer to [Working with JSON Data](https://warehouse-pg.io/docs/6x/admin_guide/query/json-data.html) in the WarehousePG Documentation for specific information on manipulating JSON data in WarehousePG.
 
 
 ### <a id="example_fileasrow"></a>Example: Reading an HDFS Text File into a Single Table Row
@@ -142,7 +142,7 @@ Perform the following procedure to create 3 sample text files in an HDFS directo
     $ hdfs dfs -put /tmp/file3.txt /data/pxf_examples/tdir
     ```
 
-7. Log in to a Greenplum Database system and start the `psql` subsystem.
+7. Log in to a WarehousePG system and start the `psql` subsystem.
 
 8. Use the `hdfs:text:multi` profile to create an external table that references the `tdir` HDFS directory. For example:
 

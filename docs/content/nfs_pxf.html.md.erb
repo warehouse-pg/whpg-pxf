@@ -2,7 +2,7 @@
 title: Accessing Files on a Network File System
 ---
 
-You can use PXF to read data that resides on a network file system mounted on your Greenplum Database hosts. PXF supports reading and writing the following file types from a network file system:
+You can use PXF to read data that resides on a network file system mounted on your WarehousePG hosts. PXF supports reading and writing the following file types from a network file system:
 
 | File Type | Profile Name | Operations Supported |
 |-------------|--------------|------------|
@@ -25,27 +25,27 @@ PXF does not support user impersonation when you access a network file system. P
 Before you use PXF to access files on a network file system, ensure that:
 
 - You can identify the PXF runtime configuration directory (`$PXF_BASE`).
-- You have configured PXF, and PXF is running on each Greenplum Database host. See [Configuring PXF](instcfg_pxf.html) for additional information.
+- You have configured PXF, and PXF is running on each WarehousePG host. See [Configuring PXF](instcfg_pxf.html) for additional information.
 - All files are accessible by `gpadmin` or by the operating system user that started the PXF process.
-- The network file system is correctly mounted at the same local mount point on every Greenplum Database host.
+- The network file system is correctly mounted at the same local mount point on every WarehousePG host.
 - You can identify the mount or share point of the network file system.
 - You have created one or more named PXF server configurations as described in [Configuring a PXF Network File System Server](#ex_fscfg).
 
 ## <a id="ex_fscfg"></a>Configuring a PXF Network File System Server
 
-Before you use PXF to access a file on a network file system, you must create a server configuration and then synchronize the PXF configuration to all Greenplum hosts.  This procedure will typically be performed by the Greenplum Database administrator.
+Before you use PXF to access a file on a network file system, you must create a server configuration and then synchronize the PXF configuration to all WarehousePG hosts.  This procedure will typically be performed by the WarehousePG administrator.
 
 Use the server template configuration file `<PXF_INSTALL_DIR>/templates/pxf-site.xml` when you configure a network file system server for PXF. This template file includes the mandatory property `pxf.fs.basePath` that you configure to identify the network file system share path. PXF considers the file path that you specify in a `CREATE EXTERNAL TABLE` `LOCATION` clause that uses this server to be relative to this share path.
 
 PXF does not support user impersonation when you access a network file system; you must explicitly turn off user impersonation in a network file system server configuration.
 
-1. Log in to the Greenplum Database coordinator host:
+1. Log in to the WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
     ```
 
-2. Choose a name for the file system server. You will provide the name to Greenplum users that you choose to allow to read from or write to files on the network file system.
+2. Choose a name for the file system server. You will provide the name to WarehousePG users that you choose to allow to read from or write to files on the network file system.
 
     **Note**: The server name `default` is reserved.
 
@@ -82,7 +82,7 @@ PXF does not support user impersonation when you access a network file system; y
 
 6. Save your changes and exit the editor.
 
-7. Synchronize the PXF server configuration to the Greenplum Database cluster:
+7. Synchronize the PXF server configuration to the WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
@@ -90,7 +90,7 @@ PXF does not support user impersonation when you access a network file system; y
 
 ## <a id="queryextdata"></a>Creating the External Table
 
-The following syntax creates a Greenplum Database external table that references a file on a network file system. Use the appropriate `file:*` profile for the file type that you want to access.
+The following syntax creates a WarehousePG external table that references a file on a network file system. Use the appropriate `file:*` profile for the file type that you want to access.
 
 <pre>
 CREATE [READABLE | WRITABLE] EXTERNAL TABLE &lt;table_name>
@@ -100,7 +100,7 @@ FORMAT '[TEXT|CSV|CUSTOM]' (&lt;formatting-properties>);
 </pre>
 
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -115,7 +115,7 @@ The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL
 
 ## <a id="example_nfscsv"></a>Example: Reading From and Writing to a CSV File on a Network File System
 
-This example assumes that you have configured and mounted a network file system with the share point `/mnt/extdata/pxffs` on the Greenplum Database coordinator host, the standby coordinator host, and on each segment host.
+This example assumes that you have configured and mounted a network file system with the share point `/mnt/extdata/pxffs` on the WarehousePG coordinator host, the standby coordinator host, and on each segment host.
 
 In this example, you:
 

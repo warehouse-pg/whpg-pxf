@@ -35,7 +35,7 @@ The PXF HDFS connector `hdfs:SequenceFile` profile supports reading and writing 
 
 **Note**: External tables that you create with a writable profile can only be used for INSERT operations. If you want to query the data that you inserted, you must create a separate readable external table that references the HDFS directory.
 
-Use the following syntax to create a Greenplum Database external table that references an HDFS directory: 
+Use the following syntax to create a WarehousePG external table that references an HDFS directory: 
 
 ``` sql
 CREATE [WRITABLE] EXTERNAL TABLE <table_name> 
@@ -46,7 +46,7 @@ FORMAT 'CUSTOM' (<formatting-properties>)
 [DISTRIBUTED BY (<column_name> [, ... ] ) | DISTRIBUTED RANDOMLY];
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
@@ -55,7 +55,7 @@ The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL
 | SERVER=\<server_name\>    | The named server configuration that PXF uses to access the data. PXF uses the `default` server if not specified. |
 | \<custom&#8209;option\>  | \<custom-option\>s are described below.|
 | FORMAT | Use `FORMAT` '`CUSTOM`' with `(FORMATTER='pxfwritable_export')` (write) or `(FORMATTER='pxfwritable_import')` (read). |
-| DISTRIBUTED BY    | If you want to load data from an existing Greenplum Database table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
+| DISTRIBUTED BY    | If you want to load data from an existing WarehousePG table into the writable external table, consider specifying the same distribution policy or `<column_name>` on both tables. Doing so will avoid extra motion of data between segments on the load operation. |
 
 <a id="customopts"></a>
 SequenceFile format data can optionally employ record or block compression and a specific compression codec.
@@ -66,7 +66,7 @@ You specify the compression type and codec, and the Java serialization/deseriali
 
 | Option  | Value Description |
 |-------|-------------------------------------|
-| COMPRESSION_CODEC    | The compression codec alias. Supported compression codecs include: `default`, `bzip2`, `gzip`, and `uncompressed`. If this option is not provided, Greenplum Database performs no data compression. |
+| COMPRESSION_CODEC    | The compression codec alias. Supported compression codecs include: `default`, `bzip2`, `gzip`, and `uncompressed`. If this option is not provided, WarehousePG performs no data compression. |
 | COMPRESSION_TYPE    | The compression type to employ; supported values are `RECORD` (the default) or `BLOCK`. |
 | DATA_SCHEMA    | The name of the writer serialization/deserialization class. The jar file in which this class resides must be in the PXF classpath. This option is required for the `hdfs:SequenceFile` profile and has no default value. (**Note**: The equivalent option named `DATA-SCHEMA` is deprecated and may be removed in a future release.) |
 | IGNORE_MISSING_PATH | A Boolean value that specifies the action to take when \<path-to-hdfs-dir\> is missing or invalid. The default value is `false`, PXF returns an error in this situation. When the value is `true`, PXF ignores missing path errors and returns an empty fragment. |
@@ -202,13 +202,13 @@ Perform the following procedure to create the Java class and writable table.
 
     (Your Hadoop library classpath may differ.)
 
-3. Copy the `pxfex-customwritable.jar` file to the Greenplum Database coordinator host. For example:
+3. Copy the `pxfex-customwritable.jar` file to the WarehousePG coordinator host. For example:
 
     ``` shell
     $ scp pxfex-customwritable.jar gpadmin@coordinator:/home/gpadmin
     ```
 
-4. Log in to your Greenplum Database coordinator host:
+4. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -220,15 +220,15 @@ Perform the following procedure to create the Java class and writable table.
     gpadmin@coordinator$ cp /home/gpadmin/pxfex-customwritable.jar /usr/local/pxf-gp6/lib/pxfex-customwritable.jar
     ```
 
-5. Synchronize the PXF configuration to the Greenplum Database cluster:
+5. Synchronize the PXF configuration to the WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
 
-3. Restart PXF on each Greenplum Database host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
+3. Restart PXF on each WarehousePG host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
 
-5. Use the PXF `hdfs:SequenceFile` profile to create a Greenplum Database writable external table. Identify the serialization/deserialization Java class you created above in the `DATA_SCHEMA` \<custom-option\>. Use `BLOCK` mode compression with `bzip2` when you create the writable table.
+5. Use the PXF `hdfs:SequenceFile` profile to create a WarehousePG writable external table. Identify the serialization/deserialization Java class you created above in the `DATA_SCHEMA` \<custom-option\>. Use `BLOCK` mode compression with `bzip2` when you create the writable table.
 
     ``` sql
     postgres=# CREATE WRITABLE EXTERNAL TABLE pxf_tbl_seqfile (location text, month text, number_of_orders integer, total_sales real)
@@ -245,7 +245,7 @@ Perform the following procedure to create the Java class and writable table.
     postgres=# INSERT INTO pxf_tbl_seqfile VALUES ( 'Cleveland', 'Oct', 3812, 96645.37 );
     ```
 
-6. Recall that Greenplum Database does not support directly querying a writable external table. To read the data in `pxf_seqfile`, create a readable external Greenplum Database referencing this HDFS directory:
+6. Recall that WarehousePG does not support directly querying a writable external table. To read the data in `pxf_seqfile`, create a readable external WarehousePG referencing this HDFS directory:
 
     ``` sql
     postgres=# CREATE EXTERNAL TABLE read_pxf_tbl_seqfile (location text, month text, number_of_orders integer, total_sales real)
@@ -270,7 +270,7 @@ Perform the following procedure to create the Java class and writable table.
 
 ## <a id="read_recordkey"></a>Reading the Record Key
 
-When a Greenplum Database external table references SequenceFile or another data format that stores rows in a key-value format, you can access the key values in Greenplum queries by using the `recordkey` keyword as a field name.
+When a WarehousePG external table references SequenceFile or another data format that stores rows in a key-value format, you can access the key values in WarehousePG queries by using the `recordkey` keyword as a field name.
 
 The field type of `recordkey` must correspond to the key type, much as the other fields must match the HDFS data. 
 
@@ -284,7 +284,7 @@ You can define `recordkey` to be any of the following Hadoop types:
 -   LongWritable
 -   Text
 
-If no record key is defined for a row, Greenplum Database returns the id of the segment that processed the row.
+If no record key is defined for a row, WarehousePG returns the id of the segment that processed the row.
 
 
 ### <a id="read_recordkey_example"></a>Example: Using Record Keys

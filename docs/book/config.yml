@@ -1,4 +1,4 @@
-book_repo: greenplum-db/docs/book
+book_repo: warehouse-pg/whpg-pxf/docs/book
 
 public_host: localhost:9292
 
@@ -9,13 +9,13 @@ sections:
   subnav_template: pxf-subnav
 
 template_variables:
-  book_title: Greenplum Database PXF Documentation
-  book_title_short:  Greenplum Database PXF Docs
-  domain_name: greenplum.org
-  product_link: <div class="header-item"><a href="https://docs.greenplum.org">To Greenplum Database Docs</a></div>
-  product_url: https://greenplum.org
-  support_call_to_action: <a href="https://greenplum.org/community/" target="_blank">Need Support?</a>
-  support_link: <a href="https://github.com/greenplum-db/pxf/wiki">Wiki</a>
-  support_url: https://greenplum.org
+  book_title: WarehousePG PXF Documentation
+  book_title_short:  WarehousePG PXF Docs
+  domain_name: warehouse-pg.io
+  product_link: <div class="header-item"><a href="https://warehouse-pg.io/docs/6x/">To WarehousePG Docs</a></div>
+  product_url: https://warehouse-pg.io
+  support_call_to_action: <a href="https://github.com/warehouse-pg/whpg-pxf/issues" target="_blank">Need Support?</a>
+  support_link: <a href="https://github.com/warehouse-pg/whpg-pxf/issues">Issues</a>
+  support_url: https://warehouse-pg.io
 
 broken_link_exclusions: iefix|arrowhead

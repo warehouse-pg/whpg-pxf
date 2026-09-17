@@ -20,7 +20,7 @@ The default configuration for the PXF Service logs at the `info` and more severe
 
 You can change the PXF log directory if you choose.
 
-Client-level logging is managed by the Greenplum Database client; this topic details configuring logging for a `psql` client.
+Client-level logging is managed by the WarehousePG client; this topic details configuring logging for a `psql` client.
 
 Enabling more verbose service-level or client-level logging for PXF may aid troubleshooting efforts.
 
@@ -28,11 +28,11 @@ Enabling more verbose service-level or client-level logging for PXF may aid trou
 
 The default PXF logging configuration writes log messages to `$PXF_LOGDIR`, where the default log directory is `PXF_LOGDIR=$PXF_BASE/logs`.
 
-To change the PXF log directory, you must update the `$PXF_LOGDIR` property in the `pxf-env.sh` configuration file, synchronize the configuration change to the Greenplum Database cluster, and then restart PXF.
+To change the PXF log directory, you must update the `$PXF_LOGDIR` property in the `pxf-env.sh` configuration file, synchronize the configuration change to the WarehousePG cluster, and then restart PXF.
 
-**Note:** The new log directory must exist on all Greenplum Database hosts, and must be accessible by the `gpadmin` user.
+**Note:** The new log directory must exist on all WarehousePG hosts, and must be accessible by the `gpadmin` user.
 
-1. Log in to your Greenplum Database coordinator host:
+1. Log in to your WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -45,32 +45,32 @@ To change the PXF log directory, you must update the `$PXF_LOGDIR` property in t
     export PXF_LOGDIR="/new/log/dir"
     ```
 
-2. Use the `pxf cluster sync` command to copy the updated `pxf-env.sh` file to all hosts in the Greenplum Database cluster:
+2. Use the `pxf cluster sync` command to copy the updated `pxf-env.sh` file to all hosts in the WarehousePG cluster:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
 
-3. Restart PXF on each Greenplum Database host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
+3. Restart PXF on each WarehousePG host as described in [Restarting PXF](cfginitstart_pxf.html#restart_pxf).
 
 ## <a id="pxfsvclogmsg"></a>Configuring Service-Level Logging
 
 PXF utilizes Apache Log4j 2 for service-level logging. PXF Service-related log messages are captured in `$PXF_LOGDIR/pxf-app.out` and `$PXF_LOGDIR/pxf-service.log`. The default configuration for the PXF Service logs at the `info` and more severe levels.
 
-You can change the log level for the PXF Service on a single Greenplum Database host, or on all hosts in the Greenplum cluster.
+You can change the log level for the PXF Service on a single WarehousePG host, or on all hosts in the WarehousePG cluster.
 
 <div class="note"><b>Note:</b> PXF provides more detailed logging when the <code>debug</code> and <code>trace</code> log levels are enabled. Logging at these levels is quite verbose, and has both a performance and a storage impact. Be sure to turn it off after you have collected the desired information.</div>
 
 ### <a id="cfg_host"></a>Configuring for a Specific Host
 
-You can change the log level for the PXF Service running on a specific Greenplum Database host in two ways:
+You can change the log level for the PXF Service running on a specific WarehousePG host in two ways:
 
 - Setting the `PXF_LOG_LEVEL` environment variable on the `pxf restart` command line.
 - Setting the log level via a property update.
 
 **Procedure**:
 
-1. Log in to the Greenplum Database host:
+1. Log in to the WarehousePG host:
 
     ``` shell
     $ ssh gpadmin@<gphost>
@@ -117,9 +117,9 @@ You can change the log level for the PXF Service running on a specific Greenplum
 
 ### <a id="cfg_cluster"></a>Configuring for the Cluster
 
-To change the log level for the PXF service running on every host in the Greenplum Database cluster:
+To change the log level for the PXF service running on every host in the WarehousePG cluster:
 
-1. Log in to the Greenplum Database coordinator host:
+1. Log in to the WarehousePG coordinator host:
 
     ``` shell
     $ ssh gpadmin@<coordinator>
@@ -131,13 +131,13 @@ To change the log level for the PXF service running on every host in the Greenpl
     pxf.log.level=debug
     ```
 
-1. Use the `pxf cluster sync` command to copy the updated `pxf-application.properties` file to all hosts in the Greenplum Database cluster. For example:
+1. Use the `pxf cluster sync` command to copy the updated `pxf-application.properties` file to all hosts in the WarehousePG cluster. For example:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster sync
     ```
 
-1.  Restart PXF on each Greenplum Database host:
+1.  Restart PXF on each WarehousePG host:
 
     ``` shell
     gpadmin@coordinator$ pxf cluster restart
@@ -152,7 +152,7 @@ To change the log level for the PXF service running on every host in the Greenpl
 
 Database-level client session logging may provide insight into internal PXF Service operations.
 
-Enable Greenplum Database client debug message logging by setting the `client_min_messages` server configuration parameter to `DEBUG2` in your `psql` session. This logging configuration writes messages to `stdout`, and will apply to all operations that you perform in the session, including operations on PXF external tables. For example:
+Enable WarehousePG client debug message logging by setting the `client_min_messages` server configuration parameter to `DEBUG2` in your `psql` session. This logging configuration writes messages to `stdout`, and will apply to all operations that you perform in the session, including operations on PXF external tables. For example:
 
 ``` shell
 $ psql -d <dbname>

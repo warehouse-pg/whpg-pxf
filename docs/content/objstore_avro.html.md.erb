@@ -54,7 +54,7 @@ Use the `<objstore>:avro` profiles to read and write Avro-format files in an obj
 | MinIO    | s3 |
 | S3    | s3 |
 
-The following syntax creates a Greenplum Database external table that references an Avro-format file:
+The following syntax creates a WarehousePG external table that references an Avro-format file:
 
 ``` sql
 CREATE [WRITABLE] EXTERNAL TABLE <table_name>
@@ -63,7 +63,7 @@ LOCATION ('pxf://<path-to-file>?PROFILE=<objstore>:avro&SERVER=<server_name>[&<c
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import'|'pxfwritable_export');
 ```
 
-The specific keywords and values used in the Greenplum Database [CREATE EXTERNAL TABLE](https://docs.vmware.com/en/VMware-Greenplum/6/greenplum-database/ref_guide-sql_commands-CREATE_EXTERNAL_TABLE.html) command are described in the table below.
+The specific keywords and values used in the WarehousePG [CREATE EXTERNAL TABLE](https://warehouse-pg.io/docs/6x/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html) command are described in the table below.
 
 | Keyword  | Value |
 |-------|-------------------------------------|
