@@ -308,7 +308,12 @@ GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
 		initStringInfo(&duplicates);
 		foreach(key, duplicateKeys)
 		{
-			char	   *keyname = strVal((Value *) lfirst(key));
+			/*
+			 * Node, not Value: PostgreSQL 15 removed the Value union in
+			 * favour of per-type String/Integer/... nodes.  strVal() casts
+			 * internally, so a Node works on both platforms.
+			 */
+			char	   *keyname = strVal((Node *) lfirst(key));
 
 			if (!first)
 				appendStringInfoString(&duplicates, ", ");
