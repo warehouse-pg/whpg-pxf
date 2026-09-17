@@ -145,7 +145,7 @@ The JSystem dependencies (`jsystemCore`, `cli`) used by the automation harness a
 ### General Automation Architecture
 
 TestNG is a powerful Java testing framework very similar to junit which supports several features like grouping, parallel run and test events listeners.
-You can read more about TestNG here <http://testng.org/doc/index.md>
+You can read more about TestNG here <https://testng.org/>
 
 ## Guidelines for creating a new test for PXF automation
 
