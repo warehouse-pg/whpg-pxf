@@ -1,3 +1,5 @@
+> **NOTE.** The Concourse *CI pipeline* that originally invoked this module is deprecated; the module itself is still used by the local dev flow `dev/ipa-cluster.bash` (see [`dev/IPA.md`](../../dev/IPA.md)). An update is planned.
+
 # PXF CI Terraform
 
 **Terraform modules for provisioning infrastructure in CI tasks**

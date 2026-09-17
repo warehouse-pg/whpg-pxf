@@ -1,3 +1,5 @@
+> **NOTE.** The Concourse *CI pipeline* that originally invoked this play is deprecated; the play itself is still used by the local dev flow `dev/ipa-cluster.bash` (see [`dev/IPA.md`](../../dev/IPA.md)). An update is planned.
+
 # PXF CI Ansible
 
 **Ansible plays for provisioning infrastructure in CI tasks**

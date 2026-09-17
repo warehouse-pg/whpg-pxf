@@ -1,3 +1,6 @@
+> **⚠️ DEPRECATED.** This Concourse pipeline tooling targets infrastructure (`ci.ud.gpdb.pivotal.io`, `gs://data-gpdb-ud-*`, `gcr.io/data-gpdb-ud/*`) that is no longer accessible. It is retained as historical reference only.
+> The repository's current CI for pull requests lives at [`.github/workflows`](../.github/workflows/README.md).
+
 # Concourse pipeline deployment
 To facilitate pipeline maintenance, a Python utility 'deploy`
 is used to generate the different pipelines for PXF main,

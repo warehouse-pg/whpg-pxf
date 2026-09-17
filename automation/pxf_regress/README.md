@@ -114,9 +114,9 @@ $ tree smoke/small_data
     -- @description query01 for PXF test on small data
     SELECT *  FROM pxf_smoke_small_data ORDER BY name;
     psql:smoke/small_data/sql/query01.sql:3: ERROR:  PXF server error : Input path does not exist: hdfs://alpine:8020/tmp/pxf_automation_data/10f83dae-5146-44d7-957d-ea335cb3ea24/data.txt  (seg0 slice1 127.0.1.1:6000 pid=115042)
-    HINT:  Check the PXF logs located in the '/home/bradford/pxf-base/logs' directory on host 'localhost' or 'set client_min_messages=LOG' for additional details.
+    HINT:  Check the PXF logs located in the '/home/gpadmin/pxf-base/logs' directory on host 'localhost' or 'set client_min_messages=LOG' for additional details.
     CONTEXT:  External table pxf_smoke_small_data, line 1 of file pxf://tmp/pxf_automation_data/10f83dae-5146-44d7-957d-ea335cb3ea24/data.txt?PROFILE=hdfs:text
     ```
 
 [1]: https://www.postgresql.org/docs/12/libpq-envars.html
-[2]: https://github.com/greenplum-db/gpdb/blob/main/src/test/regress/gpdiff.pl
+[2]: gpdiff.pl

@@ -34,12 +34,12 @@ To create the PXF extension in the database, connect to the database and run as 
 ```
 
 Additional instructions on building and starting a GPDB cluster can be
-found in the top-level [README.md](../../../README.md) ("_Build the
+found in the top-level [README.md](../README.md) ("_Build the
 database_" section).
 
 
 ### Install PXF Server
-Please refer to [PXF Development](https://github.com/greenplum-db/pxf/blob/main/README.md) for instructions to setup PXF.
+Please refer to the top-level [README.md](../README.md) for instructions to setup PXF.
 You will need one PXF server agent per Segment host.
 
 ### Create and use PXF external table

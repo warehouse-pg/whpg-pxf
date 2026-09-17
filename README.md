@@ -162,6 +162,11 @@ pxf restart
 ```
 
 ## How to demonstrate Hadoop Integration
+
+> **Note:** The pre-built `singlecluster-HDP` tarball linked below is no
+> longer accessible (the download returns 404). Build the `singlecluster`
+> bundle yourself instead — see [`singlecluster/README.md`](singlecluster/README.md).
+
 In order to demonstrate end to end functionality you will need Hadoop installed. We have all the related hadoop components (hdfs, hive, hbase, zookeeper, etc) mapped into simple artifact named singlecluster.
 You can [download from here](https://storage.googleapis.com/pxf-public/singlecluster-HDP.tar.gz) and untar the `singlecluster-HDP.tar.gz` file, which contains everything needed to run Hadoop.
 
