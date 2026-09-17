@@ -116,8 +116,7 @@ Jeffrey I Cohen
 
 Copyright (c) 2007, 2008, 2009 GreenPlum.  All rights reserved.  
 
-Address bug reports and comments to: jcohen@greenplum.com
-(historical upstream contact)
+Address bug reports and comments through the repository's GitHub issues.
 
 
 =cut
