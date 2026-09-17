@@ -4,9 +4,9 @@ PXF is a query federation engine that provides connectors to access data
 residing in external systems such as Hadoop, Hive, HBase, relational databases,
 S3, Google Cloud Storage, among other external systems.
 
-PXF uses the [External Table Framework](https://gpdb.docs.pivotal.io/latest/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html)
+PXF uses the [External Table Framework](https://www.enterprisedb.com/docs/warehousepg/latest/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE/)
 in Greenplum 5 and 6 to access external data. Greenplum 6 introduces the 
-[Foreign Data Wrapper Framework](https://gpdb.docs.pivotal.io/6-0Beta/admin_guide/external/g-devel-fdw.html)
+[Foreign Data Wrapper Framework](https://www.enterprisedb.com/docs/warehousepg/latest/admin_guide/external/foreign/)
 to access external data, and extensions are starting to move to the foreign
 data wrapper (FDW) framework because the External Table Framework will be 
 deprecated in later versions of Greenplum. 
@@ -228,7 +228,7 @@ file, that is only accessible by the gpadmin user.
 
 # Mapping Foreign Data Wrappers to PXF Profiles
 
-PXF uses the concept of Profiles in the [External Table Framework](https://gpdb.docs.pivotal.io/latest/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE.html).
+PXF uses the concept of Profiles in the [External Table Framework](https://www.enterprisedb.com/docs/warehousepg/latest/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE/).
 In foreign data wrappers, we map a combination of the wrapper `protocol` and the
 table `format` to a profile. For example, in the case of accessing parquet files
 on  S3, the `protocol` is `s3` and the format is `parquet`, which maps to the

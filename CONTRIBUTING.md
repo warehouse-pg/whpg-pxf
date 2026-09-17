@@ -1,10 +1,13 @@
 # Contributing
 
-We warmly welcome and appreciate contributions from the community!
-By participating you agree to the [code of conduct](https://github.com/greenplum-db/pxf/blob/main/CODE-OF-CONDUCT.md).
-To contribute:
+We warmly welcome and greatly appreciate contributions from the
+community. By participating you agree to the [code of
+conduct](https://github.com/warehouse-pg/whpg-pxf/blob/release-6.x/CODE-OF-CONDUCT.md).
+Overall, we follow WarehousePG's comprehensive contribution policy. Please
+refer to it [here](https://github.com/warehouse-pg/warehouse-pg/blob/main/CONTRIBUTING.md)
+for details.
 
-- Sign our [Contributor License Agreement](https://cla.vmware.com/cla/1/preview).
+## Getting Started
 
 - Fork the PXF repository on GitHub.
 
@@ -49,6 +52,5 @@ To contribute:
 
 # Community
 
-Connect with PXF and Greenplum on:
-- [Slack](https://greenplum.slack.com/)
-- [Dev Google Group mailing list](https://groups.google.com/a/greenplum.org/forum/#!forum/gpdb-dev/join)
+Connect with WarehousePG on:
+* [Github](https://github.com/warehouse-pg/whpg-pxf/discussions)
