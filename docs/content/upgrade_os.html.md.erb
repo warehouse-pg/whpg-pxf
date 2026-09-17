@@ -2,7 +2,7 @@
 title: OS Upgrade Considerations for PXF
 ---
 
-PXF is compatible with these operating system platforms:
+The following table lists the minimum PXF version required on the newer operating system platforms:
 
 | OS Version | PXF Version              |
 |------------|--------------------------|
@@ -28,7 +28,7 @@ Perform the following steps before you upgrade the operating system:
 
 After you upgrade the operating system and install, configure, and verify WarehousePG on the new set of hosts, perform the following procedure:
 
-1. Install PXF for the upgraded OS on all WarehousePG hosts. *You must install the same version of PXF as the version that was running on the original WarehousePG cluster.*
+1. Install PXF for the upgraded OS on all WarehousePG hosts as described in [Installing PXF](https://warehouse-pg.io/pxf/6x/installing.html). *You must install the same version of PXF as the version that was running on the original WarehousePG cluster.*
 
 1. Copy the PXF configuration files from the original cluster to `/user/local/pxf-gp6` on the upgraded OS WarehousePG coordinator host. If you choose to [relocate $PXF_BASE](about_pxf_dir.html#movebase), copy the configuration to that directory instead.
 
