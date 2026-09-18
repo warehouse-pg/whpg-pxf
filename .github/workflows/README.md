@@ -153,3 +153,128 @@ bash .github/scripts/docs-linkcheck.bash
    `workflow_dispatch` trigger) with `debug_enabled` checked: on
    failure the job opens a tmate session and prints the SSH string in
    the log.
+
+## `pxf-c-ci.yml` — advisory checks for the C extensions
+
+[![PXF C CI](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-c-ci.yml/badge.svg)](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-c-ci.yml)
+
+Compiles `external-table/` and `fdw/` against real WarehousePG headers
+and runs their pg_regress suites in a demo cluster. This is the only CI
+anywhere that exercises those suites. **Advisory lane**: it is
+path-filtered to the C surface, so it does not report on most PRs and
+must never be added to required status checks (a required check that
+never reports blocks merges). If it should ever become requirable, the
+way to do it is an `if: always()` aggregator job that reports on every
+PR — not by requiring these path-filtered jobs directly.
+
+Everything is secret-free and fork-PR-safe: pull requests get a
+read-only token, cache access on PRs is restore-only, and the only
+write permission (issues) lives in a job that never triggers on pull
+requests. No job needs a privileged container.
+
+### Jobs
+
+| Job | What it runs | Measured time |
+|---|---|---|
+| `whpg-prepare` | Provides the installed WarehousePG tree the run tests against: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit / ~10m on miss |
+| `c-compile` | `make -C external-table && make -C fdw` against the delivered tree — catches header/API drift | ~1.5m |
+| `c-installcheck` | Demo cluster (no mirrors, single segment) + the extensions' pg_regress suites: `fdw` all four; `external-table` `setup` and `pxfinvalid` | ~1.5m |
+| `upstream-canary` | Weekly: builds WarehousePG at its `main` branch and runs the same checks — early warning that upstream changes broke the PXF C layer | ~9m (skipped rebuild when upstream hasn't moved) |
+| `c-ci-failure-issue` | On a scheduled run's failure, opens or updates a GitHub issue labeled `ci-c-lane-failure` | seconds |
+
+A cache-hit PR run totals **about 4 minutes** end to end. A cache-miss
+run (evicted cache or a fresh version pin) takes ~15 minutes — **a rare
+slow run is by design**: the alternative (skipping when the cache is
+cold) would silently drop coverage, and PR runs cannot refill the cache
+(see Caches below), so slow-but-tested always wins.
+
+The external-table suite's `pxf` test is deliberately not run: it
+queries external tables through the built-in Demo connectors and needs
+a running PXF service, which is outside this lane's scope (that surface
+is covered post-merge by the release packaging and certification CI,
+maintained by EDB). The eight external-table C mock tests are also not
+run: they need a configured WarehousePG source tree, which only exists
+on cache-miss builds — coverage that depends on cache state would make
+runs non-comparable.
+
+### The version pin
+
+The lane builds and tests against ONE WarehousePG version, pinned in
+`pxf-c-ci.yml`:
+
+- `WHPG_TAG` — the tag to build (e.g. `7.6.0-WHPG`)
+- `WHPG_TAG_SHA` — that tag's commit (asserted at build time and by
+  every consumer of the built tree)
+- the `container.image` digest of `ghcr.io/warehouse-pg/whpg-rocky8-build`
+  (all jobs use the same digest)
+
+**Bumping the pin** is a deliberate PR that updates all three together:
+resolve the new tag's SHA (`gh api repos/warehouse-pg/warehouse-pg/git/refs/tags/<tag>`),
+resolve the image digest (`docker buildx imagetools inspect
+ghcr.io/warehouse-pg/whpg-rocky8-build`), and update every
+`container.image` line plus the `env` block in `pxf-c-ci.yml`. The
+first run after the bump rebuilds from source (the cache key contains
+the SHA, so the old cache simply stops matching); the next scheduled
+run re-saves the cache. If the image was rebuilt upstream and the old
+digest's layers were garbage-collected, jobs fail at container start
+with a pull error — bump the digest.
+
+### Triggers
+
+| Trigger | What runs |
+|---|---|
+| `pull_request` → `main`, `release-6.x`, touching `fdw/**`, `external-table/**`, `api_version`, or the lane's own files | `whpg-prepare` → `c-compile` → `c-installcheck` |
+| `push` → `ci/**` | Same (no path filter — a `ci/**` push is an explicit request) |
+| `schedule` (Mondays 04:30 UTC) | The same checks as a rot-check (path filters don't apply to schedules) plus `upstream-canary`; failures feed `c-ci-failure-issue` |
+| `workflow_dispatch` | Everything incl. the canary; optional `debug_enabled` tmate input |
+
+The `release-6.x` trigger entry is pre-wired but inert until this
+workflow exists on that branch (a `pull_request` run uses the workflow
+file from the target branch).
+
+### Caches
+
+Two cache entries, both small (~80 MB each): the pinned-tag install
+tree (`whpg-el8-<pin-sha>`) and the canary's (`whpg-el8-main-<sha>`).
+Keys are exact-match with no `restore-keys` — a stale or wrong-version
+tree can never be silently reused, and keys self-invalidate on pin
+bumps. **Only runs on `main` save the cache** (the weekly schedule is
+the steady writer); PR runs restore only, so a topic-branch run can
+never pin a cache PRs would miss. Check jobs receive the tree as a
+same-run artifact (`whpg-install-el8`), never via the cache directly.
+Every delivered tree carries provenance files (`whpg-build.ref`,
+`.sha`, `.gp-major`) that consumers assert before use.
+
+The canary writes a new entry each time upstream `main` moves; old
+entries age out via the 7-day eviction, so about one or two are alive
+at any time. If the canary cadence is ever increased or given a ref
+matrix, revisit that math.
+
+### Reproducing locally
+
+With docker, from the repository root:
+
+```bash
+docker run --rm -it \
+  -v "$PWD:/pxf" -w /pxf \
+  --hostname cdw --shm-size=2gb \
+  ghcr.io/warehouse-pg/whpg-rocky8-build \
+  bash -c 'WHPG_REF=7.6.0-WHPG bash .github/scripts/build-whpg.bash \
+           && WHPG_REF=7.6.0-WHPG PXF_SRC=/pxf bash .github/scripts/run-c-checks.bash'
+```
+
+(The first command builds WarehousePG from source — expect ~10 minutes
+on a fast machine.)
+
+### Debugging a red run
+
+1. The job summaries show the pin, whether the cache hit, and per-job
+   status.
+2. `c-installcheck` failures upload `regression.diffs` and the per-test
+   result files as a run artifact (`c-installcheck-results*`).
+3. Re-run via **Run workflow** with `debug_enabled` checked for a tmate
+   session on failure.
+4. A red weekly run opens/updates the `ci-c-lane-failure` issue; a red
+   `upstream-canary` with a green `c-installcheck` means upstream
+   WarehousePG `main` changed something the PXF C layer depends on —
+   that is the canary doing its job, not a PXF regression.
