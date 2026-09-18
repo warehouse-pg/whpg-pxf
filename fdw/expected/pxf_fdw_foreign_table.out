@@ -32,6 +32,7 @@ CREATE FOREIGN TABLE pxf_fdw_test_table ()
     SERVER pxf_fdw_test_server
     OPTIONS ( config '/foo/bar' );
 ERROR:  the config option can only be defined at the pg_foreign_server level
+WARNING:  creating a table with no columns.
 --
 -- Table creation succeeds if delimiter is provided with a single one-byte char
 --
@@ -166,6 +167,7 @@ CREATE FOREIGN TABLE pxf_fdw_test_table_csv_only ()
     SERVER pxf_fdw_test_server
     OPTIONS ( resource '/foo', quote '9' );
 ERROR:  quote available only in CSV mode
+WARNING:  creating a table with no columns.
 --
 -- Table creation fails if disable_ppd is non-boolean
 --
@@ -173,6 +175,7 @@ CREATE FOREIGN TABLE pxf_fdw_test_table_disable_ppd ()
     SERVER pxf_fdw_test_server
     OPTIONS ( resource '/ppd', disable_ppd '6' );
 ERROR:  disable_ppd requires a Boolean value
+WARNING:  creating a table with no columns.
 --
 -- Table creation succeeds if resource is provided and reject_limit is provided correctly
 --
