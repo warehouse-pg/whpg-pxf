@@ -366,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [whpg-prepare, c-compile, c-installcheck, upstream-canary]
-    if: always()   # TRIAL-ONLY dry-run override — restore the schedule+failure condition before landing
+    if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
     permissions:
       contents: read
       issues: write
@@ -376,12 +376,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # TRIAL-ONLY DRY RUN: assert the exact payload without touching the API
-          test -n "$RUN_URL"
-          {
-            echo "### c-ci-failure-issue DRY RUN"
-            echo "- would ensure label: ci-c-lane-failure (color B60205)"
-            echo "- would search open issues labeled ci-c-lane-failure"
-            echo "- would create/comment issue titled: Weekly C-extension CI run is failing"
-            echo "- body: A scheduled PXF C CI run failed: $RUN_URL"
-          } >> "$GITHUB_STEP_SUMMARY"
+          gh label create ci-c-lane-failure --repo "$GITHUB_REPOSITORY" \
+            --description "A scheduled C-extension CI run failed" --color B60205 --force
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label ci-c-lane-failure --state open \
+            --json number --jq '.[0].number // empty')
+          body="A scheduled PXF C CI run failed: $RUN_URL"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Weekly C-extension CI run is failing" \
+              --label ci-c-lane-failure --body "$body"
+          fi
