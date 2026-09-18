@@ -1,0 +1,391 @@
+# PXF C CI — advisory checks for the database-resident C extensions.
+#
+# Scope: the two C extensions (external-table/ and fdw/) — compile
+# against real WarehousePG headers and run their pg_regress suites in a
+# demo cluster. This is the only CI anywhere that exercises those
+# suites. Everything here is secret-free and fork-PR-safe: pull_request
+# events carry a read-only token, cache access is restore-only, and the
+# only write permission (issues) lives in a job that never triggers on
+# pull requests.
+#
+# What this lane does NOT cover (by design): data-path testing (SELECT
+# through a running PXF server needs Hadoop-family datasources and is
+# covered by release packaging and certification CI, maintained by
+# EDB), the WHPG 6 axis, and non-el8 platforms.
+#
+# Delivery model: the whpg-prepare job provides an installed WarehousePG
+# tree — restored from the Actions cache, or REBUILT IN-RUN on any cache
+# miss (~35 min, once). A miss is never a skip: a rare slow run is by
+# design, so a cold cache can never silently drop coverage. Check jobs
+# receive the tree as a same-run artifact.
+#
+# Version pin: ONE WarehousePG version, built from source at the tag
+# below. Bump the tag, its commit SHA, and the container image digest
+# together in a deliberate PR (procedure in .github/workflows/README.md).
+#
+# Advisory status: the path filter means these checks do not report on
+# most PRs, so they must not be added to required status checks (a
+# required check that never reports blocks merges). This is documented
+# policy, not a platform guarantee.
+#
+# See .github/workflows/README.md for the operating manual.
+
+name: PXF C CI
+
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('[C CI] PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title)
+      || format('[C CI] {0}: {1}', github.ref_name, github.event_name) }}
+
+on:
+  pull_request:
+    # release-6.x is pre-wired but inert until this workflow and the
+    # golden fixes are backported to that branch (a pull_request run
+    # uses the workflow file from the target branch).
+    branches: [main, release-6.x]
+    paths:
+      - 'fdw/**'
+      - 'external-table/**'
+      - 'api_version'
+      - '.github/workflows/pxf-c-ci.yml'
+      - '.github/scripts/build-whpg.bash'
+      - '.github/scripts/run-c-checks.bash'
+      - '.github/scripts/run-c-checks-gpadmin.bash'
+  push:
+    # ci/** = opt-in CI for feature branches (no PR needed). No path
+    # filter here: a ci/** push is already an explicit request.
+    branches: ['ci/**']
+  schedule:
+    - cron: '30 4 * * 1'   # Mondays 04:30 UTC — weekly rot-check + upstream canary (staggered after pxf-ci.yml)
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Start a tmate debug session if a job fails'
+        type: boolean
+        default: false
+      reason:
+        description: 'Why this run was dispatched'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Stacked pushes on a cold cache would stack ~35-minute WarehousePG
+  # builds; cancelling a stale PR run loses nothing because PR runs
+  # never save the cache anyway.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release-6.x' }}
+
+env:
+  # THE PIN — tag and commit SHA move together (see header).
+  WHPG_TAG: 7.6.0-WHPG
+  WHPG_TAG_SHA: 0ebf27bd59914ce50dc7d0837f60cb255034a560
+  WHPG_PREFIX: /usr/local/greenplum-db-devel
+
+jobs:
+
+  # ---------------------------------------------------------------------
+  # whpg-prepare: provide the installed WarehousePG tree this run tests
+  # against. Cache hit -> restore in seconds. Cache miss -> build from
+  # source in-run (slow once, never skipped). Only runs on the default
+  # branch may save the cache, so a topic-branch dispatch can never pin
+  # a cache PRs would miss.
+  # ---------------------------------------------------------------------
+  whpg-prepare:
+    name: whpg-prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 90   # cold source build ~35-45 min; hit path is minutes
+    container:
+      # Pin bump: update this digest together with WHPG_TAG/WHPG_TAG_SHA
+      # (all container.image lines in this file use the same digest).
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore the installed tree from cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: whpg-dist
+          # Exact-match only (no restore-keys): a stale or wrong-version
+          # tree can never be silently reused; the key self-invalidates
+          # when the pin is bumped.
+          key: whpg-el8-${{ env.WHPG_TAG_SHA }}
+      - name: Build WarehousePG from source (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          WHPG_REF: ${{ env.WHPG_TAG }}
+          WHPG_SHA: ${{ env.WHPG_TAG_SHA }}
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          bash .github/scripts/build-whpg.bash
+          mkdir -p whpg-dist
+          tar czf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX" .
+      - name: Save the installed tree to cache
+        # TRIAL-ONLY RELAXATION: the ci/** clause lets the trial branch
+        # exercise the cache-hit path; it is removed at landing so main
+        # is the single cache writer.
+        if: >-
+          steps.cache.outputs.cache-hit != 'true' &&
+          (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ci/'))
+        uses: actions/cache/save@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-${{ env.WHPG_TAG_SHA }}
+      - name: Verify the tree before handing it to consumers
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+          "$PREFIX/bin/pg_config" --version
+      - name: Hand the tree to the check jobs (same-run artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: whpg-install-el8
+          path: whpg-dist/whpg-install-el8.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### whpg-prepare (${{ job.status }})"
+            echo "- pin: $WHPG_TAG ($WHPG_TAG_SHA)"
+            echo "- cache hit: ${{ steps.cache.outputs.cache-hit == 'true' }}"
+            echo "- tarball: $(du -h whpg-dist/whpg-install-el8.tar.gz | cut -f1)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # c-compile: both extensions compile against the real WarehousePG
+  # headers. Cheap, no cluster, catches header/ABI drift — the most
+  # likely C regression class.
+  # ---------------------------------------------------------------------
+  c-compile:
+    name: c-compile${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: whpg-prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        # Weekly rot-check runs main explicitly (path filters do not
+        # apply to schedule events). The release-6.x leg is added by the
+        # backport that lands this workflow on that branch.
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: whpg-install-el8
+          path: whpg-dist
+      - name: Unpack and assert provenance
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+      - name: Compile both extensions
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          source "$PREFIX/greenplum_path.sh"
+          make -C external-table
+          make -C fdw
+      - name: Job summary
+        if: always()
+        run: echo "### c-compile (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # c-installcheck: demo cluster + the extensions' own pg_regress suites
+  # (external-table: 3, fdw: 4) — DDL, option validators, error paths.
+  # No PXF server involved. `needs: c-compile` carries no build outputs
+  # (this job compiles again via make install); its value is fail-fast —
+  # skipping a cluster bring-up when the compile is already red.
+  # ---------------------------------------------------------------------
+  c-installcheck:
+    name: c-installcheck${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: c-compile
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      # Unprivileged demo cluster: root user for setup, fixed hostname,
+      # and enough shared memory for the segments.
+      options: --user root --hostname cdw --shm-size=2gb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: whpg-install-el8
+          path: whpg-dist
+      - name: Unpack the installed tree
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+      - name: Demo cluster + extension installchecks
+        env:
+          WHPG_REF: ${{ env.WHPG_TAG }}
+          PREFIX: ${{ env.WHPG_PREFIX }}
+          PXF_SRC: ${{ github.workspace }}
+        run: bash .github/scripts/run-c-checks.bash
+      - name: Upload regression diffs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: c-installcheck-results${{ matrix.ref && format('-{0}', matrix.ref) || '' }}
+          path: |
+            external-table/regression.diffs
+            external-table/regression.out
+            external-table/results/
+            fdw/regression.diffs
+            fdw/regression.out
+            fdw/results/
+          if-no-files-found: ignore
+      - name: Job summary
+        if: always()
+        run: echo "### c-installcheck (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+      # action-tmate assumes apt; install via yum on Rocky first.
+      - name: Install tmate (dispatch-only, opt-in)
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled
+        run: |
+          yum install -y --setopt=keepcache=1 epel-release
+          yum install -y --setopt=keepcache=1 tmate
+      - name: Debug session (dispatch-only, opt-in)
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113   # v3.24
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled
+        timeout-minutes: 30
+        with:
+          install-dependencies: false
+
+  # ---------------------------------------------------------------------
+  # upstream-canary: build WarehousePG@main and run the same checks —
+  # early warning that upstream changes broke the PXF C layer. Weekly
+  # only, never on pull requests: upstream drift is not a PR author's
+  # fault and must never appear as a red leg on someone's PR. The cache
+  # is keyed by main's current commit, so a week where main has not
+  # moved skips the rebuild.
+  # ---------------------------------------------------------------------
+  upstream-canary:
+    name: upstream-canary
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      options: --user root --hostname cdw --shm-size=2gb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The canary certifies PXF main against WarehousePG main.
+          ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
+      - name: Resolve WarehousePG main
+        id: upstream
+        run: |
+          sha=$(git ls-remote https://github.com/warehouse-pg/warehouse-pg refs/heads/main | cut -f1)
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Restore the canary tree from cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}
+      - name: Build WarehousePG@main (upstream moved since the last run)
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          WHPG_REF: main
+          WHPG_SHA: ${{ steps.upstream.outputs.sha }}
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          bash .github/scripts/build-whpg.bash
+          mkdir -p whpg-dist
+          tar czf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX" .
+      - name: Save the canary tree to cache
+        # TRIAL-ONLY RELAXATION: ci/** clause removed at landing.
+        if: >-
+          steps.cache.outputs.cache-hit != 'true' &&
+          (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/ci/'))
+        uses: actions/cache/save@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}
+      - name: Unpack the installed tree
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+      - name: Compile both extensions against upstream main
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          source "$PREFIX/greenplum_path.sh"
+          make -C external-table
+          make -C fdw
+      - name: Demo cluster + extension installchecks against upstream main
+        env:
+          WHPG_REF: main
+          PREFIX: ${{ env.WHPG_PREFIX }}
+          PXF_SRC: ${{ github.workspace }}
+        run: bash .github/scripts/run-c-checks.bash
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### upstream-canary (${{ job.status }})"
+            echo "- WarehousePG main: ${{ steps.upstream.outputs.sha }}"
+            echo "- cache hit (main unmoved since last run): ${{ steps.cache.outputs.cache-hit == 'true' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # c-ci-failure-issue: scheduled failures block nobody's PR, so they
+  # are otherwise silent. Open (or update) a labeled issue on red.
+  # ---------------------------------------------------------------------
+  c-ci-failure-issue:
+    name: c-ci-failure-issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [whpg-prepare, c-compile, c-installcheck, upstream-canary]
+    if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update the C-lane failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create ci-c-lane-failure --repo "$GITHUB_REPOSITORY" \
+            --description "A scheduled C-extension CI run failed" --color B60205 --force
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label ci-c-lane-failure --state open \
+            --json number --jq '.[0].number // empty')
+          body="A scheduled PXF C CI run failed: $RUN_URL"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Weekly C-extension CI run is failing" \
+              --label ci-c-lane-failure --body "$body"
+          fi
