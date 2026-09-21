@@ -153,3 +153,208 @@ bash .github/scripts/docs-linkcheck.bash
    `workflow_dispatch` trigger) with `debug_enabled` checked: on
    failure the job opens a tmate session and prints the SSH string in
    the log.
+
+## `pxf-db-extensions-ci.yml` — advisory checks for the C extensions
+
+[![PXF DB Extensions CI](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-db-extensions-ci.yml/badge.svg)](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-db-extensions-ci.yml)
+
+Compiles `external-table/` and `fdw/` against real WarehousePG headers
+and runs the extensions' own pg_regress suites in a demo cluster.
+**Advisory lane**: it is
+path-filtered to the C surface, so it does not report on most PRs and
+must never be added to required status checks (a required check that
+never reports blocks merges). If it should ever become requirable, the
+way to do it is an `if: always()` aggregator job that reports on every
+PR — not by requiring these path-filtered jobs directly.
+
+Everything is secret-free and fork-PR-safe: pull requests get a
+read-only token, cache access on PRs is restore-only, and the only
+write permission (issues) lives in jobs that never trigger on pull
+requests. No job needs a privileged container.
+
+### What this lane tests — precisely
+
+Two things, both about the database-resident extensions themselves:
+
+1. **They compile** — `pxf.so` and `pxf_fdw.so` build against the
+   pinned WarehousePG's real headers, catching `cdb/*.h` and API drift
+   at PR time instead of at package-build time.
+2. **They install and enforce their SQL contract** — `CREATE
+   EXTENSION` succeeds, and the DDL option validators accept or reject
+   options at each catalog level with the exact expected message. This
+   is almost entirely negative testing: across the six suites, ~188
+   statements carry 137 asserted ERROR/WARNING/NOTICE lines. Coverage
+   is deliberately lopsided — the four fdw suites are dense validator
+   coverage (136 assertions over wrapper/server/user-mapping/
+   foreign-table DDL); the two external-table suites (`setup`,
+   `pxfinvalid`) are an install-plus-reject-invalid-profile smoke
+   (1 assertion), because external-table's substantive suite is the
+   excluded data-path test below. Describe this lane as "dense fdw
+   validator coverage plus a compile gate and install smoke for both
+   extensions", not "6 suites", which would imply even coverage.
+
+**The boundary — no ambiguity:** no PXF server is ever started here,
+and no external data is ever read or written. The moment a test needs
+the PXF service, it is out of scope for this lane — that is exactly
+why the `pxf` suite is excluded (below). This lane answers "do the
+extensions compile against this WarehousePG, install into it, and
+enforce their DDL/option contract"; it says nothing about whether a
+SELECT through PXF returns rows.
+
+### Jobs
+
+| Job | What it runs | Measured time |
+|---|---|---|
+| `whpg-prepare` | Provides the installed WarehousePG tree the run tests against: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit / ~10m on miss |
+| `compile` | `make -C external-table && make -C fdw` against the delivered tree — catches header/API drift | ~1.5m |
+| `installcheck` | Demo cluster (no mirrors, single segment) + the extensions' own pg_regress suites — dense fdw validator coverage (`wrapper`/`server`/`user_mapping`/`foreign_table`) plus the external-table install smoke (`setup`, `pxfinvalid`); see "What this lane tests" above | ~1.5m |
+| `upstream-canary` | Weekly: builds WarehousePG at its `main` branch and runs the same checks — early warning that upstream changes broke the PXF C layer | ~9m (skipped rebuild when upstream hasn't moved) |
+| `pin-freshness` | Weekly: checks the WHPG pin against upstream tags — stale (newer `7.x-WHPG` exists), moved (pinned tag no longer at the pinned commit; annotated tags peeled first), or deleted. Files/updates/auto-closes one issue labeled `ci-db-extensions-pin`. Its decision logic self-tests against fixtures first | seconds |
+| `failure-issue` | On a scheduled run's failure, opens or updates a GitHub issue labeled `ci-db-extensions-failure` | seconds |
+
+A cache-hit PR run totals **about 4 minutes** end to end. A cache-miss
+run (evicted cache or a fresh version pin) takes ~15 minutes — **a rare
+slow run is by design**: the alternative (skipping when the cache is
+cold) would silently drop coverage, and PR runs cannot refill the cache
+(see Caches below), so slow-but-tested always wins.
+
+The external-table suite's `pxf` test is deliberately not run: it
+queries external tables through the built-in Demo connectors and needs
+a running PXF service, which is outside this lane's scope. The eight
+external-table C mock tests are also not run: they link against built
+backend objects and must sit inside a configured, compiled WarehousePG
+source tree (their Makefile assumes a `gpcontrib/pxf` layout), which
+this lane has only transiently inside `whpg-prepare` on a cache miss —
+coverage that depends on cache state would make runs non-comparable.
+
+### The version pin
+
+The lane builds and tests against ONE WarehousePG version, pinned in
+`pxf-db-extensions-ci.yml`:
+
+- `WHPG_TAG` — the tag to build (e.g. `7.6.0-WHPG`)
+- `WHPG_TAG_SHA` — that tag's commit (asserted at build time and by
+  every consumer of the built tree)
+- the `container.image` digest of `ghcr.io/warehouse-pg/whpg-rocky8-build`
+  (all jobs use the same digest)
+
+**Bumping the pin** is a deliberate PR that updates all three together:
+resolve the new tag's COMMIT SHA — use
+`gh api repos/warehouse-pg/warehouse-pg/commits/<tag> --jq .sha`, which
+returns the commit for lightweight AND annotated tags alike (the
+`git/refs/tags/<tag>` endpoint returns the tag *object* SHA for an
+annotated tag — recording that would loudly fail build-whpg.bash's
+rev-parse assert on the next cache miss and trip a false retag alert
+from the pin watcher),
+resolve the image digest (`docker buildx imagetools inspect
+ghcr.io/warehouse-pg/whpg-rocky8-build`), and update every
+`container.image` line plus the `env` block in `pxf-db-extensions-ci.yml`. The
+first run after the bump rebuilds from source (the cache key contains
+the SHA, so the old cache simply stops matching); the next scheduled
+run re-saves the cache. If the image was rebuilt upstream and the old
+digest's layers were garbage-collected, jobs fail at container start
+with a pull error — bump the digest.
+
+A pin bump can also legitimately drift the pg_regress goldens: the
+expected outputs under `fdw/expected/` and `external-table/expected/`
+are pinned to the **pinned server version's** output (WARNINGs and
+NOTICEs come and go across WHPG releases — that drift is exactly what
+kept the fdw suites red for years). If `installcheck` goes red after
+a bump, read `regression.diffs` from the failed run's artifact: pure
+output drift gets the goldens reconciled in the same PR as the bump;
+anything touching rows or errors is a real regression.
+
+**The pin watcher** (`pin-freshness` job) checks the pin weekly and
+files an issue labeled `ci-db-extensions-pin` when action is needed:
+
+- *stale* — a newer `7.x-WHPG` tag exists: run the bump procedure
+  above at your convenience; close the issue via the bump PR
+  (`Closes #N`) or let the watcher auto-close it once the pin catches
+  up.
+- *moved* — the pinned tag no longer resolves to the pinned commit:
+  verify upstream re-cut the tag legitimately before bumping the SHA;
+  treat as a supply-chain signal until explained.
+- *deleted* — the pinned tag is gone: re-pin promptly; the next cache
+  miss cannot rebuild.
+
+It keeps at most one open issue (state tracked in an HTML comment in
+the issue body), never edits the pin itself, and only mutates issues
+from runs on `main` — a dispatch on any other ref echoes its decision
+to the step summary instead. Its decision table lives in
+`.github/scripts/pin-freshness-decide.bash` with fixture tests
+(`test-pin-freshness-decide.bash`) that run before every live
+decision.
+
+### Triggers
+
+| Trigger | What runs |
+|---|---|
+| `pull_request` → `main`, `release-6.x`, touching `fdw/**`, `external-table/**`, `api_version`, or the lane's own files | `whpg-prepare` → `compile` → `installcheck` |
+| `push` → `ci/**` | Same (no path filter — a `ci/**` push is an explicit request) |
+| `schedule` (Mondays 04:30 UTC) | The same checks as a rot-check (path filters don't apply to schedules) plus `upstream-canary` and `pin-freshness`; failures feed `failure-issue` |
+| `workflow_dispatch` | Everything incl. the canary and the pin watcher; optional `debug_enabled` tmate input |
+
+The `release-6.x` trigger entry is pre-wired but inert for PRs cut
+from that branch: a `pull_request` run uses the workflow file from the
+merge ref (the PR head merged into the base), and a head cut from
+release-6.x does not carry this file until the backport lands. A PR
+whose head does carry it — notably the backport PR itself — will run
+the lane, which is expected and self-validating for the backport.
+
+### Caches
+
+Two cache entries, both small (~80 MB each): the pinned-tag install
+tree (`whpg-el8-<pin-sha>`) and the canary's (`whpg-el8-main-<sha>`).
+Keys are exact-match with no `restore-keys` — a stale or wrong-version
+tree can never be silently reused, and keys self-invalidate on pin
+bumps. **Only runs on `main` save the cache** (the weekly schedule is
+the steady writer); PR runs restore only, so a topic-branch run can
+never pin a cache PRs would miss. Check jobs receive the tree as a
+same-run artifact (`whpg-install-el8`), never via the cache directly.
+Every delivered tree carries provenance files (`whpg-build.ref`,
+`.sha`, `.gp-major`) that consumers assert before use.
+
+There is no `push: main` trigger, so a merge does not warm the cache
+by itself. After merging the lane or a pin bump, run the workflow once
+via `workflow_dispatch` on `main` to populate `whpg-el8-<pin-sha>`;
+otherwise every C-touching PR cold-builds (~15 min end-to-end) until
+the next Monday schedule saves the entry.
+
+The canary writes a new entry each time upstream `main` moves; old
+entries age out via the 7-day eviction, so about one or two are alive
+at any time. If the canary cadence is ever increased or given a ref
+matrix, revisit that math.
+
+### Reproducing locally
+
+The jobs run two scripts that work anywhere the build container runs —
+`.github/scripts/build-whpg.bash` (build + install WarehousePG) and
+`.github/scripts/run-db-extension-checks.bash` (demo cluster + installchecks).
+On an x86_64 linux host with docker, from the repository root:
+
+```bash
+docker run --rm -it --platform linux/amd64 \
+  -v "$PWD:/pxf" -w /pxf \
+  --hostname cdw --shm-size=2gb \
+  ghcr.io/warehouse-pg/whpg-rocky8-build \
+  bash -c 'WHPG_REF=7.6.0-WHPG bash .github/scripts/build-whpg.bash \
+           && WHPG_REF=7.6.0-WHPG PXF_SRC=/pxf bash .github/scripts/run-db-extension-checks.bash'
+```
+
+The WarehousePG source build takes ~10 minutes on CI-class hardware
+(much longer under emulation on arm64 hosts). The invocation mirrors
+the `whpg-prepare` + `installcheck` job steps — the scripts
+themselves are exercised by every CI run of this lane.
+
+### Debugging a red run
+
+1. The job summaries show the pin, whether the cache hit, and per-job
+   status.
+2. `installcheck` failures upload `regression.diffs` and the per-test
+   result files as a run artifact (`installcheck-results*`).
+3. Re-run via **Run workflow** with `debug_enabled` checked for a tmate
+   session on failure.
+4. A red weekly run opens/updates the `ci-db-extensions-failure` issue; a red
+   `upstream-canary` with a green `installcheck` means upstream
+   WarehousePG `main` changed something the PXF C layer depends on —
+   that is the canary doing its job, not a PXF regression.
