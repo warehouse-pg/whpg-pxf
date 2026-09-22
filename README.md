@@ -4,6 +4,9 @@ Pull requests targeting this branch run the in-repository
 [PXF CI](.github/workflows/README.md) workflow: unit tests, CLI tests, a
 compile check for the integration-test tree, and static docs checks.
 
+The legacy Concourse pipeline tooling has been removed from this branch; the upstream
+copy remains in [greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive).
+
 ----------------------------------------------------------------------
 
 Introduction
@@ -39,9 +42,6 @@ Contains the automation and integration tests for PXF against the various dataso
 
 ## singlecluster/
 Hadoop testing environment to exercise the pxf automation tests
-
-## concourse/
-Resources for PXF's Continuous Integration pipelines
 
 ## regression/
 Contains the end-to-end (integration) tests for PXF against the various datasources, utilizing the PostgreSQL testing framework `pg_regress`

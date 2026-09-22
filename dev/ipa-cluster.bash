@@ -19,8 +19,8 @@ cd "$WORKING_DIR" || exit 1
 # setup common global variables
 export TF_VAR_env_name=${TF_VAR_env_name:-${USER}}
 cluster_name=${TF_VAR_env_name}
-terraform_dir="${parent_script_dir}/concourse/terraform/ipa-multinode-hadoop"
-ansible_play_path="${parent_script_dir}/concourse/ansible/ipa-multinode-hadoop"
+terraform_dir="${parent_script_dir}/dev/ipa-multinode-hadoop/terraform"
+ansible_play_path="${parent_script_dir}/dev/ipa-multinode-hadoop/ansible"
 metadata_path="${terraform_dir}/output.json"
 store_password="$(env | awk -F= '/ANSIBLE_VAR_ssl_store_password/{print $2}')"
 
