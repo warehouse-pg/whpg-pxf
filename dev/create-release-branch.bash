@@ -159,7 +159,5 @@ prompt_for_confirmation "Create branch \`${branch_name}\` on git remote \`${GIT_
 # create the new tag for the branches
 prompt_for_confirmation "Create docker tag \`${image_tag}\` for images to use with the release pipeline for branch \`${branch_name}\` (y/n)? " tag_images
 
-echo "Please set the release pipeline using:"
-echo ""
-echo "    make -C ${pxf_src}/concourse release RELEASE_BRANCH=${branch_name}"
-echo ""
+echo "The Concourse release pipeline has been retired; see .github/workflows/README.md for the"
+echo "GitHub Actions workflows that run in this repository."
