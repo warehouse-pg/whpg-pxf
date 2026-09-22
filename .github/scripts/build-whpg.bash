@@ -77,6 +77,11 @@ if [ "${WHPG_MAJOR}" = "6" ]; then
   # configure with PYTHON=python3 afterwards to rebuild ONLY plpython
   # for its regression tests — this lane runs no PL/Python suites, so
   # that second pass is deliberately skipped.
+  # The build image does not ship Python 2 — install it first (the RPM
+  # registers the alternatives entry), exactly as warehouse-pg's own
+  # 6.x CI does; -devel is needed because --with-python builds
+  # PL/Python against the Python 2 headers.
+  yum install -y --setopt=keepcache=1 python2 python2-devel
   alternatives --set python /usr/bin/python2
   python --version
   CC='ccache gcc -m64' \

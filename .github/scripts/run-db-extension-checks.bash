@@ -51,6 +51,15 @@ if [ "${actual_gp_major}" != "${tree_gp_major}" ]; then
   exit 1
 fi
 
+if [ "${tree_gp_major}" = "6" ]; then
+  # WHPG 6's cluster and gpdemo scripts assume `python` is Python 2
+  # (same reason its build recipe does — see build-whpg.bash). This is
+  # a fresh container, so install it here too (the RPM registers the
+  # alternatives entry).
+  yum install -y --setopt=keepcache=1 python2
+  alternatives --set python /usr/bin/python2
+fi
+
 echo "==> Fetching WarehousePG source at the exact built commit (${tree_sha})"
 # gpdemo and the gpadmin setup script live in the WarehousePG source
 # tree. Fetch the exact SHA the install was built from so scripts and
@@ -70,6 +79,12 @@ echo "==> Setting up the gpadmin user"
 # so the self-referential symlink inside WHPG_SRC is the only one
 # needed (no symlink in the PXF checkout — it would litter a
 # developer's working tree when reproducing locally).
+if [ "${tree_gp_major}" = "6" ]; then
+  # The 6.x copy of setup_gpadmin_user.bash does not guard its useradd
+  # against an existing user (the 7.x copy does) — drop the image's
+  # pre-created gpadmin first, exactly as warehouse-pg's own 6.x CI does.
+  userdel gpadmin 2>/dev/null || true
+fi
 export TEST_OS=centos
 (cd "${WHPG_SRC}" && ln -sfn . gpdb_src && ./concourse/scripts/setup_gpadmin_user.bash)
 
