@@ -1,7 +1,16 @@
+-- Normalize messages that differ between WarehousePG 6/7 and 19: the COPY
+-- quote error was reworded, and 19 warns about column-less tables.  Note
+-- every line inside a match block is parsed as a directive, so explanations
+-- have to live out here.
 -- start_matchsubs
 -- m/ERROR:  COPY quote available only in CSV mode/
 -- s/ERROR:  COPY quote available only in CSV mode/ERROR:  quote available only in CSV mode/
+-- m/ERROR:  COPY QUOTE requires CSV mode/
+-- s/ERROR:  COPY QUOTE requires CSV mode/ERROR:  quote available only in CSV mode/
 -- end_matchsubs
+-- start_matchignore
+-- m/^WARNING:  creating a table with no columns\./
+-- end_matchignore
 -- ===================================================================
 -- Validation for TABLE options
 -- ===================================================================

@@ -1,3 +1,10 @@
+-- WarehousePG 6/7 emit a resource-queue NOTICE on CREATE ROLE; WarehousePG 19
+-- has no resource queues, so it does not.  Ignore it so one expected file
+-- serves both platforms.  Every line inside the block is parsed as a
+-- directive, so this explanation stays outside it.
+-- start_matchignore
+-- m/^NOTICE:  resource queue required/
+-- end_matchignore
 -- ===================================================================
 -- create FDW objects
 -- ===================================================================
