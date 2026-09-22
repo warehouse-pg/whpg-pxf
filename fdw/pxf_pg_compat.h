@@ -19,18 +19,29 @@
 #include "commands/copy.h"
 
 /*
+ * This is a WarehousePG platform-tier boundary, not an upstream feature test.
  * WarehousePG 7 is PostgreSQL 12 based and WarehousePG 19 is PostgreSQL 19
- * based, so the PostgreSQL major separates the two platforms cleanly.  This
- * is a platform test, not a claim about any upstream release: WarehousePG 7
- * diverges from stock PostgreSQL 12 in the very areas covered below.
+ * based, so the PostgreSQL major separates the two cleanly -- but the number
+ * is only a convenient discriminator.  Testing the individual upstream
+ * releases named below would be wrong here, because WarehousePG 7 diverges
+ * from stock PostgreSQL 12 in exactly these areas (its BeginCopyFrom() has no
+ * whereClause parameter, for one).  A third platform means a new tier here,
+ * not new guards at the call sites.
  */
 #if PG_VERSION_NUM >= 130000
 
 /*
- * PostgreSQL 18 split CopyState into CopyFromState and CopyToState, and moved
- * the per-direction state structs out of commands/copy.h.  Both type names
- * exist natively here; WarehousePG 19 keeps a legacy CopyState alias, but the
- * module names the direction it means rather than relying on it.
+ * PostgreSQL 14 split CopyState into CopyFromState and CopyToState (upstream
+ * commit c532d15dddf, "Split copy.c into four files") and moved the
+ * CopyFromStateData definition into commands/copyfrom_internal.h.  Both type
+ * names exist natively here; WarehousePG 19 also keeps a legacy CopyState
+ * alias, but the module names the direction it means rather than rely on it.
+ *
+ * copyto_internal.h is a WarehousePG addition, not an upstream header:
+ * upstream keeps CopyToState opaque, so cstate->copycontext below would not
+ * compile against stock PostgreSQL.  That is fine for us -- this module only
+ * ever builds against WarehousePG -- but it is the reason the tier boundary
+ * above cannot be replaced by an upstream-version test.
  */
 #include "commands/copyfrom_internal.h"
 #include "commands/copyto_internal.h"
