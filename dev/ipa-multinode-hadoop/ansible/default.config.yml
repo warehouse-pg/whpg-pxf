@@ -12,3 +12,7 @@ hadoop_user: stout
 hadoop_user_password: guiness
 pxf_user: porter
 pxf_user_password: porter
+
+# password for the gpadmin / testuser / foobar accounts the play creates on the
+# throwaway IPA server; override with ANSIBLE_VAR_ipa_test_user_password
+ipa_test_user_password: pxf
