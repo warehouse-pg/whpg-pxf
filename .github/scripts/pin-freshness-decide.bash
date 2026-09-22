@@ -4,6 +4,9 @@
 # fixture tests (test-pin-freshness-decide.bash) before every live run.
 #
 # Inputs (environment):
+#   MAJOR              database major this pin belongs to (6 or 7);
+#                      prefixes the state so each major's issue is
+#                      independent
 #   PIN_TAG            the workflow's pinned tag (e.g. 7.6.0-WHPG)
 #   PIN_SHA            the commit SHA the workflow pins for that tag
 #   NEWEST_TAG         newest matching upstream tag; MUST be non-empty —
@@ -19,15 +22,24 @@
 #
 # Output (stdout, two lines):
 #   ACTION=none|create|comment|close
-#   STATE=<kind>:<detail>   kind in {stale, retag, deleted}; empty when
-#                           the pin is healthy
+#   STATE=whpg<major>:<kind>:<detail>   kind in {stale, retag, deleted};
+#                                       empty when the pin is healthy
 #
 # Priority: deleted > retag > stale. A deleted or moved pin is a
 # build-integrity problem; staleness is merely an upgrade nudge.
 set -euo pipefail
 
+: "${MAJOR:?MAJOR is required (6 or 7)}"
 : "${PIN_TAG:?PIN_TAG is required}"
 : "${PIN_SHA:?PIN_SHA is required}"
+
+# The caller looks up the open issue BY this major's marker; receiving
+# another major's state here means the caller's lookup is broken —
+# fail loud rather than mutate the wrong issue.
+if [ -n "${OPEN_STATE:-}" ] && [ "${OPEN_STATE#whpg"${MAJOR}":}" = "${OPEN_STATE}" ]; then
+  echo "ERROR: OPEN_STATE '${OPEN_STATE}' does not belong to major ${MAJOR} — caller lookup bug." >&2
+  exit 1
+fi
 if [ -z "${NEWEST_TAG:-}" ]; then
   echo "ERROR: NEWEST_TAG is empty — the upstream tag query returned nothing." >&2
   echo "Refusing to conclude 'fresh' from a broken query (fail loud, never silent)." >&2
@@ -36,14 +48,14 @@ fi
 
 state=""
 if [ -z "${PINNED_TAG_COMMIT:-}" ]; then
-  state="deleted:${PIN_TAG}"
+  state="whpg${MAJOR}:deleted:${PIN_TAG}"
 elif [ "${PINNED_TAG_COMMIT}" != "${PIN_SHA}" ]; then
-  state="retag:${PINNED_TAG_COMMIT}"
+  state="whpg${MAJOR}:retag:${PINNED_TAG_COMMIT}"
 elif [ "${NEWEST_TAG}" != "${PIN_TAG}" ] &&
      [ "$(printf '%s\n%s\n' "${PIN_TAG}" "${NEWEST_TAG}" | sort -V | tail -1)" = "${NEWEST_TAG}" ]; then
   # sort -V so 7.10 orders above 7.9; the second clause keeps a pin
   # NEWER than anything upstream (never expected) from reading as stale.
-  state="stale:${NEWEST_TAG}"
+  state="whpg${MAJOR}:stale:${NEWEST_TAG}"
 fi
 
 if [ -z "${state}" ]; then
