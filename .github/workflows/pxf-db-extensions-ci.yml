@@ -85,7 +85,7 @@ concurrency:
 env:
   # THE PIN — tag and commit SHA move together (see header).
   WHPG_TAG: 7.6.0-WHPG
-  WHPG_TAG_SHA: 0ebf27bd59914ce50dc7d0837f60cb255034a560
+  WHPG_TAG_SHA: 0f73ef6e0729cbf71cf225b41d58e1bd1090f335
   WHPG_PREFIX: /usr/local/greenplum-db-devel
 
 jobs:
