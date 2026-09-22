@@ -496,10 +496,11 @@ jobs:
           # One open watcher issue max PER MAJOR; the body marker
           # carries the major (never parsed from the title — titles get
           # edited), so this leg only ever sees its own major's issue.
+          # gh's --jq does not take jq flags like --arg — use real jq.
           # shellcheck disable=SC2016  # $m is a jq variable, not shell
           issue_json=$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci-db-extensions-pin --state open \
-            --json number,body --jq --arg m "<!-- pin-state: whpg${MAJOR}:" \
-            '[.[] | select(.body | contains($m))][0] // empty')
+            --json number,body \
+            | jq --arg m "<!-- pin-state: whpg${MAJOR}:" '[.[] | select(.body | contains($m))][0] // empty')
           open_issue=""; open_state=""
           if [ -n "$issue_json" ]; then
             open_issue=$(jq -r '.number' <<<"$issue_json")
