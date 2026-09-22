@@ -52,6 +52,9 @@ on:
       - '.github/scripts/build-whpg.bash'
       - '.github/scripts/run-db-extension-checks.bash'
       - '.github/scripts/run-db-extension-checks-gpadmin.bash'
+      - '.github/scripts/pin-freshness-decide.bash'
+      - '.github/scripts/pin-freshness-newest.bash'
+      - '.github/scripts/test-pin-freshness-decide.bash'
   push:
     # ci/** = opt-in CI for feature branches (no PR needed). No path
     # filter here: a ci/** push is already an explicit request.
@@ -235,12 +238,16 @@ jobs:
         with:
           name: whpg-install-el8
           path: whpg-dist
-      - name: Unpack the installed tree
+      - name: Unpack and assert provenance
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
         run: |
           mkdir -p "$PREFIX"
           tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          # Same consumer discipline as compile: the ref alone is a
+          # mutable tag name — assert the commit SHA too before use.
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
       - name: Demo cluster + extension installchecks
         env:
           WHPG_REF: ${{ env.WHPG_TAG }}
@@ -359,6 +366,23 @@ jobs:
             echo "- WarehousePG main: ${{ steps.upstream.outputs.sha }}"
             echo "- cache hit (main unmoved since last run): ${{ steps.cache.outputs.cache-hit == 'true' }}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # watcher-selftest: the pin watcher's decision table and tag filter
+  # are pure scripts with fixture tests. The pin-freshness job itself
+  # never runs on pull requests, so THIS job is what gates a PR that
+  # edits the watcher scripts (they are in the workflow's path filter):
+  # broken detector logic must fail the PR, not the next Monday cron.
+  # Seconds, no permissions, no WarehousePG needed.
+  # ---------------------------------------------------------------------
+  watcher-selftest:
+    name: watcher-selftest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the pin-watcher fixture tests
+        run: bash .github/scripts/test-pin-freshness-decide.bash
 
   # ---------------------------------------------------------------------
   # pin-freshness: weekly watcher over the version pin. Three
@@ -492,7 +516,7 @@ jobs:
     name: failure-issue
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [whpg-prepare, compile, installcheck, upstream-canary, pin-freshness]
+    needs: [whpg-prepare, compile, installcheck, upstream-canary, pin-freshness, watcher-selftest]
     if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
     permissions:
       contents: read

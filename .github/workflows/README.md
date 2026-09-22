@@ -332,6 +332,15 @@ The jobs run two scripts that work anywhere the build container runs —
 `.github/scripts/run-db-extension-checks.bash` (demo cluster + installchecks).
 On an x86_64 linux host with docker, from the repository root:
 
+To reproduce CI byte-for-byte, take the pins from the workflow itself
+(single source of truth — do not copy them into scripts or docs): use
+the image digest from any `container.image` line in
+`pxf-db-extensions-ci.yml` in place of the bare tag below, and
+additionally export `WHPG_SHA=<WHPG_TAG_SHA from the env block>` —
+`build-whpg.bash` asserts the checked-out commit against it when set.
+The bare-tag form below is the convenient variant and can drift if the
+image tag or the source tag is ever moved.
+
 ```bash
 docker run --rm -it --platform linux/amd64 \
   -v "$PWD:/pxf" -w /pxf \
