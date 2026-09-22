@@ -102,7 +102,7 @@ static PxfFdwModifyState *InitForeignModify(Relation relation);
 static void FinishForeignModify(PxfFdwModifyState *pxfmstate);
 static void InitCopyState(PxfFdwScanState *pxfsstate);
 static void InitCopyStateForModify(PxfFdwModifyState *pxfmstate);
-static CopyToState BeginCopyTo(Relation forrel, List *options);
+static CopyToState PxfBeginCopyTo(Relation forrel, List *options);
 static void EndCopyToModify(CopyToState cstate);
 static void PxfBeginScanErrorCallback(void *arg);
 static void PxfCopyFromErrorCallback(void *arg);
@@ -879,7 +879,7 @@ InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
 	/*
 	 * Create CopyState from FDW options.  We always acquire all columns to match the expected ScanTupleSlot signature.
 	 */
-	cstate = BeginCopyTo(pxfmstate->relation, copy_options);
+	cstate = PxfBeginCopyTo(pxfmstate->relation, copy_options);
 
 #if PG_VERSION_NUM < 130000
 
@@ -940,7 +940,7 @@ InitCopyStateForModify(PxfFdwModifyState *pxfmstate)
  * Set up CopyState for writing to a foreign table.
  */
 static CopyToState
-BeginCopyTo(Relation forrel, List *options)
+PxfBeginCopyTo(Relation forrel, List *options)
 {
 	CopyToState cstate;
 
@@ -1040,7 +1040,7 @@ PxfCopyFromErrorCallback(void *arg)
     snprintf(curlineno_str, sizeof(curlineno_str), UINT64_FORMAT,
              cstate->cur_lineno);
 
-    if (PXF_COPY_OPTS(cstate).binary)
+    if (PXF_COPY_IS_BINARY(cstate))
     {
         /* can't usefully display the data */
         if (cstate->cur_attname)

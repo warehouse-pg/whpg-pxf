@@ -28,6 +28,7 @@
 #include "access/fileam.h"
 #include "catalog/pg_exttable.h"
 #endif
+#include "catalog/pg_type.h"
 #include "utils/timestamp.h"
 #include "nodes/makefuncs.h"
 #include "cdb/cdbvars.h"

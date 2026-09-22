@@ -37,8 +37,13 @@
 #include "funcapi.h"
 
 #include "access/formatter.h"
+#include "catalog/pg_type.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_proc.h"
+#include "access/htup_details.h"
+#if PG_VERSION_NUM >= 130000
+#include "varatt.h"
+#endif
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 #include "utils/typcache.h"
@@ -332,16 +337,16 @@ getNullByteArraySize(int colCnt)
  * This routine is aware of the attributes in the table, and it will only
  * produce a result for valid columns (excludes dropped columns).
  */
-static bits8 *
+static uint8 *
 boolArrayToByteArray(bool *data, int len, int validlen, int *outlen, TupleDesc tupdesc)
 {
 	int			i,
 				j,
 				k;
-	bits8	   *result;
+	uint8	   *result;
 
 	*outlen = getNullByteArraySize(validlen);
-	result = palloc0(*outlen * sizeof(bits8));
+	result = palloc0(*outlen * sizeof(uint8));
 
 	for (i = 0, j = 0, k = 7; i < len; i++)
 	{
@@ -382,7 +387,7 @@ boolArrayToByteArray(bool *data, int len, int validlen, int *outlen, TupleDesc t
  *  -------------------------------------------------------------
  */
 static void
-byteArrayToBoolArray(bits8 *data, int data_len, int len, bool **booldata, int boollen, TupleDesc tupdesc)
+byteArrayToBoolArray(uint8 *data, int data_len, int len, bool **booldata, int boollen, TupleDesc tupdesc)
 {
 	int			i,
 				j,
@@ -482,7 +487,7 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	AttrNumber	i;
 	MemoryContext per_row_ctx,
 				oldcontext;
-	bits8	   *nullBit;
+	uint8	   *nullBit;
 	int			nullBitLen;
 	int			endpadding;
 
@@ -893,7 +898,7 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 	/* Extract null bit array */
 	{
 		int			nullByteLen = getNullByteArraySize(ncolumns_remote);
-		bits8	   *nullByteArray = (bits8 *) (data_buf + bufidx);
+		uint8	   *nullByteArray = (uint8 *) (data_buf + bufidx);
 
 		byteArrayToBoolArray(nullByteArray, tupleEndIdx - bufidx, nullByteLen, &myData->nulls, ncolumns, tupdesc);
 		bufidx += nullByteLen;

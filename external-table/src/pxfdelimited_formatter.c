@@ -3,6 +3,8 @@
 #include "pxfdelimited_formatter.h"
 #include "stdio.h"
 
+#include "access/htup_details.h"	/* heap_form_tuple */
+
 PG_FUNCTION_INFO_V1(pxfdelimited_import);
 Datum pxfdelimited_import(PG_FUNCTION_ARGS);
 

@@ -52,6 +52,19 @@
  */
 #define PXF_COPY_OPTS(cstate)	((cstate)->opts)
 
+/*
+ * PostgreSQL 18 replaced the individual format booleans with a CopyFormat
+ * enum.
+ */
+#define PXF_COPY_IS_BINARY(cstate) \
+	(PXF_COPY_OPTS(cstate).format == COPY_FORMAT_BINARY)
+
+/*
+ * PostgreSQL 15 removed the Value union in favour of per-type nodes;
+ * makeString() now returns String *.
+ */
+typedef String PxfStringValue;
+
 #else							/* WarehousePG 6 / 7 */
 
 /*
@@ -66,6 +79,10 @@ typedef CopyState CopyToState;
  * the state itself.
  */
 #define PXF_COPY_OPTS(cstate)	(*(cstate))
+
+#define PXF_COPY_IS_BINARY(cstate)	(PXF_COPY_OPTS(cstate).binary)
+
+typedef Value PxfStringValue;
 
 #endif
 
