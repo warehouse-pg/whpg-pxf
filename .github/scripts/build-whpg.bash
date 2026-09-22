@@ -71,12 +71,19 @@ ccache --zero-stats
 
 echo "==> Configuring WarehousePG (major ${WHPG_MAJOR})"
 if [ "${WHPG_MAJOR}" = "6" ]; then
-  # WHPG 6 recipe, mirroring warehouse-pg's own 6.x CI: the whole tree
-  # builds against Python 2 (WHPG 6 ships PyGreSQL 4.0, and gpdemo /
-  # cluster scripts assume `python` is Python 2). Their CI re-runs
-  # configure with PYTHON=python3 afterwards to rebuild ONLY plpython
-  # for its regression tests — this lane runs no PL/Python suites, so
-  # that second pass is deliberately skipped.
+  # WHPG 6 recipe, mirroring warehouse-pg's own 6.x CI with two
+  # deliberate, lane-scoped deviations:
+  # - Their CI re-runs configure with PYTHON=python3 afterwards to
+  #   rebuild ONLY plpython for its regression tests — this lane runs
+  #   no PL/Python suites, so that second pass is skipped.
+  # - Their CI builds ORCA, which requires removing the system
+  #   Xerces-C and compiling a custom Xerces-C 3.1 first (the system
+  #   xerces headers do not compile against WHPG 6's gporca). This
+  #   lane's suites are DDL/option-validator tests where the optimizer
+  #   never matters, so ORCA is disabled instead of vendoring a
+  #   Xerces build.
+  # The whole tree builds against Python 2 (WHPG 6 ships PyGreSQL 4.0,
+  # and gpdemo / cluster scripts assume `python` is Python 2).
   # The build image does not ship Python 2 — install it first (the RPM
   # registers the alternatives entry), exactly as warehouse-pg's own
   # 6.x CI does; -devel is needed because --with-python builds
@@ -87,7 +94,7 @@ if [ "${WHPG_MAJOR}" = "6" ]; then
   CC='ccache gcc -m64' \
   CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
   ./configure --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
-              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests \
+              --disable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests \
               --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
               --with-libraries="" --disable-rpath \
               --prefix="${PREFIX}" \
