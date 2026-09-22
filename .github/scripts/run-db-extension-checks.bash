@@ -84,6 +84,6 @@ test -f "${gpdemo_env}" || { echo "ERROR: ${gpdemo_env} not created — demo clu
 
 echo "==> Running the extension installchecks as gpadmin"
 # Standalone script invocation across the su boundary — see header note.
-su gpadmin -c "bash '${script_dir}/run-db-extension-checks-gpadmin.bash' '${PREFIX}' '${gpdemo_env}' '${PXF_SRC}'"
+su gpadmin -c "bash '${script_dir}/run-db-extension-checks-gpadmin.bash' '${PREFIX}' '${gpdemo_env}' '${PXF_SRC}' '${tree_gp_major}'"
 
 echo "==> All extension checks passed"

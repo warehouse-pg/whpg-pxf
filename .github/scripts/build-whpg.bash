@@ -9,6 +9,9 @@
 # Inputs (environment):
 #   WHPG_REF    tag or branch to build (required, e.g. 7.6.0-WHPG or main)
 #   WHPG_SHA    expected commit for WHPG_REF (optional; asserted if set)
+#   WHPG_MAJOR  database major being built: 7 (default) or 6. Selects
+#               the configure recipe; derived from WHPG_REF's leading
+#               digit when unset (refs like 'main' derive 7).
 #   WHPG_REPO   source repository (default: warehouse-pg/warehouse-pg)
 #   PREFIX      install prefix (default: /usr/local/greenplum-db-devel)
 #   SRC_DIR     scratch checkout dir (default: /tmp/whpg_src)
@@ -56,22 +59,45 @@ if [ -n "${WHPG_SHA:-}" ] && [ "${built_sha}" != "${WHPG_SHA}" ]; then
   exit 1
 fi
 
+WHPG_MAJOR="${WHPG_MAJOR:-}"
+if [ -z "${WHPG_MAJOR}" ]; then
+  case "${WHPG_REF}" in 6.*) WHPG_MAJOR=6 ;; *) WHPG_MAJOR=7 ;; esac
+fi
+
 echo "==> Configuring ccache"
 ccache --set-config=max_size=1G
 ccache --set-config=compression=true
 ccache --zero-stats
 
-echo "==> Configuring WarehousePG"
-# Flag set as used by WarehousePG's own CI. Options only recognized by
-# WHPG 6 produce harmless "unrecognized options" warnings on 7.
-CC='ccache gcc -m64' \
-CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
-./configure --with-quicklz --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
-            --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests --with-llvm \
-            --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
-            --with-libraries="" --disable-rpath \
-            --prefix="${PREFIX}" \
-            --mandir="${PREFIX}/man"
+echo "==> Configuring WarehousePG (major ${WHPG_MAJOR})"
+if [ "${WHPG_MAJOR}" = "6" ]; then
+  # WHPG 6 recipe, mirroring warehouse-pg's own 6.x CI: the whole tree
+  # builds against Python 2 (WHPG 6 ships PyGreSQL 4.0, and gpdemo /
+  # cluster scripts assume `python` is Python 2). Their CI re-runs
+  # configure with PYTHON=python3 afterwards to rebuild ONLY plpython
+  # for its regression tests — this lane runs no PL/Python suites, so
+  # that second pass is deliberately skipped.
+  alternatives --set python /usr/bin/python2
+  python --version
+  CC='ccache gcc -m64' \
+  CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
+  ./configure --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
+              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests \
+              --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
+              --with-libraries="" --disable-rpath \
+              --prefix="${PREFIX}" \
+              --mandir="${PREFIX}/man"
+else
+  # WHPG 7 recipe, as used by WarehousePG's own CI.
+  CC='ccache gcc -m64' \
+  CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
+  ./configure --with-quicklz --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
+              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests --with-llvm \
+              --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
+              --with-libraries="" --disable-rpath \
+              --prefix="${PREFIX}" \
+              --mandir="${PREFIX}/man"
+fi
 
 echo "==> Building"
 make -j"$(nproc)"
@@ -93,6 +119,10 @@ gp_major=$(
   postgres --gp-version | sed -n 's/[^0-9]*\([0-9]\{1,\}\).*/\1/p' | head -1
 )
 test -n "${gp_major}"
+if [ "${gp_major}" != "${WHPG_MAJOR}" ]; then
+  echo "ERROR: built binary reports gp major ${gp_major}, expected ${WHPG_MAJOR}." >&2
+  exit 1
+fi
 
 echo "==> Writing provenance"
 printf '%s\n' "${WHPG_REF}"   > "${PREFIX}/whpg-build.ref"
