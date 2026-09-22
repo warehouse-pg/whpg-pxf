@@ -29,10 +29,9 @@ PXF provides a preconfigured **book** in the `docs/book` directory of this repo.
 <a name="building_docker"></a>
 ## Building the Documentation (Legacy)
 
-This book was historically rendered with Bookbinder via a docker harness
-that lived in the repository's deprecated legacy-CI tree. Building the book
-locally is no longer supported or verified. The published documentation is
-the official site referenced above.
+This book was historically rendered with Bookbinder via the docker harness now kept
+under `docs/docker` for reference. Building the book locally is no longer supported
+or verified. The published documentation is the official site referenced above.
 
 <a name="moreinfo"></a>
 ## Getting More Information

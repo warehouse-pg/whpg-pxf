@@ -21,7 +21,7 @@
    make install
    ```
 
-1. There is also end to end testing for the pxf-cli located at `pxf/concourse/scripts/cli`. These tests were historically run via the Concourse `dev` pipeline (`MULTINODE=true make -C ~/workspace/pxf/concourse dev`). That Concourse tooling is deprecated and targets infrastructure that is no longer accessible (see [`concourse/README.md`](../concourse/README.md)).
+1. The upstream pxf-cli end-to-end tests lived under `concourse/scripts/cli` and ran in the Concourse `dev` pipeline. That tooling was removed together with the rest of the Concourse pipelines (the historical copy is in [greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive)); the CLI tests that run today are the `cli-test` job of the in-repository [PXF CI](../.github/workflows/README.md) workflow.
 
 ## Debugging the CLI on a live system
 
