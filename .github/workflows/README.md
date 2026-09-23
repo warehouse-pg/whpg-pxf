@@ -255,14 +255,15 @@ run re-saves the cache. If the image was rebuilt upstream and the old
 digest's layers were garbage-collected, jobs fail at container start
 with a pull error — bump the digest.
 
-A pin bump can also legitimately drift the pg_regress goldens: the
-expected outputs under `fdw/expected/` and `external-table/expected/`
-are pinned to the **pinned server version's** output (WARNINGs and
-NOTICEs come and go across WHPG releases — that drift is exactly what
-kept the fdw suites red for years). If `installcheck` goes red after
-a bump, read `regression.diffs` from the failed run's artifact: pure
-output drift gets the goldens reconciled in the same PR as the bump;
-anything touching rows or errors is a real regression.
+A pin bump can also legitimately drift the pg_regress goldens.
+Known major-dependent NOISE lines (the WHPG 6 resource-queue NOTICE,
+the WHPG 7 zero-column CREATE warning) are absorbed by
+`start_matchignore` blocks in the suites' sql/expected files, so one
+expected file serves every supported major. If `installcheck` still
+goes red after a bump, read `regression.diffs` from the failed run's
+artifact: a NEW noise line gets a matchignore entry in the same PR as
+the bump; anything touching rows or error text is a real regression —
+never matchignore those (the error messages ARE the assertions).
 
 **The pin watcher** (`pin-freshness` job) checks the pin weekly and
 files an issue labeled `ci-db-extensions-pin` when action is needed:

@@ -86,6 +86,12 @@ env:
   # THE PIN — tag and commit SHA move together (see header).
   WHPG_TAG: 7.6.0-WHPG
   WHPG_TAG_SHA: 0f73ef6e0729cbf71cf225b41d58e1bd1090f335
+  # The build image digest. GitHub does not allow env in
+  # container.image, so the digest is literal on every container.image
+  # line — this value MUST equal those literals (bump all five
+  # together; procedure in the README). It feeds the cache keys so a
+  # digest bump invalidates trees built in the old image.
+  BUILD_IMAGE_DIGEST: sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
   WHPG_PREFIX: /usr/local/greenplum-db-devel
 
 jobs:
@@ -102,8 +108,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45   # measured: ~10 min cold source build, ~1 min on cache hit
     container:
-      # Pin bump: update this digest together with WHPG_TAG/WHPG_TAG_SHA
-      # (all container.image lines in this file use the same digest).
       image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
       options: --user root
     steps:
@@ -116,7 +120,7 @@ jobs:
           # Exact-match only (no restore-keys): a stale or wrong-version
           # tree can never be silently reused; the key self-invalidates
           # when the pin is bumped.
-          key: whpg-el8-${{ env.WHPG_TAG_SHA }}
+          key: whpg-el8-${{ env.WHPG_TAG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Build WarehousePG from source (cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
         env:
@@ -135,7 +139,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: whpg-dist
-          key: whpg-el8-${{ env.WHPG_TAG_SHA }}
+          key: whpg-el8-${{ env.WHPG_TAG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Verify the tree before handing it to consumers
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
@@ -315,7 +319,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: whpg-dist
-          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Build WarehousePG@main (upstream moved since the last run)
         if: steps.cache.outputs.cache-hit != 'true'
         env:
@@ -332,7 +336,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: whpg-dist
-          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Unpack and assert provenance
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}

@@ -24,19 +24,35 @@ PREFIX="${PREFIX:-/usr/local/greenplum-db-devel}"
 SRC_DIR="${SRC_DIR:-/tmp/whpg_src}"
 : "${WHPG_REF:?WHPG_REF is required (tag or branch to build)}"
 
-echo "==> Cloning ${WHPG_REPO} @ ${WHPG_REF}"
-git clone --depth 1 --branch "${WHPG_REF}" \
-  --recurse-submodules --shallow-submodules \
-  "${WHPG_REPO}" "${SRC_DIR}"
-cd "${SRC_DIR}"
+if [ -n "${WHPG_SHA:-}" ]; then
+  # Fetch the pinned COMMIT directly instead of cloning the tag: tags
+  # are mutable, and a moved tag must never redden a PR build — the
+  # pin-freshness watcher reports tag moves through an issue instead
+  # (this lane hit exactly that: upstream re-cut 7.6.0-WHPG mid-review
+  # and every cold-cache run failed until the SHA was bumped). Also
+  # closes the canary's resolve-then-clone race: the commit that was
+  # resolved is the commit that gets built.
+  echo "==> Fetching ${WHPG_REPO} @ ${WHPG_SHA} (${WHPG_REF})"
+  git init -q "${SRC_DIR}"
+  cd "${SRC_DIR}"
+  git remote add origin "${WHPG_REPO}"
+  git fetch --depth 1 origin "${WHPG_SHA}"
+  git checkout -q FETCH_HEAD
+  git submodule update --init --depth 1 --recursive
+else
+  echo "==> Cloning ${WHPG_REPO} @ ${WHPG_REF}"
+  git clone --depth 1 --branch "${WHPG_REF}" \
+    --recurse-submodules --shallow-submodules \
+    "${WHPG_REPO}" "${SRC_DIR}"
+  cd "${SRC_DIR}"
+fi
 
 # Tags are needed so getversion's `git describe` resolves on branch builds.
 git fetch --tags --depth 1 origin || true
 
 built_sha=$(git rev-parse HEAD)
 if [ -n "${WHPG_SHA:-}" ] && [ "${built_sha}" != "${WHPG_SHA}" ]; then
-  echo "ERROR: ${WHPG_REF} resolved to ${built_sha}, expected ${WHPG_SHA}." >&2
-  echo "The workflow's pin (tag + SHA) must be bumped together." >&2
+  echo "ERROR: checkout resolved to ${built_sha}, expected ${WHPG_SHA}." >&2
   exit 1
 fi
 
