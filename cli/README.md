@@ -18,7 +18,7 @@
    make install
    ```
 
-1. The upstream pxf-cli end-to-end tests lived under `concourse/scripts/cli` and ran in the Concourse `dev` pipeline. That tooling was removed together with the rest of the Concourse pipelines (the historical copy is in [greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive)); the live CI surface is the GitHub Actions workflows under `whpg-extensions-packaging/.github/workflows/`.
+1. The upstream pxf-cli end-to-end tests lived under `concourse/scripts/cli` and ran in the Concourse `dev` pipeline. That tooling was removed together with the rest of the Concourse pipelines (the historical copy is in [greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive)); the CLI tests that run today are the `cli-test` job of the in-repository [PXF CI](../.github/workflows/README.md) workflow.
 
 ## Debugging the CLI on a live system
 
