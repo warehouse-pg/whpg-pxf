@@ -183,11 +183,13 @@ Two things, both about the database-resident extensions themselves:
    EXTENSION` succeeds, and the DDL option validators accept or reject
    options at each catalog level with the exact expected message. This
    is almost entirely negative testing: across the six suites, ~188
-   statements carry 137 asserted ERROR/WARNING/NOTICE lines. Coverage
-   is deliberately lopsided — the four fdw suites are dense validator
-   coverage (136 assertions over wrapper/server/user-mapping/
-   foreign-table DDL); the two external-table suites (`setup`,
-   `pxfinvalid`) are an install-plus-reject-invalid-profile smoke
+   statements carry 134 asserted ERROR lines (version-noise WARNINGs
+   and NOTICEs are matchignored, not asserted — see the goldens note
+   under "The version pins"). Coverage is deliberately lopsided — the
+   four fdw suites are dense validator coverage (133 assertions over
+   wrapper/server/user-mapping/foreign-table DDL); the two
+   external-table suites (`setup`, `pxfinvalid`) are an
+   install-plus-reject-invalid-profile smoke
    (1 assertion), because external-table's substantive suite is the
    excluded data-path test below. Describe this lane as "dense fdw
    validator coverage plus a compile gate and install smoke for both
