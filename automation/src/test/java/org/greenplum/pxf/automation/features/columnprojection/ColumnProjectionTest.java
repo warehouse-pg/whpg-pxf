@@ -6,6 +6,7 @@ import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.pxf.ReadableExternalTable;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.FDWUtils;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -143,5 +144,45 @@ public class ColumnProjectionTest extends BaseFeature {
         } else {
             runSqlTest("features/columnprojection/checkColumnProjection");
         }
+    }
+
+    /**
+     * PTT-1850: gp_exttable_fdw checks every row of an external table that is a
+     * partition against the partition constraint. The partition key column must
+     * therefore be part of the column projection sent to PXF even when the query
+     * does not reference it, otherwise PXF returns NULL for it and every row of
+     * the partition is silently dropped.
+     *
+     * @throws Exception
+     */
+    @Test(groups = {"features", "gpdb", "security"})
+    public void checkColumnProjectionOnExternalTablePartition() throws Exception {
+        if (gpdb.getVersion() < 7) {
+            throw new SkipException("ATTACH PARTITION of external tables requires GPDB 7");
+        }
+        if (FDWUtils.useFDW) {
+            throw new SkipException("partition constraints are only enforced on external tables (gp_exttable_fdw), not on pxf_fdw foreign tables");
+        }
+
+        String[] fields = new String[] {
+                "t0    text",
+                "a1    integer",
+                "b2    boolean",
+                "colprojValue  text"
+        };
+
+        // external table that will become a partition, a1 is the partition key
+        ReadableExternalTable pxfExternalTable = TableFactory.getPxfReadableTestTextTable("test_column_projection_part", fields, "dummy_path", ",");
+        pxfExternalTable.setFragmenter(testPackage + "ColumnProjectionVerifyFragmenter");
+        pxfExternalTable.setAccessor(testPackage + "ColumnProjectionVerifyAccessor");
+        pxfExternalTable.setResolver("org.greenplum.pxf.plugins.hdfs.StringPassResolver");
+        gpdb.createTableAndVerify(pxfExternalTable);
+
+        gpdb.runQuery("DROP TABLE IF EXISTS test_column_projection_parent");
+        gpdb.runQuery("CREATE TABLE test_column_projection_parent (t0 text, a1 integer, b2 boolean, colprojvalue text) " +
+                "DISTRIBUTED BY (t0) PARTITION BY RANGE (a1)");
+        gpdb.runQuery("ALTER TABLE test_column_projection_parent ATTACH PARTITION test_column_projection_part FOR VALUES FROM (0) TO (100)");
+
+        runSqlTest("features/columnprojection/checkColumnProjectionPartition");
     }
 }

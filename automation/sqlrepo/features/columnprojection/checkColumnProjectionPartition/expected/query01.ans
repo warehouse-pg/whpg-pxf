@@ -1,0 +1,163 @@
+-- @description query01 for PXF column projection on an external table that is a partition (PTT-1850)
+-- The queries below never reference the partition key a1, but gp_exttable_fdw checks
+-- every row of an external table partition against the partition constraint, so PXF
+-- has to project a1 anyway. Without that, a1 is returned as NULL, the constraint
+-- evaluates to NULL and every row is silently dropped.
+SET optimizer = off;
+SET
+SELECT t0, colprojvalue FROM test_column_projection_parent ORDER BY t0;
+ t0 |    colprojvalue    
+----+--------------------
+ A  | t0|a1|colprojvalue
+ B  | t0|a1|colprojvalue
+ C  | t0|a1|colprojvalue
+ D  | t0|a1|colprojvalue
+ E  | t0|a1|colprojvalue
+ F  | t0|a1|colprojvalue
+ G  | t0|a1|colprojvalue
+ H  | t0|a1|colprojvalue
+ I  | t0|a1|colprojvalue
+ J  | t0|a1|colprojvalue
+(10 rows)
+
+SELECT colprojvalue FROM test_column_projection_parent ORDER BY colprojvalue;
+  colprojvalue   
+-----------------
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+(10 rows)
+
+SELECT t0, colprojvalue FROM test_column_projection_parent WHERE b2 ORDER BY t0;
+ t0 |     colprojvalue      
+----+-----------------------
+ A  | t0|a1|b2|colprojvalue
+ C  | t0|a1|b2|colprojvalue
+ E  | t0|a1|b2|colprojvalue
+ G  | t0|a1|b2|colprojvalue
+ I  | t0|a1|b2|colprojvalue
+(5 rows)
+
+SELECT count(*), count(t0), count(colprojvalue) FROM test_column_projection_parent;
+ count | count | count 
+-------+-------+-------
+    10 |    10 |    10
+(1 row)
+
+-- querying the partition directly still applies the partition constraint
+SELECT t0, colprojvalue FROM test_column_projection_part ORDER BY t0;
+ t0 |    colprojvalue    
+----+--------------------
+ A  | t0|a1|colprojvalue
+ B  | t0|a1|colprojvalue
+ C  | t0|a1|colprojvalue
+ D  | t0|a1|colprojvalue
+ E  | t0|a1|colprojvalue
+ F  | t0|a1|colprojvalue
+ G  | t0|a1|colprojvalue
+ H  | t0|a1|colprojvalue
+ I  | t0|a1|colprojvalue
+ J  | t0|a1|colprojvalue
+(10 rows)
+
+SELECT colprojvalue FROM test_column_projection_part ORDER BY colprojvalue;
+  colprojvalue   
+-----------------
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+(10 rows)
+
+SET optimizer = on;
+SET
+SELECT t0, colprojvalue FROM test_column_projection_parent ORDER BY t0;
+ t0 |    colprojvalue    
+----+--------------------
+ A  | t0|a1|colprojvalue
+ B  | t0|a1|colprojvalue
+ C  | t0|a1|colprojvalue
+ D  | t0|a1|colprojvalue
+ E  | t0|a1|colprojvalue
+ F  | t0|a1|colprojvalue
+ G  | t0|a1|colprojvalue
+ H  | t0|a1|colprojvalue
+ I  | t0|a1|colprojvalue
+ J  | t0|a1|colprojvalue
+(10 rows)
+
+SELECT colprojvalue FROM test_column_projection_parent ORDER BY colprojvalue;
+  colprojvalue   
+-----------------
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+(10 rows)
+
+SELECT t0, colprojvalue FROM test_column_projection_parent WHERE b2 ORDER BY t0;
+ t0 |     colprojvalue      
+----+-----------------------
+ A  | t0|a1|b2|colprojvalue
+ C  | t0|a1|b2|colprojvalue
+ E  | t0|a1|b2|colprojvalue
+ G  | t0|a1|b2|colprojvalue
+ I  | t0|a1|b2|colprojvalue
+(5 rows)
+
+SELECT count(*), count(t0), count(colprojvalue) FROM test_column_projection_parent;
+ count | count | count 
+-------+-------+-------
+    10 |    10 |    10
+(1 row)
+
+-- querying the partition directly still applies the partition constraint
+SELECT t0, colprojvalue FROM test_column_projection_part ORDER BY t0;
+ t0 |    colprojvalue    
+----+--------------------
+ A  | t0|a1|colprojvalue
+ B  | t0|a1|colprojvalue
+ C  | t0|a1|colprojvalue
+ D  | t0|a1|colprojvalue
+ E  | t0|a1|colprojvalue
+ F  | t0|a1|colprojvalue
+ G  | t0|a1|colprojvalue
+ H  | t0|a1|colprojvalue
+ I  | t0|a1|colprojvalue
+ J  | t0|a1|colprojvalue
+(10 rows)
+
+SELECT colprojvalue FROM test_column_projection_part ORDER BY colprojvalue;
+  colprojvalue   
+-----------------
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+ a1|colprojvalue
+(10 rows)
+

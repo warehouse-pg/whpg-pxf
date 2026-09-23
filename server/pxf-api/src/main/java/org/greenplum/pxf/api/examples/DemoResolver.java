@@ -24,7 +24,9 @@ import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.io.DataType;
 import org.greenplum.pxf.api.model.BasePlugin;
 import org.greenplum.pxf.api.model.Resolver;
+import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -49,8 +51,14 @@ public class DemoResolver extends BasePlugin implements Resolver {
 
         /* break up the row into fields */
         String[] fields = ((String) data).split(",");
-        for (String field : fields) {
-            output.add(new OneField(DataType.VARCHAR.getOID(), field));
+        List<ColumnDescriptor> tupleDescription =
+                context != null ? context.getTupleDescription() : Collections.emptyList();
+        for (int i = 0; i < fields.length; i++) {
+            // Honor column projection like a real resolver would: Greenplum
+            // did not ask for columns that are not projected, so send NULL
+            // for them instead of the value.
+            boolean projected = i >= tupleDescription.size() || tupleDescription.get(i).isProjected();
+            output.add(new OneField(DataType.VARCHAR.getOID(), projected ? fields[i] : null));
         }
 
         return output;
