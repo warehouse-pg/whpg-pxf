@@ -15,7 +15,7 @@ INSERT INTO multi_block_data_smoke_test_foreign_table
 		from generate_series(1, 32000000) s(i);
 
 -- Verify data entered HCFS correctly, no distributed by in FDW yet
-\!{ for i in $({{ HCFS_CMD }} dfs -ls {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }} 2>/dev/null | tail -n +2 | awk '{print $NF}'); do {{ HCFS_CMD }} dfs -cat $i 2>/dev/null | head -1; done } | sort | head -1
+\! { for i in $({{ HCFS_CMD }} dfs -ls {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }} 2>/dev/null | tail -n +2 | awk '{print $NF}'); do {{ HCFS_CMD }} dfs -cat $i 2>/dev/null | head -1; done } | sort | head -1
 
 -- @description query01 for PXF test on Multi Blocked data
 SELECT count(*) FROM multi_block_data_smoke_test_foreign_table;
@@ -34,4 +34,4 @@ SELECT cnt < 32000000 AS check FROM (
 	) AS a;
 
 {{ CLEAN_UP }}-- clean up HCFS
-{{ CLEAN_UP }}\!{{ HCFS_CMD }} dfs -rm -r -f {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}
+{{ CLEAN_UP }}\! {{ HCFS_CMD }} dfs -rm -r -f {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}

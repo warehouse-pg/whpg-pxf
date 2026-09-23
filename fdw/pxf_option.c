@@ -381,7 +381,13 @@ ValidateCopyOptions(List *options_list, Oid catalog)
 	 * Apply the core COPY code's validation logic for more checks.
 	 */
 #if PG_VERSION_NUM >= 130000
-	/* PostgreSQL 16 added the Relation parameter. */
+
+	/*
+	 * The trailing Relation is a WarehousePG addition, not an upstream
+	 * change: PostgreSQL is four-argument here on every branch through
+	 * master.  Another reason the guard above is a platform tier rather than
+	 * an upstream-version test.
+	 */
 	ProcessCopyOptions(NULL, NULL, true, copy_options, NULL);
 #elif PG_VERSION_NUM >= 90600
 	ProcessCopyOptions(NULL, NULL, true, copy_options);

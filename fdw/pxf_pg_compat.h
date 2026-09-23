@@ -53,8 +53,9 @@
 #define PXF_COPY_OPTS(cstate)	((cstate)->opts)
 
 /*
- * PostgreSQL 18 replaced the individual format booleans with a CopyFormat
- * enum.
+ * PostgreSQL 19 replaced the individual format booleans with a CopyFormat
+ * enum: COPY_FORMAT_BINARY is on upstream master only, and REL_16 through
+ * REL_18 still carry `bool binary`.
  */
 #define PXF_COPY_IS_BINARY(cstate) \
 	(PXF_COPY_OPTS(cstate).format == COPY_FORMAT_BINARY)
