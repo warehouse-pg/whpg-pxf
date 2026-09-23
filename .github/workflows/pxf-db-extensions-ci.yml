@@ -262,9 +262,8 @@ jobs:
       fail-fast: false
       matrix:
         ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
-        # Suite set differs per major: whpg7 runs fdw + external-table;
-        # whpg6 runs external-table only (fdw expected files are pinned
-        # to WHPG 7 server output — see the gpadmin script).
+        # Both majors run the full suite set: the expected files are
+        # major-neutral (gpdiff matchignore absorbs per-major noise).
         major: ['7', '6']
     container:
       image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98

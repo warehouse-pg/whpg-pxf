@@ -11,14 +11,12 @@
 #   $1  WarehousePG install prefix
 #   $2  path to gpdemo-env.sh of the running demo cluster
 #   $3  path to the PXF checkout
-#   $4  database major version (6 or 7) — selects the suite set
 
 set -euo pipefail
 
-PREFIX="${1:?usage: run-db-extension-checks-gpadmin.bash PREFIX GPDEMO_ENV PXF_SRC GP_MAJOR}"
+PREFIX="${1:?usage: run-db-extension-checks-gpadmin.bash PREFIX GPDEMO_ENV PXF_SRC}"
 GPDEMO_ENV="${2:?missing gpdemo-env.sh path}"
 PXF_SRC="${3:?missing PXF checkout path}"
-GP_MAJOR="${4:?missing database major version}"
 
 # shellcheck disable=SC1090,SC1091
 source "${PREFIX}/greenplum_path.sh"
@@ -36,15 +34,9 @@ make -C "${PXF_SRC}/external-table" install
 # extension itself.
 make -C "${PXF_SRC}/external-table" installcheck REGRESS='setup pxfinvalid'
 
-if [ "${GP_MAJOR}" = "7" ]; then
-  echo "==> fdw: install + installcheck"
-  make -C "${PXF_SRC}/fdw" install
-  make -C "${PXF_SRC}/fdw" installcheck
-else
-  # fdw COMPILES on WHPG 6 (GP_MAJORVERSION >= 6) — the compile job
-  # covers that — but its pg_regress expected files are pinned to
-  # WHPG 7 server output (e.g. the zero-column CREATE WARNING), so the
-  # fdw installcheck runs on the WHPG 7 leg only. Variant expected
-  # files for 6 would be the way to lift this if ever wanted.
-  echo "==> fdw: installcheck skipped on WHPG ${GP_MAJOR} (expected files are WHPG 7 output; see workflow README)"
-fi
+# fdw builds and installchecks on every supported major: the expected
+# files are major-neutral (gpdiff start_matchignore absorbs the known
+# per-major noise lines - see the comment blocks in fdw/sql/).
+echo "==> fdw: install + installcheck"
+make -C "${PXF_SRC}/fdw" install
+make -C "${PXF_SRC}/fdw" installcheck
