@@ -1,3 +1,11 @@
+-- WarehousePG majors differ in the noise they emit around role and
+-- table DDL: WHPG 7 warns on the deliberate zero-column CREATE FOREIGN
+-- TABLE statements below, WHPG 6 does not. Ignore it so one expected
+-- file serves every supported major. Every line inside the block is a
+-- directive, so this explanation stays outside it.
+-- start_matchignore
+-- m/^WARNING:  creating a table with no columns/
+-- end_matchignore
 -- start_matchsubs
 -- m/ERROR:  COPY quote available only in CSV mode/
 -- s/ERROR:  COPY quote available only in CSV mode/ERROR:  quote available only in CSV mode/
