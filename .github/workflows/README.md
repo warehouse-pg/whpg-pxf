@@ -208,7 +208,7 @@ SELECT through PXF returns rows.
 
 | Job | What it runs | Measured time |
 |---|---|---|
-| `whpg-prepare` (×2: whpg7, whpg6) | Provides the installed WarehousePG tree per database major: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit / 5–10m on miss (measured 2026-09 over four runs: whpg7 8–10m, whpg6 5–10m) |
+| `whpg-prepare` (×2: whpg7, whpg6) | Provides the installed WarehousePG tree per database major: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit / 8–13m on miss (measured 2026-09: whpg7 8–11m; whpg6 9–12.5m, which includes building the Xerces 3.1 that WHPG 6's ORCA requires) |
 | `compile` (×2) | `make -C external-table && make -C fdw` against the delivered tree — catches header/API drift; both extensions compile on both majors (fdw builds at `GP_MAJORVERSION >= 6`) | ~1.5m |
 | `installcheck` (×2) | Demo cluster (no mirrors, single segment) + the full suite set on BOTH majors — dense fdw validator coverage (`wrapper`/`server`/`user_mapping`/`foreign_table`) plus the external-table install smoke (`setup`, `pxfinvalid`). The expected files are major-neutral: gpdiff `start_matchignore` blocks absorb the known per-major noise (the WHPG 6 resource-queue NOTICE; the zero-column CREATE warning, whose ORDER relative to the validator error differs across majors) | ~1.5m (whpg7, stable) / 2–9m (whpg6 — GP6's `gpinitsystem` dominates and varies run to run; four runs measured 2m09s / 2m25s / 6m01s / 8m39s) |
 | `upstream-canary` | Weekly: builds WarehousePG at its `main` branch (7.x line) and runs the same checks — early warning that upstream changes broke the PXF C layer | ~9m (skipped rebuild when upstream hasn't moved) |
@@ -243,9 +243,19 @@ DATABASE MAJOR, both pinned in `pxf-db-extensions-ci.yml`:
 
 Each SHA is asserted at build time and by every consumer of the built
 tree. The WHPG 6 build uses its own configure recipe inside
-`build-whpg.bash` (whole tree against Python 2, mirroring
-warehouse-pg's 6.x CI; the PL/Python-on-3 rebuild their CI does is
-skipped — this lane runs no PL/Python suites).
+`build-whpg.bash`, mirroring warehouse-pg's 6.x CI: the whole tree is
+built against Python 2, and the distro's Xerces-C 3.2 is replaced with
+the 3.1 build that WHPG 6's ORCA requires (its gporca compiles as
+`-std=gnu++98`, and 3.2 typedefs `XMLCh` to the C++11 `char16_t`;
+WHPG 7 is unaffected because its gporca compiles as `-std=c++14`).
+The 3.1 library is then vendored into the install tree, because check
+jobs unpack that tree in a container that has only 3.2 — the same
+reason warehouse-pg's own 6.x release build vendors it. Note that
+`config/orca.m4` cannot catch the mismatch: it probes for `strnicmp`
+in `libxerces-c` and calls that the patched build, but stock 3.2.5
+exports that symbol too. The only deviation from their CI is the
+PL/Python-on-3 rebuild, skipped because this lane runs no PL/Python
+suites.
 
 **Bumping a pin** is a deliberate PR that updates the pin pair (and
 the image digest when it moved) together:
