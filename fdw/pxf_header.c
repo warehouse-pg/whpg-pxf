@@ -27,9 +27,15 @@
 #include "access/fileam.h"
 #include "catalog/pg_exttable.h"
 #endif
+#include "access/htup_details.h"
+#if PG_VERSION_NUM >= 130000
+/* PostgreSQL 16 moved the varlena macros (VARDATA, VARSIZE...) to varatt.h. */
+#include "varatt.h"
+#endif
 #include "cdb/cdbvars.h"
 #include "commands/defrem.h"
 #include "catalog/pg_namespace.h"
+#include "catalog/pg_type.h"
 #include "utils/builtins.h"
 #include "utils/formatting.h"
 #include "utils/timestamp.h"

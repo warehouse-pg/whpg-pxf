@@ -1,17 +1,20 @@
--- Every supported WarehousePG major warns on the deliberate
--- zero-column CREATE FOREIGN TABLE statements below, but the ORDER of
--- the warning relative to the validator's error differs (WHPG 6 warns
--- before the ERROR, WHPG 7 after it; captured from real 6.27.6 and
--- 7.6.0 runs). Ignore the line so one expected file serves every
--- major. Every line inside the block is a directive, so this
--- explanation stays outside it.
--- start_matchignore
--- m/^WARNING:  creating a table with no columns/
--- end_matchignore
+-- Normalize messages that differ across supported majors. The COPY quote
+-- error was reworded between the pre-19 and 19 wording. The deliberate
+-- zero-column CREATE FOREIGN TABLE statements below draw a "creating a
+-- table with no columns" WARNING on every major (captured from real
+-- 6.27.6 and 7.6.0 runs, as well as 19); its position relative to the
+-- validator's ERROR can differ, so it is ignored outright rather than
+-- order-matched. Every line inside a match block is parsed as a
+-- directive, so explanations have to live out here.
 -- start_matchsubs
 -- m/ERROR:  COPY quote available only in CSV mode/
 -- s/ERROR:  COPY quote available only in CSV mode/ERROR:  quote available only in CSV mode/
+-- m/ERROR:  COPY QUOTE requires CSV mode/
+-- s/ERROR:  COPY QUOTE requires CSV mode/ERROR:  quote available only in CSV mode/
 -- end_matchsubs
+-- start_matchignore
+-- m/^WARNING:  creating a table with no columns\./
+-- end_matchignore
 -- ===================================================================
 -- Validation for TABLE options
 -- ===================================================================

@@ -16,7 +16,7 @@ INSERT INTO writable_smoke_test_external_writable_table
 		from generate_series(1, 100) s(i);
 
 -- Verify data entered HCFS correctly
-\!{{ HCFS_CMD }} dfs -cat '{{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/bzip_et/*' 2>/dev/null | sort -d
+\! {{ HCFS_CMD }} dfs -cat '{{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/bzip_et/*' 2>/dev/null | sort -d
 
 -- External Table test
 CREATE EXTERNAL TABLE writable_smoke_test_external_readable_table
@@ -28,4 +28,4 @@ SELECT * FROM writable_smoke_test_external_readable_table ORDER BY name;
 SELECT name, num FROM writable_smoke_test_external_readable_table WHERE num > 50 ORDER BY name;
 
 {{ CLEAN_UP }}-- clean up HCFS
-{{ CLEAN_UP }}\!{{ HCFS_CMD }} dfs -rm -r {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}
+{{ CLEAN_UP }}\! {{ HCFS_CMD }} dfs -rm -r {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}

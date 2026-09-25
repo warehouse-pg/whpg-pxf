@@ -4,9 +4,9 @@
 SET extra_float_digits = 0;
 
 -- Create Hbase tables hbase_table and pxflookup
-\!{{ HBASE_CMD }} shell {{ SCRIPT create_pxflookup.rb }} >/dev/null 2>&1
+\! {{ HBASE_CMD }} shell {{ SCRIPT create_pxflookup.rb }} >/dev/null 2>&1
 -- HBase 2.x shell silenced put() output that 1.x emitted.
-\!{{ HBASE_CMD }} shell {{ SCRIPT gen_small_data.rb }} >/dev/null 2>&1
+\! {{ HBASE_CMD }} shell {{ SCRIPT gen_small_data.rb }} >/dev/null 2>&1
 
 -- FDW test
 CREATE SERVER h_base_smoke_test_server
@@ -27,5 +27,5 @@ SELECT * FROM h_base_smoke_test_foreign_table ORDER BY name;
 SELECT name, num FROM h_base_smoke_test_foreign_table WHERE num > 50 ORDER BY name;
 
 -- clean up HBase
-{{ CLEAN_UP }}\!{{ HBASE_CMD }} shell {{ SCRIPT drop_small_data.rb }} >/dev/null 2>&1
-{{ CLEAN_UP }}\!rm -rf {{ SCRIPT drop_small_data.rb }} {{ SCRIPT gen_small_data.rb }} {{ SCRIPT create_pxflookup.rb }}
+{{ CLEAN_UP }}\! {{ HBASE_CMD }} shell {{ SCRIPT drop_small_data.rb }} >/dev/null 2>&1
+{{ CLEAN_UP }}\! rm -rf {{ SCRIPT drop_small_data.rb }} {{ SCRIPT gen_small_data.rb }} {{ SCRIPT create_pxflookup.rb }}

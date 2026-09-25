@@ -9,6 +9,7 @@
 #include "postgres.h"
 
 #include "pxf_option.h"
+#include "pxf_pg_compat.h"
 
 #include "access/reloptions.h"
 #include "catalog/pg_foreign_data_wrapper.h"
@@ -379,7 +380,16 @@ ValidateCopyOptions(List *options_list, Oid catalog)
 	/*
 	 * Apply the core COPY code's validation logic for more checks.
 	 */
-#if PG_VERSION_NUM >= 90600
+#if PG_VERSION_NUM >= 130000
+
+	/*
+	 * The trailing Relation is a WarehousePG addition, not an upstream
+	 * change: PostgreSQL is four-argument here on every branch through
+	 * master.  Another reason the guard above is a platform tier rather than
+	 * an upstream-version test.
+	 */
+	ProcessCopyOptions(NULL, NULL, true, copy_options, NULL);
+#elif PG_VERSION_NUM >= 90600
 	ProcessCopyOptions(NULL, NULL, true, copy_options);
 #else
 	ProcessCopyOptions(NULL, true, copy_options, 0, true);
@@ -474,7 +484,7 @@ PxfGetOptions(Oid foreigntableid)
 			copy_options = lappend(copy_options, def);
 		else
 		{
-			Value	   *val = makeString(def->defname);
+			PxfStringValue	   *val = makeString(def->defname);
 
 			/*
 			 * if we have already seen this option before disregard the new
@@ -491,8 +501,8 @@ PxfGetOptions(Oid foreigntableid)
 	/*
 	 * The source/target encoding is the same for TEXT/CSV wire format
 	 */
-	opt->data_encoding = encoding;
-	opt->database_encoding = GetDatabaseEncodingName();
+	opt->data_encoding = (char *) encoding;
+	opt->database_encoding = (char *) GetDatabaseEncodingName();
 
 	/* The profile corresponds to protocol[:format] */
 	opt->profile = opt->protocol;

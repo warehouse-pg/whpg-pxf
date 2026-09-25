@@ -13,7 +13,7 @@ INSERT INTO multi_block_data_smoke_test_writable_external_table
 		from generate_series(1, 32000000) s(i);
 
 -- Verify data entered HCFS correctly
-\!{{ HCFS_CMD }} dfs -cat '{{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/*_0' 2>/dev/null | head -1
+\! {{ HCFS_CMD }} dfs -cat '{{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/*_0' 2>/dev/null | head -1
 
 -- External Table test
 CREATE EXTERNAL TABLE multi_block_data_smoke_test_external_table (
@@ -40,4 +40,4 @@ SELECT cnt < 32000000 AS check FROM (
 	) AS a;
 
 {{ CLEAN_UP }}-- clean up HCFS
-{{ CLEAN_UP }}\!{{ HCFS_CMD }} dfs -rm -r -f {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}
+{{ CLEAN_UP }}\! {{ HCFS_CMD }} dfs -rm -r -f {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}

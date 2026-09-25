@@ -22,12 +22,12 @@ INSERT INTO writable_smoke_test_foreign_table
 		from generate_series(1, 100) s(i);
 
 -- Verify data entered HCFS correctly, no distributed by in FDW yet
-\!{ for i in $({{ HCFS_CMD }} dfs -ls {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/bzip_fdw 2>/dev/null | tail -n +2 | awk '{print $NF}'); do {{ HCFS_CMD }} dfs -cat $i 2>/dev/null | head -1; done } | sort | head -1
+\! { for i in $({{ HCFS_CMD }} dfs -ls {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/bzip_fdw 2>/dev/null | tail -n +2 | awk '{print $NF}'); do {{ HCFS_CMD }} dfs -cat $i 2>/dev/null | head -1; done } | sort | head -1
 
 SELECT * FROM writable_smoke_test_foreign_table ORDER BY name;
 SELECT name, num FROM writable_smoke_test_foreign_table WHERE num > 50 ORDER BY name;
 
 -- start_ignore
 {{ CLEAN_UP }}-- clean up HCFS
-{{ CLEAN_UP }}\!{{ HCFS_CMD }} dfs -rm -r -f {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}
+{{ CLEAN_UP }}\! {{ HCFS_CMD }} dfs -rm -r -f {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}
 -- end_ignore

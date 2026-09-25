@@ -1,8 +1,12 @@
--- WarehousePG majors differ in the noise they emit around role and
--- table DDL: WHPG 6 prints a resource-queue NOTICE on CREATE ROLE
--- (queues are a 6-only feature), newer majors do not. Ignore it so one
--- expected file serves every supported major. Every line inside the
--- block is parsed as a directive, so this explanation stays outside it.
+-- CREATE ROLE's resource-queue NOTICE is gated in core by
+-- IsResQueueEnabled(), i.e. whether gp_resource_manager=queue -- it is not
+-- gated by major as such (the code path exists in WHPG 6 and 7 alike; see
+-- src/backend/commands/user.c). It shows up or not depending on which
+-- resource manager the cluster under test defaults to, and WarehousePG 19
+-- has no resource queues at all, so it never shows up there. Ignore it so
+-- one expected file serves every supported major regardless of that
+-- default. Every line inside the block is parsed as a directive, so this
+-- explanation stays outside it.
 -- start_matchignore
 -- m/^NOTICE:  resource queue required/
 -- end_matchignore

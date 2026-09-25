@@ -26,11 +26,11 @@ SELECT * from pxf_readcustom_test order by a;
 ------------------------------------------------------------------
 -- PXF write test
 ------------------------------------------------------------------
-\!rm -rf /tmp/pxf
+\! rm -rf /tmp/pxf
 INSERT INTO pxf_write_test SELECT * from origin;
-\!ls -1 /tmp/pxf/ | wc -l | sed -e 's/^[[:space:]]*//'
+\! ls -1 /tmp/pxf/ | wc -l | sed -e 's/^[[:space:]]*//'
 3
-\!cat /tmp/pxf/* | sort
+\! cat /tmp/pxf/* | sort
 10,data_10
 11,data_11
 12,data_12

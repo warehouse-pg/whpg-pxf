@@ -291,7 +291,15 @@ GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
 	{
 		OptionData *data = (OptionData *) lfirst(option);
 
+		/*
+		 * PostgreSQL 15 removed the Value union in favour of per-type nodes,
+		 * so makeString() returns String * from there on.
+		 */
+#if PG_VERSION_NUM >= 130000
+		String	   *key = makeString(asc_toupper(data->key, strlen(data->key)));
+#else
 		Value	   *key = makeString(asc_toupper(data->key, strlen(data->key)));
+#endif
 
 		if (!list_member(previousKeys, key))
 			previousKeys = lappend(previousKeys, key);
@@ -308,7 +316,12 @@ GPHDUri_verify_no_duplicate_options(GPHDUri *uri)
 		initStringInfo(&duplicates);
 		foreach(key, duplicateKeys)
 		{
-			char	   *keyname = strVal((Value *) lfirst(key));
+			/*
+			 * Node, not Value: PostgreSQL 15 removed the Value union in
+			 * favour of per-type String/Integer/... nodes.  strVal() casts
+			 * internally, so a Node works on both platforms.
+			 */
+			char	   *keyname = strVal((Node *) lfirst(key));
 
 			if (!first)
 				appendStringInfoString(&duplicates, ", ");

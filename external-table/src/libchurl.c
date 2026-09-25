@@ -22,7 +22,16 @@
 #include "utils/builtins.h"
 #include "utils/fmgroids.h"
 #include "utils/guc.h"
+#if PG_VERSION_NUM >= 130000
+/*
+ * PostgreSQL 13 split the JSON lexer and parser out to common/jsonapi.h and
+ * left the text-datum entry points behind in utils/jsonfuncs.h.
+ */
+#include "common/jsonapi.h"
+#include "utils/jsonfuncs.h"
+#else
 #include "utils/jsonapi.h"
+#endif
 
 /* include libcurl without typecheck.
  * This allows wrapping curl_easy_setopt to be wrapped
@@ -92,12 +101,17 @@ typedef struct
 	struct curl_slist *headers;
 } churl_settings;
 
-/* the null action object used for pure validation */
+#if PG_VERSION_NUM < 130000
+/*
+ * The null action object used for pure validation.  PostgreSQL 13 and later
+ * export one of these as nullSemAction, so defining ours would collide.
+ */
 static JsonSemAction nullSemAction =
 {
 	NULL, NULL, NULL, NULL, NULL,
 	NULL, NULL, NULL, NULL, NULL
 };
+#endif
 
 churl_context *churl_new_context(void);
 static void		create_curl_handle(churl_context *context);
@@ -1034,6 +1048,19 @@ check_response_code(churl_context *context)
 static bool
 IsValidJson(text *json)
 {
+#if PG_VERSION_NUM >= 130000
+
+	/*
+	 * Since PostgreSQL 13 pg_parse_json() reports a malformed document
+	 * through its return value instead of throwing, so the result has to be
+	 * checked.  Keeping the PG_TRY() form here would report every document as
+	 * valid.  makeJsonLexContext() also gained a destination argument; NULL
+	 * asks it to allocate, as the two-argument form always did.
+	 */
+	JsonLexContext *lex = makeJsonLexContext(NULL, json, false);
+
+	return pg_parse_json(lex, &nullSemAction) == JSON_SUCCESS;
+#else
 	MemoryContext oldcontext    = CurrentMemoryContext;
 	bool          is_valid_json = true;
 	JsonLexContext *lex;
@@ -1052,6 +1079,7 @@ IsValidJson(text *json)
 	PG_END_TRY();
 
 	return is_valid_json;
+#endif
 }
 
 /*

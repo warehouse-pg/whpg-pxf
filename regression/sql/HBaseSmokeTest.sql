@@ -5,11 +5,11 @@
 SET extra_float_digits = 0;
 
 -- Create Hbase tables hbase_table and pxflookup
-\!{{ HBASE_CMD }} shell {{ SCRIPT create_pxflookup.rb }} >/dev/null 2>&1
+\! {{ HBASE_CMD }} shell {{ SCRIPT create_pxflookup.rb }} >/dev/null 2>&1
 -- HBase 2.x shell is quieter for put() than 1.x —
 -- 1.x emitted "0 row(s) in -.---- seconds" after each put, 2.x doesn't.
 -- Silence to keep the .out file version-agnostic.
-\!{{ HBASE_CMD }} shell {{ SCRIPT gen_small_data.rb }} >/dev/null 2>&1
+\! {{ HBASE_CMD }} shell {{ SCRIPT gen_small_data.rb }} >/dev/null 2>&1
 
 -- External Table test
 CREATE EXTERNAL TABLE h_base_smoke_test_external_table
@@ -21,5 +21,5 @@ SELECT * FROM h_base_smoke_test_external_table ORDER BY name;
 SELECT name, num FROM h_base_smoke_test_external_table WHERE num > 50 ORDER BY name;
 
 -- clean up HBase
-{{ CLEAN_UP }}\!{{ HBASE_CMD }} shell {{ SCRIPT drop_small_data.rb }} >/dev/null 2>&1
-{{ CLEAN_UP }}\!rm -rf {{ SCRIPT drop_small_data.rb }} {{ SCRIPT gen_small_data.rb }} {{ SCRIPT create_pxflookup.rb }}
+{{ CLEAN_UP }}\! {{ HBASE_CMD }} shell {{ SCRIPT drop_small_data.rb }} >/dev/null 2>&1
+{{ CLEAN_UP }}\! rm -rf {{ SCRIPT drop_small_data.rb }} {{ SCRIPT gen_small_data.rb }} {{ SCRIPT create_pxflookup.rb }}

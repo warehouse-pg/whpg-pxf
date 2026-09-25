@@ -14,6 +14,27 @@ HBase/Hadoop/ZooKeeper/Hive library modernization; the remaining PXF 7.0
 features (external cluster mode, CLI changes) are tracked separately and are
 **not** part of this cut.
 
+### Platform support
+
+- The `pxf` and `pxf_fdw` extensions now build against **WarehousePG 19**
+  (PostgreSQL 19 based) as well as WarehousePG 6 and 7, from a single source
+  tree. A compatibility shim (`fdw/pxf_pg_compat.h`) absorbs the COPY
+  internals that moved between the two server generations, so the SQL surface
+  is unchanged and no `ALTER EXTENSION ... UPDATE` is needed.
+
+  Two latent defects surfaced while separating the read and write COPY states,
+  and are fixed in the same change. Both were harmless on WarehousePG 6/7 only
+  because one `CopyState` type served both directions, and both would have
+  become real failures on WarehousePG 19:
+
+  - Finishing a foreign-table write released the write-side COPY state with
+    `EndCopyFrom()`, the read-side function.
+  - PXF detected a malformed JSON response by catching an error that
+    `pg_parse_json()` no longer throws as of PostgreSQL 13. On WarehousePG 19
+    every response would have been accepted as valid JSON, and a non-JSON
+    server error would have surfaced as `invalid input syntax for type json`
+    instead of the message the server actually sent.
+
 ### Security hardening
 
 - The Spring Boot actuator `shutdown` endpoint is no longer exposed or
