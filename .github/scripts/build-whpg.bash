@@ -71,17 +71,12 @@ ccache --zero-stats
 
 echo "==> Configuring WarehousePG (major ${WHPG_MAJOR})"
 if [ "${WHPG_MAJOR}" = "6" ]; then
-  # WHPG 6 recipe, mirroring warehouse-pg's own 6.x CI with two
-  # deliberate, lane-scoped deviations:
-  # - Their CI re-runs configure with PYTHON=python3 afterwards to
-  #   rebuild ONLY plpython for its regression tests — this lane runs
-  #   no PL/Python suites, so that second pass is skipped.
-  # - Their CI builds ORCA, which requires removing the system
-  #   Xerces-C and compiling a custom Xerces-C 3.1 first (the system
-  #   xerces headers do not compile against WHPG 6's gporca). This
-  #   lane's suites are DDL/option-validator tests where the optimizer
-  #   never matters, so ORCA is disabled instead of vendoring a
-  #   Xerces build.
+  # WHPG 6 recipe, mirroring warehouse-pg's own 6.x CI with ONE
+  # deliberate, lane-scoped deviation: their CI re-runs configure with
+  # PYTHON=python3 afterwards to rebuild ONLY plpython for its
+  # regression tests — this lane runs no PL/Python suites, so that
+  # second pass is skipped.
+  #
   # The whole tree builds against Python 2 (WHPG 6 ships PyGreSQL 4.0,
   # and gpdemo / cluster scripts assume `python` is Python 2).
   # The build image does not ship Python 2 — install it first (the RPM
@@ -91,10 +86,52 @@ if [ "${WHPG_MAJOR}" = "6" ]; then
   yum install -y --setopt=keepcache=1 python2 python2-devel
   alternatives --set python /usr/bin/python2
   python --version
+
+  # ORCA on WHPG 6 needs Xerces-C 3.1, not the 3.2 the image ships.
+  # WHPG 6's gporca is compiled as -std=gnu++98, while Xerces 3.2
+  # typedefs XMLCh to char16_t (a C++11 type) in
+  # xercesc/util/Xerces_autoconf_config.hpp — so every ORCA
+  # translation unit that includes a Xerces header fails with
+  # "char16_t does not name a type". WHPG 7 is unaffected because its
+  # gporca compiles as -std=c++14.
+  #
+  # configure does NOT catch this: config/orca.m4 probes
+  # AC_CHECK_LIB(xerces-c, strnicmp) and calls that "the Greenplum
+  # patched version", but stock xerces-c 3.2.5 exports strnicmp too,
+  # so the probe passes and the build dies later in the compile.
+  #
+  # Remedy is warehouse-pg's own 6.x CI recipe: drop the distro 3.2
+  # and build 3.1 from the in-tree helper. The helper downloads
+  # xerces-c-3.1.2 from archive.apache.org and verifies it against the
+  # SHA-256 committed next to it.
+  echo "==> Replacing Xerces-C 3.2 with the 3.1 build ORCA needs"
+  yum remove -y xerces-c xerces-c-devel
+  rm -rf /tmp/xerces_build
+  mkdir -p /tmp/xerces_build/xerces_patch/concourse
+  cp -r "${SRC_DIR}/src/backend/gporca/concourse/xerces-c" \
+        /tmp/xerces_build/xerces_patch/concourse/
+  # build_xerces.py resolves the checksum file relative to the cwd,
+  # so it must run from the parent of xerces_patch/.
+  ( cd /tmp/xerces_build && /usr/bin/python2 \
+      xerces_patch/concourse/xerces-c/build_xerces.py --output_dir=/usr/local )
+  ln -sf /usr/local/lib/libxerces-c-3.1.so /usr/lib64/libxerces-c-3.1.so
+  ldconfig
+  rm -rf /tmp/xerces_build
+  # Postcondition: the 3.1 library is the one ORCA will find (testing
+  # principle 8 — a bring-up step asserts its own outcome rather than
+  # letting a silent miss surface as a confusing compile error).
+  test -f /usr/local/lib/libxerces-c-3.1.so
+  test -f /usr/local/include/xercesc/util/XercesVersion.hpp
+  grep -qx '#define XERCES_VERSION_MAJOR 3' /usr/local/include/xercesc/util/XercesVersion.hpp
+  grep -qx '#define XERCES_VERSION_MINOR 1' /usr/local/include/xercesc/util/XercesVersion.hpp
+  # The 3.2 headers must be GONE, or gcc could still resolve xercesc/
+  # from /usr/include and reintroduce the char16_t failure.
+  test ! -e /usr/include/xercesc
+
   CC='ccache gcc -m64' \
   CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
   ./configure --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
-              --disable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests \
+              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests \
               --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
               --with-libraries="" --disable-rpath \
               --prefix="${PREFIX}" \
