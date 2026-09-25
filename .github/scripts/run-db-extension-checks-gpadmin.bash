@@ -34,6 +34,9 @@ make -C "${PXF_SRC}/external-table" install
 # extension itself.
 make -C "${PXF_SRC}/external-table" installcheck REGRESS='setup pxfinvalid'
 
+# fdw builds and installchecks on every supported major: the expected
+# files are major-neutral (gpdiff start_matchignore absorbs the known
+# per-major noise lines - see the comment blocks in fdw/sql/).
 echo "==> fdw: install + installcheck"
 make -C "${PXF_SRC}/fdw" install
 make -C "${PXF_SRC}/fdw" installcheck

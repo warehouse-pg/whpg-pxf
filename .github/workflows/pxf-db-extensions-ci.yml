@@ -7,9 +7,16 @@
 # only write permission (issues) lives in jobs that never trigger on
 # pull requests.
 #
+# The lane tests BOTH database majors: every run matrixes over the two
+# pins below (WHPG 7 and WHPG 6), building each from source and running
+# the FULL suite set on each. The expected files are major-neutral —
+# gpdiff matchignore blocks absorb the per-major noise lines — so every
+# run is also a continuous proof that those blocks still cover both
+# majors' real output.
+#
 # What this lane does NOT cover (by design): data-path testing (SELECT
-# through a running PXF server needs Hadoop-family datasources), the
-# WHPG 6 axis, and non-el8 platforms.
+# through a running PXF server needs Hadoop-family datasources) and
+# non-el8 platforms.
 #
 # Delivery model: the whpg-prepare job provides an installed WarehousePG
 # tree — restored from the Actions cache, or REBUILT IN-RUN on any cache
@@ -17,9 +24,10 @@
 # design, so a cold cache can never silently drop coverage. Check jobs
 # receive the tree as a same-run artifact.
 #
-# Version pin: ONE WarehousePG version, built from source at the tag
-# below. Bump the tag, its commit SHA, and the container image digest
-# together in a deliberate PR (procedure in .github/workflows/README.md).
+# Version pins: ONE WarehousePG version PER MAJOR, each built from
+# source at its tag below. Bump a tag, its commit SHA, and the
+# container image digest together in a deliberate PR (procedure in
+# .github/workflows/README.md).
 #
 # Advisory status: the path filter means these checks do not report on
 # most PRs, so they must not be added to required status checks (a
@@ -83,9 +91,13 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release-6.x' }}
 
 env:
-  # THE PIN — tag and commit SHA move together (see header).
+  # THE PINS — one per database major; each tag and commit SHA move
+  # together (see header). The matrix maps a leg to its pin via the
+  # "Resolve this leg's pin" step in each job.
   WHPG_TAG: 7.6.0-WHPG
   WHPG_TAG_SHA: 0f73ef6e0729cbf71cf225b41d58e1bd1090f335
+  WHPG6_TAG: 6.27.6-WHPG
+  WHPG6_TAG_SHA: 21ac220dadff9b5db4469a40a13247ee422e482a
   # The build image digest. GitHub does not allow env in
   # container.image, so the digest is literal on every container.image
   # line — this value MUST equal those literals (bump all five
@@ -104,14 +116,27 @@ jobs:
   # a cache PRs would miss.
   # ---------------------------------------------------------------------
   whpg-prepare:
-    name: whpg-prepare
+    name: whpg-prepare [whpg${{ matrix.major }}]
     runs-on: ubuntu-latest
-    timeout-minutes: 45   # measured: ~10 min cold source build, ~1 min on cache hit
+    timeout-minutes: 60   # measured cold: whpg7 8-11 min, whpg6 9-12.5 min (the
+                          # latter includes building the Xerces 3.1 its ORCA
+                          # needs); ~1 min on a cache hit
+    strategy:
+      fail-fast: false
+      matrix:
+        major: ['7', '6']
     container:
       image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
       options: --user root
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve this leg's pin
+        run: |
+          if [ "${{ matrix.major }}" = "6" ]; then
+            { echo "LEG_TAG=$WHPG6_TAG"; echo "LEG_SHA=$WHPG6_TAG_SHA"; } >> "$GITHUB_ENV"
+          else
+            { echo "LEG_TAG=$WHPG_TAG"; echo "LEG_SHA=$WHPG_TAG_SHA"; } >> "$GITHUB_ENV"
+          fi
       - name: Restore the installed tree from cache
         id: cache
         uses: actions/cache/restore@v4
@@ -120,12 +145,13 @@ jobs:
           # Exact-match only (no restore-keys): a stale or wrong-version
           # tree can never be silently reused; the key self-invalidates
           # when the pin is bumped.
-          key: whpg-el8-${{ env.WHPG_TAG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+          key: whpg${{ matrix.major }}-el8-${{ env.LEG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Build WarehousePG from source (cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
         env:
-          WHPG_REF: ${{ env.WHPG_TAG }}
-          WHPG_SHA: ${{ env.WHPG_TAG_SHA }}
+          WHPG_REF: ${{ env.LEG_TAG }}
+          WHPG_SHA: ${{ env.LEG_SHA }}
+          WHPG_MAJOR: ${{ matrix.major }}
           PREFIX: ${{ env.WHPG_PREFIX }}
         run: |
           bash .github/scripts/build-whpg.bash
@@ -139,20 +165,21 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: whpg-dist
-          key: whpg-el8-${{ env.WHPG_TAG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+          key: whpg${{ matrix.major }}-el8-${{ env.LEG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Verify the tree before handing it to consumers
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
         run: |
           mkdir -p "$PREFIX"
           tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
-          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
-          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
+          test "$(cat "$PREFIX/whpg-build.gp-major")" = "${{ matrix.major }}"
           "$PREFIX/bin/pg_config" --version
       - name: Hand the tree to the check jobs (same-run artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: whpg-install-el8
+          name: whpg${{ matrix.major }}-install-el8
           path: whpg-dist/whpg-install-el8.tar.gz
           retention-days: 7
           if-no-files-found: error
@@ -160,8 +187,8 @@ jobs:
         if: always()
         run: |
           {
-            echo "### whpg-prepare (${{ job.status }})"
-            echo "- pin: $WHPG_TAG ($WHPG_TAG_SHA)"
+            echo "### whpg-prepare whpg${{ matrix.major }} (${{ job.status }})"
+            echo "- pin: $LEG_TAG ($LEG_SHA)"
             echo "- cache hit: ${{ steps.cache.outputs.cache-hit == 'true' }}"
             echo "- tarball: $(du -h whpg-dist/whpg-install-el8.tar.gz | cut -f1)"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -172,7 +199,7 @@ jobs:
   # likely C regression class.
   # ---------------------------------------------------------------------
   compile:
-    name: compile${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    name: compile${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }} [whpg${{ matrix.major }}]
     runs-on: ubuntu-latest
     timeout-minutes: 15   # measured: ~1.5 min
     needs: whpg-prepare
@@ -181,8 +208,11 @@ jobs:
       matrix:
         # Weekly rot-check runs main explicitly (path filters do not
         # apply to schedule events). The release-6.x leg is added by the
-        # backport that lands this workflow on that branch.
+        # backport that lands this workflow on that branch. Both
+        # extensions compile on both majors (fdw builds at
+        # GP_MAJORVERSION >= 6).
         ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+        major: ['7', '6']
     container:
       image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
       options: --user root
@@ -190,9 +220,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.ref }}
+      - name: Resolve this leg's pin
+        run: |
+          if [ "${{ matrix.major }}" = "6" ]; then
+            { echo "LEG_TAG=$WHPG6_TAG"; echo "LEG_SHA=$WHPG6_TAG_SHA"; } >> "$GITHUB_ENV"
+          else
+            { echo "LEG_TAG=$WHPG_TAG"; echo "LEG_SHA=$WHPG_TAG_SHA"; } >> "$GITHUB_ENV"
+          fi
       - uses: actions/download-artifact@v4
         with:
-          name: whpg-install-el8
+          name: whpg${{ matrix.major }}-install-el8
           path: whpg-dist
       - name: Unpack and assert provenance
         env:
@@ -200,8 +237,8 @@ jobs:
         run: |
           mkdir -p "$PREFIX"
           tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
-          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
-          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
       - name: Compile both extensions
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
@@ -211,7 +248,7 @@ jobs:
           make -C fdw
       - name: Job summary
         if: always()
-        run: echo "### compile (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### compile whpg${{ matrix.major }} (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------
   # installcheck: demo cluster + the extensions' own pg_regress suites
@@ -221,7 +258,7 @@ jobs:
   # skipping a cluster bring-up when the compile is already red.
   # ---------------------------------------------------------------------
   installcheck:
-    name: installcheck${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    name: installcheck${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }} [whpg${{ matrix.major }}]
     runs-on: ubuntu-latest
     timeout-minutes: 15   # measured: ~1.5 min incl. demo-cluster bring-up
     needs: compile
@@ -229,6 +266,9 @@ jobs:
       fail-fast: false
       matrix:
         ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+        # Both majors run the full suite set: the expected files are
+        # major-neutral (gpdiff matchignore absorbs per-major noise).
+        major: ['7', '6']
     container:
       image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
       # Unprivileged demo cluster: root user for setup, fixed hostname,
@@ -238,9 +278,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.ref }}
+      - name: Resolve this leg's pin
+        run: |
+          if [ "${{ matrix.major }}" = "6" ]; then
+            { echo "LEG_TAG=$WHPG6_TAG"; echo "LEG_SHA=$WHPG6_TAG_SHA"; } >> "$GITHUB_ENV"
+          else
+            { echo "LEG_TAG=$WHPG_TAG"; echo "LEG_SHA=$WHPG_TAG_SHA"; } >> "$GITHUB_ENV"
+          fi
       - uses: actions/download-artifact@v4
         with:
-          name: whpg-install-el8
+          name: whpg${{ matrix.major }}-install-el8
           path: whpg-dist
       - name: Unpack and assert provenance
         env:
@@ -250,11 +297,11 @@ jobs:
           tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
           # Same consumer discipline as compile: the ref alone is a
           # mutable tag name — assert the commit SHA too before use.
-          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
-          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
       - name: Demo cluster + extension installchecks
         env:
-          WHPG_REF: ${{ env.WHPG_TAG }}
+          WHPG_REF: ${{ env.LEG_TAG }}
           PREFIX: ${{ env.WHPG_PREFIX }}
           PXF_SRC: ${{ github.workspace }}
         run: bash .github/scripts/run-db-extension-checks.bash
@@ -262,7 +309,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: installcheck-results${{ matrix.ref && format('-{0}', matrix.ref) || '' }}
+          name: installcheck-results${{ matrix.ref && format('-{0}', matrix.ref) || '' }}-whpg${{ matrix.major }}
           path: |
             external-table/regression.diffs
             external-table/regression.out
@@ -273,7 +320,7 @@ jobs:
           if-no-files-found: ignore
       - name: Job summary
         if: always()
-        run: echo "### installcheck (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### installcheck whpg${{ matrix.major }} (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
       # action-tmate assumes apt; install via yum on Rocky first.
       - name: Install tmate (dispatch-only, opt-in)
         if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled
@@ -401,10 +448,17 @@ jobs:
   # is echoed to the step summary.
   # ---------------------------------------------------------------------
   pin-freshness:
-    name: pin-freshness
+    name: pin-freshness [whpg${{ matrix.major }}]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        # One leg per pinned major; issue state is major-scoped (the
+        # body marker carries the major), so the legs never touch each
+        # other's issues and can run in parallel.
+        major: ['7', '6']
     permissions:
       contents: read
       issues: write
@@ -412,21 +466,27 @@ jobs:
       - uses: actions/checkout@v4
       - name: Self-test the decision logic (fixtures)
         run: bash .github/scripts/test-pin-freshness-decide.bash
+      - name: Resolve this leg's pin
+        run: |
+          if [ "${{ matrix.major }}" = "6" ]; then
+            { echo "PIN_TAG=$WHPG6_TAG"; echo "PIN_SHA=$WHPG6_TAG_SHA"; } >> "$GITHUB_ENV"
+          else
+            { echo "PIN_TAG=$WHPG_TAG"; echo "PIN_SHA=$WHPG_TAG_SHA"; } >> "$GITHUB_ENV"
+          fi
       - name: Gather upstream state and decide
         id: decide
         env:
           GH_TOKEN: ${{ github.token }}
-          PIN_TAG: ${{ env.WHPG_TAG }}
-          PIN_SHA: ${{ env.WHPG_TAG_SHA }}
+          MAJOR: ${{ matrix.major }}
         run: |
           # Prefix-narrowed server-side (the unqualified tags endpoint
-          # carries ~300 refs with the 7.x block near the end) and
-          # --paginate so growth past one page can never hide tags.
-          refs=$(gh api 'repos/warehouse-pg/warehouse-pg/git/matching-refs/tags/7.' --paginate)
+          # carries ~300 refs) and --paginate so growth past one page
+          # can never hide tags.
+          refs=$(gh api "repos/warehouse-pg/warehouse-pg/git/matching-refs/tags/${MAJOR}." --paginate)
           # Selection filter lives in a pure fixture-tested script (see
           # test-pin-freshness-decide.bash), not inline here.
           newest=$(jq -r '.[].ref' <<<"$refs" | sed 's|refs/tags/||' \
-            | bash .github/scripts/pin-freshness-newest.bash 7)
+            | bash .github/scripts/pin-freshness-newest.bash "$MAJOR")
           # Peel the pinned tag to a COMMIT: annotated tags resolve to
           # a tag object whose SHA can never equal the pinned commit.
           obj_type=$(jq -r --arg t "refs/tags/${PIN_TAG}" '[.[] | select(.ref==$t)][0].object.type // empty' <<<"$refs")
@@ -436,16 +496,20 @@ jobs:
             IFS=$'\t' read -r obj_type pinned_commit < <(gh api "repos/warehouse-pg/warehouse-pg/git/tags/${pinned_commit}" --jq '[.object.type, .object.sha] | @tsv')
             hops=$((hops + 1))
           done
-          # One open watcher issue max; its body carries the state
-          # marker (never parsed from the title — titles get edited).
+          # One open watcher issue max PER MAJOR; the body marker
+          # carries the major (never parsed from the title — titles get
+          # edited), so this leg only ever sees its own major's issue.
+          # gh's --jq does not take jq flags like --arg — use real jq.
+          # shellcheck disable=SC2016  # $m is a jq variable, not shell
           issue_json=$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci-db-extensions-pin --state open \
-            --json number,body --jq '.[0] // empty')
+            --json number,body \
+            | jq --arg m "<!-- pin-state: whpg${MAJOR}:" '[.[] | select(.body | contains($m))][0] // empty')
           open_issue=""; open_state=""
           if [ -n "$issue_json" ]; then
             open_issue=$(jq -r '.number' <<<"$issue_json")
             open_state=$(jq -r '.body' <<<"$issue_json" | sed -n 's/.*<!-- pin-state: \(.*\) -->.*/\1/p' | head -1)
           fi
-          out=$(NEWEST_TAG="$newest" PINNED_TAG_COMMIT="$pinned_commit" \
+          out=$(MAJOR="$MAJOR" NEWEST_TAG="$newest" PINNED_TAG_COMMIT="$pinned_commit" \
                 OPEN_ISSUE="$open_issue" OPEN_STATE="$open_state" \
                 bash .github/scripts/pin-freshness-decide.bash)
           echo "$out"
@@ -462,20 +526,20 @@ jobs:
           STATE: ${{ steps.decide.outputs.state }}
           OPEN_ISSUE: ${{ steps.decide.outputs.open_issue }}
           NEWEST: ${{ steps.decide.outputs.newest }}
-          PIN_TAG: ${{ env.WHPG_TAG }}
-          PIN_SHA: ${{ env.WHPG_TAG_SHA }}
+          MAJOR: ${{ matrix.major }}
         run: |
-          kind="${STATE%%:*}"; detail="${STATE#*:}"
+          # STATE format: whpg<major>:<kind>:<detail>
+          kind=$(cut -d: -f2 <<<"$STATE"); detail=$(cut -d: -f3- <<<"$STATE")
           case "$kind" in
             stale)
-              title="DB extensions CI: WHPG pin is stale: ${detail} available (pin: ${PIN_TAG})"
-              text="Upstream has a newer release tag: \`${detail}\` (this lane pins \`${PIN_TAG}\`). Bump procedure: .github/workflows/README.md → 'The version pin'." ;;
+              title="DB extensions CI: WHPG${MAJOR} pin is stale: ${detail} available (pin: ${PIN_TAG})"
+              text="Upstream has a newer WHPG${MAJOR} release tag: \`${detail}\` (this lane pins \`${PIN_TAG}\`). Bump procedure: .github/workflows/README.md → 'The version pins'." ;;
             retag)
-              title="DB extensions CI: WHPG pinned tag moved upstream: ${PIN_TAG} no longer at ${PIN_SHA}"
+              title="DB extensions CI: WHPG${MAJOR} pinned tag moved upstream: ${PIN_TAG} no longer at ${PIN_SHA}"
               text="⚠️ The pinned tag \`${PIN_TAG}\` now resolves to commit \`${detail}\`, not the pinned \`${PIN_SHA}\`. Either upstream re-cut the tag legitimately (verify, then bump the SHA) or something is wrong — treat as a supply-chain signal until explained." ;;
             deleted)
-              title="DB extensions CI: WHPG pinned tag no longer exists upstream: ${PIN_TAG}"
-              text="⚠️ The pinned tag \`${PIN_TAG}\` is gone from warehouse-pg. The next cache miss cannot rebuild the install tree. Re-pin to an existing tag (procedure: .github/workflows/README.md → 'The version pin')." ;;
+              title="DB extensions CI: WHPG${MAJOR} pinned tag no longer exists upstream: ${PIN_TAG}"
+              text="⚠️ The pinned tag \`${PIN_TAG}\` is gone from warehouse-pg. The next cache miss cannot rebuild the install tree. Re-pin to an existing tag (procedure: .github/workflows/README.md → 'The version pins')." ;;
             *)  title=""; text="" ;;
           esac
           body=$(printf '%s\n\n<!-- pin-state: %s -->' "$text" "$STATE")
@@ -493,7 +557,7 @@ jobs:
               echo "pin healthy or already reported (${STATE:-healthy}) — nothing to do" ;;
             create)
               gh label create ci-db-extensions-pin --repo "$GITHUB_REPOSITORY" \
-                --description "The C lane's WarehousePG version pin needs attention" --color D93F0B --force
+                --description "A WarehousePG version pin of the DB-extensions lane needs attention" --color D93F0B --force
               gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
                 --label ci-db-extensions-pin --body "$body" ;;
             comment)
@@ -506,7 +570,7 @@ jobs:
                 --comment "The pin caught up (\`${PIN_TAG}\` @ \`${PIN_SHA}\` is current) — auto-closing." ;;
           esac
           {
-            echo "### pin-freshness (${ACTION})"
+            echo "### pin-freshness whpg${MAJOR} (${ACTION})"
             echo "- pin: ${PIN_TAG} (${PIN_SHA})"
             echo "- newest upstream: ${NEWEST}"
             echo "- state: ${STATE:-healthy}"

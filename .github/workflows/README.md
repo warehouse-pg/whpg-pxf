@@ -174,7 +174,8 @@ requests. No job needs a privileged container.
 
 ### What this lane tests — precisely
 
-Two things, both about the database-resident extensions themselves:
+Two things, both about the database-resident extensions themselves,
+each against BOTH pinned database majors (WHPG 7 and WHPG 6):
 
 1. **They compile** — `pxf.so` and `pxf_fdw.so` build against the
    pinned WarehousePG's real headers, catching `cdb/*.h` and API drift
@@ -207,11 +208,11 @@ SELECT through PXF returns rows.
 
 | Job | What it runs | Measured time |
 |---|---|---|
-| `whpg-prepare` | Provides the installed WarehousePG tree the run tests against: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit / ~10m on miss |
-| `compile` | `make -C external-table && make -C fdw` against the delivered tree — catches header/API drift | ~1.5m |
-| `installcheck` | Demo cluster (no mirrors, single segment) + the extensions' own pg_regress suites — dense fdw validator coverage (`wrapper`/`server`/`user_mapping`/`foreign_table`) plus the external-table install smoke (`setup`, `pxfinvalid`); see "What this lane tests" above | ~1.5m |
-| `upstream-canary` | Weekly: builds WarehousePG at its `main` branch and runs the same checks — early warning that upstream changes broke the PXF C layer | ~9m (skipped rebuild when upstream hasn't moved) |
-| `pin-freshness` | Weekly: checks the WHPG pin against upstream tags — stale (newer `7.x-WHPG` exists), moved (pinned tag no longer at the pinned commit; annotated tags peeled first), or deleted. Files/updates/auto-closes one issue labeled `ci-db-extensions-pin`. Its decision logic self-tests against fixtures first | seconds |
+| `whpg-prepare` (×2: whpg7, whpg6) | Provides the installed WarehousePG tree per database major: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit / 8–13m on miss (measured 2026-09: whpg7 8–11m; whpg6 9–12.5m — observed 8m54s, 10m59s, 12m28s — which includes building the Xerces 3.1 that WHPG 6's ORCA requires) |
+| `compile` (×2) | `make -C external-table && make -C fdw` against the delivered tree — catches header/API drift; both extensions compile on both majors (fdw builds at `GP_MAJORVERSION >= 6`) | ~1.5m |
+| `installcheck` (×2) | Demo cluster (no mirrors, single segment) + the full suite set on BOTH majors — dense fdw validator coverage (`wrapper`/`server`/`user_mapping`/`foreign_table`) plus the external-table install smoke (`setup`, `pxfinvalid`). The expected files are major-neutral: gpdiff `start_matchignore` blocks absorb the known per-major noise (the WHPG 6 resource-queue NOTICE; the zero-column CREATE warning, whose ORDER relative to the validator error differs across majors) | ~1.5m (whpg7, stable) / 2–9m (whpg6 — GP6's `gpinitsystem` dominates and varies run to run; four runs measured 2m09s / 2m25s / 6m01s / 8m39s) |
+| `upstream-canary` | Weekly: builds WarehousePG at its `main` branch (7.x line) and runs the same checks — early warning that upstream changes broke the PXF C layer | ~9m (skipped rebuild when upstream hasn't moved) |
+| `pin-freshness` (×2) | Weekly, one leg per pinned major: stale (newer `<major>.x-WHPG` exists), moved (annotated tags peeled first), or deleted. Files/updates/auto-closes one issue PER MAJOR, all labeled `ci-db-extensions-pin` (the issue-body marker carries the major, so the legs never touch each other's issues). Decision logic self-tests against fixtures first | seconds |
 | `failure-issue` | On a scheduled run's failure, opens or updates a GitHub issue labeled `ci-db-extensions-failure` | seconds |
 
 A cache-hit PR run totals **about 4 minutes** end to end. A cache-miss
@@ -229,18 +230,35 @@ source tree (their Makefile assumes a `gpcontrib/pxf` layout), which
 this lane has only transiently inside `whpg-prepare` on a cache miss —
 coverage that depends on cache state would make runs non-comparable.
 
-### The version pin
+### The version pins
 
-The lane builds and tests against ONE WarehousePG version, pinned in
-`pxf-db-extensions-ci.yml`:
+The lane builds and tests against ONE pinned WarehousePG version PER
+DATABASE MAJOR, both pinned in `pxf-db-extensions-ci.yml`:
 
-- `WHPG_TAG` — the tag to build (e.g. `7.6.0-WHPG`)
-- `WHPG_TAG_SHA` — that tag's commit (asserted at build time and by
-  every consumer of the built tree)
+- `WHPG_TAG` / `WHPG_TAG_SHA` — the WHPG 7 pin (e.g. `7.6.0-WHPG`)
+- `WHPG6_TAG` / `WHPG6_TAG_SHA` — the WHPG 6 pin (e.g. `6.27.6-WHPG`)
 - the `container.image` digest of `ghcr.io/warehouse-pg/whpg-rocky8-build`
-  (all jobs use the same digest)
+  (all jobs and both majors use the same digest — warehouse-pg's own
+  6.x CI builds in the same image family)
 
-**Bumping the pin** is a deliberate PR that updates all three together:
+Each SHA is asserted at build time and by every consumer of the built
+tree. The WHPG 6 build uses its own configure recipe inside
+`build-whpg.bash`, mirroring warehouse-pg's 6.x CI: the whole tree is
+built against Python 2, and the distro's Xerces-C 3.2 is replaced with
+the 3.1 build that WHPG 6's ORCA requires (its gporca compiles as
+`-std=gnu++98`, and 3.2 typedefs `XMLCh` to the C++11 `char16_t`;
+WHPG 7 is unaffected because its gporca compiles as `-std=c++14`).
+The 3.1 library is then vendored into the install tree, because check
+jobs unpack that tree in a container that has only 3.2 — the same
+reason warehouse-pg's own 6.x release build vendors it. Note that
+`config/orca.m4` cannot catch the mismatch: it probes for `strnicmp`
+in `libxerces-c` and calls that the patched build, but stock 3.2.5
+exports that symbol too. The only deviation from their CI is the
+PL/Python-on-3 rebuild, skipped because this lane runs no PL/Python
+suites.
+
+**Bumping a pin** is a deliberate PR that updates the pin pair (and
+the image digest when it moved) together:
 resolve the new tag's COMMIT SHA — use
 `gh api repos/warehouse-pg/warehouse-pg/commits/<tag> --jq .sha`, which
 returns the commit for lightweight AND annotated tags alike (the
@@ -270,7 +288,7 @@ never matchignore those (the error messages ARE the assertions).
 **The pin watcher** (`pin-freshness` job) checks the pin weekly and
 files an issue labeled `ci-db-extensions-pin` when action is needed:
 
-- *stale* — a newer `7.x-WHPG` tag exists: run the bump procedure
+- *stale* — a newer `<major>.x-WHPG` tag exists: run the bump procedure
   above at your convenience; close the issue via the bump PR
   (`Closes #N`) or let the watcher auto-close it once the pin catches
   up.
@@ -306,22 +324,25 @@ the lane, which is expected and self-validating for the backport.
 
 ### Caches
 
-Two cache entries, both small (~80 MB each): the pinned-tag install
-tree (`whpg-el8-<pin-sha>`) and the canary's (`whpg-el8-main-<sha>`).
+Three steady cache entries, all small (~80 MB each): the pinned-tag
+install trees per major (`whpg7-el8-<pin-sha>`, `whpg6-el8-<pin-sha>`)
+and the canary's (`whpg-el8-main-<sha>`).
 Keys are exact-match with no `restore-keys` — a stale or wrong-version
 tree can never be silently reused, and keys self-invalidate on pin
 bumps. **Only runs on `main` save the cache** (the weekly schedule is
 the steady writer); PR runs restore only, so a topic-branch run can
-never pin a cache PRs would miss. Check jobs receive the tree as a
-same-run artifact (`whpg-install-el8`), never via the cache directly.
+never pin a cache PRs would miss. Check jobs receive the trees as
+same-run artifacts (`whpg7-install-el8`, `whpg6-install-el8`), never
+via the cache directly.
 Every delivered tree carries provenance files (`whpg-build.ref`,
 `.sha`, `.gp-major`) that consumers assert before use.
 
 There is no `push: main` trigger, so a merge does not warm the cache
 by itself. After merging the lane or a pin bump, run the workflow once
-via `workflow_dispatch` on `main` to populate `whpg-el8-<pin-sha>`;
-otherwise every C-touching PR cold-builds (~15 min end-to-end) until
-the next Monday schedule saves the entry.
+via `workflow_dispatch` on `main` to populate both
+`whpg{6,7}-el8-<pin-sha>` entries; otherwise every C-touching PR
+cold-builds (~15 min end-to-end, both majors in parallel) until the
+next Monday schedule saves the entries.
 
 The canary writes a new entry each time upstream `main` moves; old
 entries age out via the 7-day eviction, so about one or two are alive

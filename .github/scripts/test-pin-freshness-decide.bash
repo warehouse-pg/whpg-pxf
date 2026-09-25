@@ -42,33 +42,43 @@ expect_error() {
 }
 
 # Shared baseline: pin 7.6.0-WHPG at SHA "aaa".
-B=(PIN_TAG=7.6.0-WHPG PIN_SHA=aaa)
+B=(MAJOR=7 PIN_TAG=7.6.0-WHPG PIN_SHA=aaa)
 
 # Healthy paths.
 expect "healthy, no issue"                 none    ""                "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
-expect "healthy, leftover issue -> close"  close   ""                "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE=12 OPEN_STATE=stale:7.6.0-WHPG
+expect "healthy, leftover issue -> close"  close   ""                "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE=12 OPEN_STATE=whpg7:stale:7.6.0-WHPG
 expect "pin newer than upstream (never stale backwards)" none "" \
   "${B[@]}" NEWEST_TAG=7.5.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
 
 # Staleness.
-expect "stale, no issue -> create"         create  stale:7.7.0-WHPG  "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
-expect "stale, same state reported -> none" none    stale:7.7.0-WHPG  "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE=12 OPEN_STATE=stale:7.7.0-WHPG
-expect "stale, even newer tag -> comment"  comment stale:7.8.0-WHPG  "${B[@]}" NEWEST_TAG=7.8.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE=12 OPEN_STATE=stale:7.7.0-WHPG
-expect "sort -V 9->10 boundary"            create  stale:7.10.0-WHPG PIN_TAG=7.9.0-WHPG PIN_SHA=aaa NEWEST_TAG=7.10.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
+expect "stale, no issue -> create"         create  whpg7:stale:7.7.0-WHPG  "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
+expect "stale, same state reported -> none" none    whpg7:stale:7.7.0-WHPG  "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE=12 OPEN_STATE=whpg7:stale:7.7.0-WHPG
+expect "stale, even newer tag -> comment"  comment whpg7:stale:7.8.0-WHPG  "${B[@]}" NEWEST_TAG=7.8.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE=12 OPEN_STATE=whpg7:stale:7.7.0-WHPG
+expect "sort -V 9->10 boundary"            create  whpg7:stale:7.10.0-WHPG MAJOR=7 PIN_TAG=7.9.0-WHPG PIN_SHA=aaa NEWEST_TAG=7.10.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
 
 # Retag (priority over stale).
-expect "retag, no issue -> create"         create  retag:bbb         "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE= OPEN_STATE=
-expect "retag, same state -> none"         none    retag:bbb         "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE=12 OPEN_STATE=retag:bbb
-expect "retag wins over stale"             create  retag:bbb         "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE= OPEN_STATE=
-expect "stale escalates to retag -> comment" comment retag:bbb       "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE=12 OPEN_STATE=stale:7.7.0-WHPG
+expect "retag, no issue -> create"         create  whpg7:retag:bbb         "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE= OPEN_STATE=
+expect "retag, same state -> none"         none    whpg7:retag:bbb         "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE=12 OPEN_STATE=whpg7:retag:bbb
+expect "retag wins over stale"             create  whpg7:retag:bbb         "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE= OPEN_STATE=
+expect "stale escalates to retag -> comment" comment whpg7:retag:bbb       "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT=bbb OPEN_ISSUE=12 OPEN_STATE=whpg7:stale:7.7.0-WHPG
 
 # Deletion (priority over everything).
-expect "deleted, no issue -> create"       create  deleted:7.6.0-WHPG "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT= OPEN_ISSUE= OPEN_STATE=
-expect "deleted, same state -> none"       none    deleted:7.6.0-WHPG "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT= OPEN_ISSUE=12 OPEN_STATE=deleted:7.6.0-WHPG
+expect "deleted, no issue -> create"       create  whpg7:deleted:7.6.0-WHPG "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT= OPEN_ISSUE= OPEN_STATE=
+expect "deleted, same state -> none"       none    whpg7:deleted:7.6.0-WHPG "${B[@]}" NEWEST_TAG=7.7.0-WHPG PINNED_TAG_COMMIT= OPEN_ISSUE=12 OPEN_STATE=whpg7:deleted:7.6.0-WHPG
 
 # Evasion: a broken tag query must fail loud, never conclude "fresh".
 expect_error "empty NEWEST_TAG fails loud" "${B[@]}" NEWEST_TAG= PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
-expect_error "missing PIN_TAG fails loud"  PIN_SHA=aaa NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
+expect_error "missing PIN_TAG fails loud"  MAJOR=7 PIN_SHA=aaa NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
+expect_error "missing MAJOR fails loud"    PIN_TAG=7.6.0-WHPG PIN_SHA=aaa NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE= OPEN_STATE=
+
+# Cross-major separation: the whpg6 leg with its own pin and issue.
+B6=(MAJOR=6 PIN_TAG=6.27.6-WHPG PIN_SHA=ccc)
+expect "whpg6 healthy, no issue"            none   ""                     "${B6[@]}" NEWEST_TAG=6.27.6-WHPG PINNED_TAG_COMMIT=ccc OPEN_ISSUE= OPEN_STATE=
+expect "whpg6 stale -> create (own state)"  create whpg6:stale:6.27.7-WHPG "${B6[@]}" NEWEST_TAG=6.27.7-WHPG PINNED_TAG_COMMIT=ccc OPEN_ISSUE= OPEN_STATE=
+expect "whpg6 same state reported -> none"  none   whpg6:stale:6.27.7-WHPG "${B6[@]}" NEWEST_TAG=6.27.7-WHPG PINNED_TAG_COMMIT=ccc OPEN_ISSUE=13 OPEN_STATE=whpg6:stale:6.27.7-WHPG
+# A caller bug that hands this leg the OTHER major's issue must fail
+# loud, never comment on the wrong issue.
+expect_error "cross-major OPEN_STATE fails loud" "${B6[@]}" NEWEST_TAG=6.27.7-WHPG PINNED_TAG_COMMIT=ccc OPEN_ISSUE=12 OPEN_STATE=whpg7:stale:7.7.0-WHPG
 
 # --- Tag-selection filter (pin-freshness-newest.bash): catch AND
 # --- evasion fixtures for the detector's matching mechanism.

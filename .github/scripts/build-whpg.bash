@@ -9,6 +9,9 @@
 # Inputs (environment):
 #   WHPG_REF    tag or branch to build (required, e.g. 7.6.0-WHPG or main)
 #   WHPG_SHA    expected commit for WHPG_REF (optional; asserted if set)
+#   WHPG_MAJOR  database major being built: 7 (default) or 6. Selects
+#               the configure recipe; derived from WHPG_REF's leading
+#               digit when unset (refs like 'main' derive 7).
 #   WHPG_REPO   source repository (default: warehouse-pg/warehouse-pg)
 #   PREFIX      install prefix (default: /usr/local/greenplum-db-devel)
 #   SRC_DIR     scratch checkout dir (default: /tmp/whpg_src)
@@ -56,28 +59,127 @@ if [ -n "${WHPG_SHA:-}" ] && [ "${built_sha}" != "${WHPG_SHA}" ]; then
   exit 1
 fi
 
+WHPG_MAJOR="${WHPG_MAJOR:-}"
+if [ -z "${WHPG_MAJOR}" ]; then
+  case "${WHPG_REF}" in 6.*) WHPG_MAJOR=6 ;; *) WHPG_MAJOR=7 ;; esac
+fi
+
 echo "==> Configuring ccache"
 ccache --set-config=max_size=1G
 ccache --set-config=compression=true
 ccache --zero-stats
 
-echo "==> Configuring WarehousePG"
-# Flag set as used by WarehousePG's own CI. Options only recognized by
-# WHPG 6 produce harmless "unrecognized options" warnings on 7.
-CC='ccache gcc -m64' \
-CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
-./configure --with-quicklz --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
-            --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests --with-llvm \
-            --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
-            --with-libraries="" --disable-rpath \
-            --prefix="${PREFIX}" \
-            --mandir="${PREFIX}/man"
+echo "==> Configuring WarehousePG (major ${WHPG_MAJOR})"
+if [ "${WHPG_MAJOR}" = "6" ]; then
+  # WHPG 6 recipe, mirroring warehouse-pg's own 6.x CI with ONE
+  # deliberate, lane-scoped deviation: their CI re-runs configure with
+  # PYTHON=python3 afterwards to rebuild ONLY plpython for its
+  # regression tests — this lane runs no PL/Python suites, so that
+  # second pass is skipped.
+  #
+  # The whole tree builds against Python 2 (WHPG 6 ships PyGreSQL 4.0,
+  # and gpdemo / cluster scripts assume `python` is Python 2).
+  # The build image does not ship Python 2 — install it first (the RPM
+  # registers the alternatives entry), exactly as warehouse-pg's own
+  # 6.x CI does; -devel is needed because --with-python builds
+  # PL/Python against the Python 2 headers.
+  yum install -y --setopt=keepcache=1 python2 python2-devel
+  alternatives --set python /usr/bin/python2
+  python --version
+
+  # ORCA on WHPG 6 needs Xerces-C 3.1, not the 3.2 the image ships.
+  # WHPG 6's gporca is compiled as -std=gnu++98, while Xerces 3.2
+  # typedefs XMLCh to char16_t (a C++11 type) in
+  # xercesc/util/Xerces_autoconf_config.hpp — so every ORCA
+  # translation unit that includes a Xerces header fails with
+  # "char16_t does not name a type". WHPG 7 is unaffected because its
+  # gporca compiles as -std=c++14.
+  #
+  # configure does NOT catch this: config/orca.m4 probes
+  # AC_CHECK_LIB(xerces-c, strnicmp) and calls that "the Greenplum
+  # patched version", but stock xerces-c 3.2.5 exports strnicmp too,
+  # so the probe passes and the build dies later in the compile.
+  #
+  # Remedy is warehouse-pg's own 6.x CI recipe: drop the distro 3.2
+  # and build 3.1 from the in-tree helper. The helper downloads
+  # xerces-c-3.1.2 from archive.apache.org and verifies it against the
+  # SHA-256 committed next to it.
+  echo "==> Replacing Xerces-C 3.2 with the 3.1 build ORCA needs"
+  yum remove -y xerces-c xerces-c-devel
+  rm -rf /tmp/xerces_build
+  mkdir -p /tmp/xerces_build/xerces_patch/concourse
+  cp -r "${SRC_DIR}/src/backend/gporca/concourse/xerces-c" \
+        /tmp/xerces_build/xerces_patch/concourse/
+  # build_xerces.py resolves the checksum file relative to the cwd,
+  # so it must run from the parent of xerces_patch/.
+  ( cd /tmp/xerces_build && /usr/bin/python2 \
+      xerces_patch/concourse/xerces-c/build_xerces.py --output_dir=/usr/local )
+  ln -sf /usr/local/lib/libxerces-c-3.1.so /usr/lib64/libxerces-c-3.1.so
+  ldconfig
+  rm -rf /tmp/xerces_build
+  # Postcondition: the 3.1 library is the one ORCA will find (testing
+  # principle 8 — a bring-up step asserts its own outcome rather than
+  # letting a silent miss surface as a confusing compile error).
+  test -f /usr/local/lib/libxerces-c-3.1.so
+  test -f /usr/local/include/xercesc/util/XercesVersion.hpp
+  grep -qx '#define XERCES_VERSION_MAJOR 3' /usr/local/include/xercesc/util/XercesVersion.hpp
+  grep -qx '#define XERCES_VERSION_MINOR 1' /usr/local/include/xercesc/util/XercesVersion.hpp
+  # The 3.2 headers must be GONE, or gcc could still resolve xercesc/
+  # from /usr/include and reintroduce the char16_t failure.
+  test ! -e /usr/include/xercesc
+
+  CC='ccache gcc -m64' \
+  CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
+  ./configure --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
+              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests \
+              --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
+              --with-libraries="" --disable-rpath \
+              --prefix="${PREFIX}" \
+              --mandir="${PREFIX}/man"
+else
+  # WHPG 7 recipe, as used by WarehousePG's own CI.
+  CC='ccache gcc -m64' \
+  CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
+  ./configure --with-quicklz --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
+              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests --with-llvm \
+              --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
+              --with-libraries="" --disable-rpath \
+              --prefix="${PREFIX}" \
+              --mandir="${PREFIX}/man"
+fi
 
 echo "==> Building"
 make -j"$(nproc)"
 
 echo "==> Installing to ${PREFIX}"
 make install -j"$(nproc)"
+
+if [ "${WHPG_MAJOR}" = "6" ]; then
+  # ORCA links postgres against libxerces-c-3.1.so, which was built
+  # into /usr/local/lib above — OUTSIDE ${PREFIX}. The check jobs
+  # receive only the ${PREFIX} tree, as an artifact, unpacked into a
+  # FRESH container that has the distro's 3.2 and no 3.1 at all, so
+  # the library has to travel with the tree or postgres dies with
+  # "libxerces-c-3.1.so: cannot open shared object file".
+  # warehouse-pg's own 6.x release build vendors the same file for the
+  # same reason (concourse/scripts/compile_gpdb.bash, include_dependencies:
+  # vendored_libs includes libxerces-c{,-3.1}.so).
+  echo "==> Vendoring libxerces-c-3.1 into the install tree"
+  find -L /usr/local/lib /usr/lib64 -maxdepth 1 -name 'libxerces-c-3.1.so*' \
+    -exec cp -avn '{}' "${PREFIX}/lib/" \; 2>/dev/null || true
+  test -f "${PREFIX}/lib/libxerces-c-3.1.so"
+  # Prove the TREE is self-contained rather than trusting the builder's
+  # /usr/local: resolve with only the tree's lib dir on the path and
+  # require the hit to come from inside ${PREFIX} (LD_LIBRARY_PATH wins
+  # over ld.so.cache, so a stray /usr/lib64 copy cannot mask a miss).
+  if ! LD_LIBRARY_PATH="${PREFIX}/lib" ldd "${PREFIX}/bin/postgres" \
+       | grep -F 'libxerces-c-3.1.so' | grep -qF "${PREFIX}/lib"; then
+    echo "ERROR: postgres does not resolve libxerces-c-3.1.so from ${PREFIX}/lib;" >&2
+    echo "       the install tree is not self-contained and check jobs will fail." >&2
+    LD_LIBRARY_PATH="${PREFIX}/lib" ldd "${PREFIX}/bin/postgres" | grep -F xerces >&2 || true
+    exit 1
+  fi
+fi
 
 ccache --show-stats || true
 
@@ -93,6 +195,10 @@ gp_major=$(
   postgres --gp-version | sed -n 's/[^0-9]*\([0-9]\{1,\}\).*/\1/p' | head -1
 )
 test -n "${gp_major}"
+if [ "${gp_major}" != "${WHPG_MAJOR}" ]; then
+  echo "ERROR: built binary reports gp major ${gp_major}, expected ${WHPG_MAJOR}." >&2
+  exit 1
+fi
 
 echo "==> Writing provenance"
 printf '%s\n' "${WHPG_REF}"   > "${PREFIX}/whpg-build.ref"
