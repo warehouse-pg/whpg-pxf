@@ -12,7 +12,14 @@ You can query the external table via WarehousePG, leaving the referenced data in
 
 ### <a id="os"></a> Operating Systems
 
-PXF is compatible with WarehousePG 6 and WarehousePG 7. PXF runs on the operating system platforms that your WarehousePG version supports; refer to the [WarehousePG platform requirements](https://warehouse-pg.io/docs/6x/install_guide/platform-requirements.html) for the authoritative list.
+PXF is compatible with these WarehousePG versions and operating system platforms:
+
+| WarehousePG Version | OS Versions |
+|---------------------|-------------|
+| 6.x | RHEL 7.x, CentOS 7.x, Oracle Linux 7 (RHCK), RHEL 8.7+, Rocky Linux 8.7+, RHEL 9.x, Rocky Linux 9.x |
+| 7.x | RHEL 8.7+, Rocky Linux 8.7+, Oracle Linux 8.7+ (RHCK) |
+
+If you are upgrading an existing PXF installation, note the PXF-version minimums in [OS Upgrade Considerations for PXF](upgrade_os.html). Refer to the [WarehousePG platform requirements](https://warehouse-pg.io/docs/6x/install_guide/platform-requirements.html) for the authoritative operating-system list for your WarehousePG version.
 
 ### <a id="java"></a> Java
 

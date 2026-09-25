@@ -163,7 +163,7 @@ public class OrcReadTest extends BaseFeature {
      *
      * GPDB also throws the same error when copying the data containing a NUL-byte
      *
-     * postgres=# copy test from '/Users/pandeyhi/Documents/bad_data.txt' ;
+     * postgres=# copy test from '/tmp/bad_data.txt' ;
      * ERROR:  invalid byte sequence for encoding "UTF8": 0x00
      * TODO Do we need to do some changes to make sure the external-table behaves the same way as GPDB/FDW?
      *

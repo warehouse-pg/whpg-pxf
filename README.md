@@ -1,7 +1,10 @@
-PXF is built and certified through GitHub Actions packaging and release
-workflows maintained by EDB; in-repository CI for pull requests is planned.
-The legacy Concourse pipelines under `concourse/` are deprecated and retained
-for historical reference only.
+[![PXF CI](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml/badge.svg)](https://github.com/warehouse-pg/whpg-pxf/actions/workflows/pxf-ci.yml)
+
+Pull requests targeting `main` and `release-6.x` run the in-repository
+[PXF CI](.github/workflows/README.md) workflow: unit tests, CLI tests, a
+compile check for the integration-test tree, and static docs checks.
+The legacy Concourse pipeline tooling has been removed; the upstream copy remains in
+[greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive).
 
 ----------------------------------------------------------------------
 
@@ -38,9 +41,6 @@ Contains the automation and integration tests for PXF against the various dataso
 
 ## singlecluster/
 Hadoop testing environment to exercise the pxf automation tests
-
-## concourse/
-Legacy resources for PXF's Concourse Continuous Integration pipelines. Deprecated and retained for historical reference only; a cleanup of this tree is planned.
 
 ## regression/
 Contains the end-to-end (integration) tests for PXF against the various datasources, utilizing the PostgreSQL testing framework `pg_regress`
@@ -117,6 +117,8 @@ make
 
 # Only run unit tests
 make test
+# (the same unit and CLI tests run automatically on every pull request
+#  via the PXF CI workflow — see .github/workflows/README.md)
 ```
 
 ## How to Install PXF

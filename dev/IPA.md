@@ -3,10 +3,10 @@
 If you need to create a multinode Hadoop cluster secured by IPA in Google Cloud Platform you can run the
 script [`ipa-cluster.bash` bash script](ipa-cluster.bash) that does the following:
 * uses `terraform` templates from 
-[concourse/terraform/ipa-multinode-hadoop/templates](../concourse/terraform/ipa-multinode-hadoop/templates) 
-directory along with [local.tfvars](../concourse/terraform/ipa-multinode-hadoop/templates/local.tfvars) file to
+[dev/ipa-multinode-hadoop/terraform/templates](ipa-multinode-hadoop/terraform/templates) 
+directory along with [local.tfvars](ipa-multinode-hadoop/terraform/local.tfvars) file to
 spin up GCP instances for an IPA server, hadoop namenodes and datanodes.
-* uses the [`ipa-multinode-hadoop` Ansible play](../concourse/ansible/ipa-multinode-hadoop) 
+* uses the [`ipa-multinode-hadoop` Ansible play](ipa-multinode-hadoop/ansible) 
 to configure and start the Hadoop cluster.
 * generates TLS private keys, self-signed certificates and pkcs12 keystores for the Hadoop nodes.
 * creates PXF configuration server under `$PXF_BASE` and deploys `*-site.xml` files and keytabs there
@@ -34,7 +34,7 @@ ipa-cluster.bash --create
 ```
 The script will:
  * validate that the required software is present and the environment variables are set
- * generate necessary additional `terraform` artifacts in `concourse/terraform/ipa-multinode-hadoop/templates` directory
+ * generate necessary additional `terraform` artifacts in `dev/ipa-multinode-hadoop/terraform/templates` directory
  * spin up GCP instances for the Hadoop cluster
  * apply ansible configuration steps to configure the Hadoop cluster
  * add a private key to access GCP VMs as `~/.ssh/[username]`

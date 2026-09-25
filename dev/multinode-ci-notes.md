@@ -36,7 +36,7 @@ provisioned and configured, for anyone reproducing the setup by hand.
             - `groups=*`
 4. IPA Hadoop Cluster
     - `ipa_env_files` in CI tasks
-    - Multinode cluster provisioned with [Terraform](../concourse/terraform/ipa-multinode-hadoop) and [Ansible](../concourse/ansible/ipa-multinode-hadoop)
+    - Multinode cluster provisioned with [Terraform](ipa-multinode-hadoop/terraform) and [Ansible](ipa-multinode-hadoop/ansible)
     - Hadoop Proxy Users
         - **None**
 
