@@ -309,6 +309,17 @@ Two things deliberately did **not** move:
   compatibility fallback no longer exists in the Hive 4.x thrift
   bindings.
 
+### Bug Fixes
+
+- PTT-1850: external tables that are partitions of a partitioned table (or that
+  carry CHECK constraints) lost rows when the query projected only columns that
+  the partition constraint does not reference. gp_exttable_fdw evaluates the
+  partition and CHECK constraints against every row of an external table scan,
+  so the external-table protocol now always includes the columns referenced by
+  those constraints in the column projection sent to PXF. The `DemoResolver`
+  example plugin now honors column projection (returns NULL for unprojected
+  columns) so that the external-table regression suite can exercise this path.
+
 ### Compatibility notes
 
 - **Wire protocol unchanged** — `api_version` stays at `16`; no coordinated

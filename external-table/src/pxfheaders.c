@@ -24,7 +24,10 @@
 #include "access/external.h"
 #include "extension/gp_exttable_fdw/extaccess.h"
 #include "executor/execExpr.h"
+#include "optimizer/optimizer.h"
+#include "utils/partcache.h"
 #else
+#include "optimizer/var.h"
 #include "access/fileam.h"
 #include "catalog/pg_exttable.h"
 #endif
@@ -43,6 +46,7 @@ static bool isFormatterPxfWritable(ExtTableEntry *exttbl);
 static void add_projection_desc_httpheaders(CHURL_HEADERS headers, ProjectionInfo *projInfo, List *qualsAttributes, Relation rel);
 static bool add_attnums_from_targetList(Node *node, List *attnums);
 static void add_projection_index_header(CHURL_HEADERS pVoid, StringInfoData data, int attno, char number[32]);
+static bool add_attnums_from_constraints(Relation rel, Bitmapset **attrs_used);
 static List *appendCopyEncodingOptionToList(List *copyFmtOpts, int encoding);
 static int  *getVarNumbers(ProjectionInfo *projInfo);
 static List *getTargetList(ProjectionInfo *projInfo);
@@ -563,7 +567,29 @@ add_projection_desc_httpheaders(CHURL_HEADERS headers,
 						 attrNumber + 1 - FirstLowInvalidHeapAttributeNumber);
 	}
 
-	// STEP 4: for attributes in the relation that are not dropped, add projection headers for those selected in steps 0 - 3 above
+	/*
+	 * STEP 3b: collect attribute numbers referenced by the relation's CHECK
+	 * constraints and, when the relation is a partition of a partitioned
+	 * table, by its partition constraint.
+	 *
+	 * gp_exttable_fdw evaluates these expressions against every row returned
+	 * by an external table scan and silently skips rows that do not satisfy
+	 * them. If the referenced columns were not part of the projection, PXF
+	 * would return NULL for them, the checks would fail for every row and the
+	 * query would lose all rows of the partition (see PTT-1850).
+	 */
+	if (!add_attnums_from_constraints(rel, &attrs_used))
+	{
+		/* a constraint references the whole row: every column is needed */
+		elog(DEBUG2,
+			 "Query will not be optimized to use projection information: a table constraint references the whole row");
+		list_free(qualsAttributes);
+		pfree(formatter.data);
+		bms_free(attrs_used);
+		return;
+	}
+
+	// STEP 4: for attributes in the relation that are not dropped, add projection headers for those selected in steps 0 - 3b above
 	tupdesc = RelationGetDescr(rel);
 	droppedCount = 0;
 	headerCount = 0;
@@ -597,6 +623,54 @@ add_projection_desc_httpheaders(CHURL_HEADERS headers,
 	list_free(qualsAttributes);
 	pfree(formatter.data);
 	bms_free(attrs_used);
+}
+
+/*
+ * Adds to attrs_used (using the same FirstLowInvalidHeapAttributeNumber offset
+ * encoding as add_projection_desc_httpheaders) every attribute referenced by
+ * the relation's CHECK constraints and, on GP7+, by its partition constraint
+ * when the relation is a partition.
+ *
+ * Returns false if one of those expressions references the whole row, in
+ * which case column projection must not be used at all.
+ */
+static bool
+add_attnums_from_constraints(Relation rel, Bitmapset **attrs_used)
+{
+	TupleDesc	tupdesc = RelationGetDescr(rel);
+
+	/* constraint expressions reference the relation as varno 1 */
+#if PG_VERSION_NUM >= 90100
+#define pull_constraint_varattnos(expr) pull_varattnos((Node *) (expr), 1, attrs_used)
+#else
+#define pull_constraint_varattnos(expr) pull_varattnos((Node *) (expr), attrs_used)
+#endif
+
+	if (tupdesc->constr != NULL && tupdesc->constr->num_check > 0)
+	{
+		ConstrCheck *check = tupdesc->constr->check;
+		int			i;
+
+		for (i = 0; i < tupdesc->constr->num_check; i++)
+		{
+			Node	   *expr = stringToNode(check[i].ccbin);
+
+			pull_constraint_varattnos(expr);
+		}
+	}
+
+#if PG_VERSION_NUM >= 120000
+	if (rel->rd_rel->relispartition)
+	{
+		List	   *partqual = RelationGetPartitionQual(rel);
+
+		pull_constraint_varattnos(partqual);
+	}
+#endif
+#undef pull_constraint_varattnos
+
+	/* pull_varattnos records a whole-row reference as attribute number 0 */
+	return !bms_is_member(0 - FirstLowInvalidHeapAttributeNumber, *attrs_used);
 }
 
 /*
