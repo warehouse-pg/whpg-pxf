@@ -154,6 +154,33 @@ make -j"$(nproc)"
 echo "==> Installing to ${PREFIX}"
 make install -j"$(nproc)"
 
+if [ "${WHPG_MAJOR}" = "6" ]; then
+  # ORCA links postgres against libxerces-c-3.1.so, which was built
+  # into /usr/local/lib above — OUTSIDE ${PREFIX}. The check jobs
+  # receive only the ${PREFIX} tree, as an artifact, unpacked into a
+  # FRESH container that has the distro's 3.2 and no 3.1 at all, so
+  # the library has to travel with the tree or postgres dies with
+  # "libxerces-c-3.1.so: cannot open shared object file".
+  # warehouse-pg's own 6.x release build vendors the same file for the
+  # same reason (concourse/scripts/compile_gpdb.bash, include_dependencies:
+  # vendored_libs includes libxerces-c{,-3.1}.so).
+  echo "==> Vendoring libxerces-c-3.1 into the install tree"
+  find -L /usr/local/lib /usr/lib64 -maxdepth 1 -name 'libxerces-c-3.1.so*' \
+    -exec cp -avn '{}' "${PREFIX}/lib/" \; 2>/dev/null || true
+  test -f "${PREFIX}/lib/libxerces-c-3.1.so"
+  # Prove the TREE is self-contained rather than trusting the builder's
+  # /usr/local: resolve with only the tree's lib dir on the path and
+  # require the hit to come from inside ${PREFIX} (LD_LIBRARY_PATH wins
+  # over ld.so.cache, so a stray /usr/lib64 copy cannot mask a miss).
+  if ! LD_LIBRARY_PATH="${PREFIX}/lib" ldd "${PREFIX}/bin/postgres" \
+       | grep -F 'libxerces-c-3.1.so' | grep -qF "${PREFIX}/lib"; then
+    echo "ERROR: postgres does not resolve libxerces-c-3.1.so from ${PREFIX}/lib;" >&2
+    echo "       the install tree is not self-contained and check jobs will fail." >&2
+    LD_LIBRARY_PATH="${PREFIX}/lib" ldd "${PREFIX}/bin/postgres" | grep -F xerces >&2 || true
+    exit 1
+  fi
+fi
+
 ccache --show-stats || true
 
 echo "==> Postconditions"
