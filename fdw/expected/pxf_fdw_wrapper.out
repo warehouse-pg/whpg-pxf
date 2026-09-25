@@ -1,10 +1,17 @@
+-- WarehousePG majors differ in the noise they emit around role and
+-- table DDL: WHPG 6 prints a resource-queue NOTICE on CREATE ROLE
+-- (queues are a 6-only feature), newer majors do not. Ignore it so one
+-- expected file serves every supported major. Every line inside the
+-- block is parsed as a directive, so this explanation stays outside it.
+-- start_matchignore
+-- m/^NOTICE:  resource queue required/
+-- end_matchignore
 -- ===================================================================
 -- create FDW objects
 -- ===================================================================
 CREATE EXTENSION pxf_fdw;
 DROP ROLE IF EXISTS pxf_fdw_user;
 CREATE ROLE pxf_fdw_user;
-NOTICE:  resource queue required -- using default resource queue "pg_default"
 -- ===================================================================
 -- Validation for WRAPPER options
 -- ===================================================================
