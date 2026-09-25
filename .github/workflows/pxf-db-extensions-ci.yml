@@ -9,13 +9,14 @@
 #
 # The lane tests BOTH database majors: every run matrixes over the two
 # pins below (WHPG 7 and WHPG 6), building each from source and running
-# the suite set that applies (fdw installcheck is WHPG7-only — its
-# expected files are pinned to WHPG 7 server output).
+# the FULL suite set on each. The expected files are major-neutral —
+# gpdiff matchignore blocks absorb the per-major noise lines — so every
+# run is also a continuous proof that those blocks still cover both
+# majors' real output.
 #
 # What this lane does NOT cover (by design): data-path testing (SELECT
-# through a running PXF server needs Hadoop-family datasources), the
-# fdw DDL contract on WHPG 6 (expected-file variants would be needed),
-# and non-el8 platforms.
+# through a running PXF server needs Hadoop-family datasources) and
+# non-el8 platforms.
 #
 # Delivery model: the whpg-prepare job provides an installed WarehousePG
 # tree — restored from the Actions cache, or REBUILT IN-RUN on any cache
@@ -23,9 +24,10 @@
 # design, so a cold cache can never silently drop coverage. Check jobs
 # receive the tree as a same-run artifact.
 #
-# Version pin: ONE WarehousePG version, built from source at the tag
-# below. Bump the tag, its commit SHA, and the container image digest
-# together in a deliberate PR (procedure in .github/workflows/README.md).
+# Version pins: ONE WarehousePG version PER MAJOR, each built from
+# source at its tag below. Bump a tag, its commit SHA, and the
+# container image digest together in a deliberate PR (procedure in
+# .github/workflows/README.md).
 #
 # Advisory status: the path filter means these checks do not report on
 # most PRs, so they must not be added to required status checks (a
