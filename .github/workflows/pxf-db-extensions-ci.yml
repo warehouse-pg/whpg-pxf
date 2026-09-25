@@ -118,7 +118,9 @@ jobs:
   whpg-prepare:
     name: whpg-prepare [whpg${{ matrix.major }}]
     runs-on: ubuntu-latest
-    timeout-minutes: 60   # measured: ~10 min cold source build (whpg7), ~1 min on cache hit; whpg6 cold measured at trial
+    timeout-minutes: 60   # measured cold: whpg7 8-11 min, whpg6 9-13 min (the
+                          # latter includes building the Xerces 3.1 its ORCA
+                          # needs); ~1 min on a cache hit
     strategy:
       fail-fast: false
       matrix:
