@@ -1,0 +1,546 @@
+# PXF DB Extensions CI — advisory checks for the database-resident C extensions.
+#
+# Scope: the two C extensions (external-table/ and fdw/) — compile
+# against real WarehousePG headers and run their pg_regress suites in a
+# demo cluster. Everything here is secret-free and fork-PR-safe: pull_request
+# events carry a read-only token, cache access is restore-only, and the
+# only write permission (issues) lives in jobs that never trigger on
+# pull requests.
+#
+# What this lane does NOT cover (by design): data-path testing (SELECT
+# through a running PXF server needs Hadoop-family datasources), the
+# WHPG 6 axis, and non-el8 platforms.
+#
+# Delivery model: the whpg-prepare job provides an installed WarehousePG
+# tree — restored from the Actions cache, or REBUILT IN-RUN on any cache
+# miss (~10 min, once). A miss is never a skip: a rare slow run is by
+# design, so a cold cache can never silently drop coverage. Check jobs
+# receive the tree as a same-run artifact.
+#
+# Version pin: ONE WarehousePG version, built from source at the tag
+# below. Bump the tag, its commit SHA, and the container image digest
+# together in a deliberate PR (procedure in .github/workflows/README.md).
+#
+# Advisory status: the path filter means these checks do not report on
+# most PRs, so they must not be added to required status checks (a
+# required check that never reports blocks merges). This is documented
+# policy, not a platform guarantee.
+#
+# See .github/workflows/README.md for the operating manual.
+
+name: PXF DB Extensions CI
+
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('[db-extensions CI] PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title)
+      || format('[db-extensions CI] {0}: {1}', github.ref_name, github.event_name) }}
+
+on:
+  pull_request:
+    # release-6.x is pre-wired but inert for PRs cut from that branch:
+    # a pull_request run uses the workflow file from the MERGE ref
+    # (head merged into base), and heads cut from release-6.x don't
+    # carry this file until the backport lands. A PR whose head DOES
+    # carry it (notably the backport PR itself) will run the lane —
+    # expected, and self-validating for the backport.
+    branches: [main, release-6.x]
+    paths:
+      - 'fdw/**'
+      - 'external-table/**'
+      - 'api_version'
+      - '.github/workflows/pxf-db-extensions-ci.yml'
+      - '.github/scripts/build-whpg.bash'
+      - '.github/scripts/run-db-extension-checks.bash'
+      - '.github/scripts/run-db-extension-checks-gpadmin.bash'
+      - '.github/scripts/pin-freshness-decide.bash'
+      - '.github/scripts/pin-freshness-newest.bash'
+      - '.github/scripts/test-pin-freshness-decide.bash'
+  push:
+    # ci/** = opt-in CI for feature branches (no PR needed). No path
+    # filter here: a ci/** push is already an explicit request.
+    branches: ['ci/**']
+  schedule:
+    - cron: '30 4 * * 1'   # Mondays 04:30 UTC — weekly rot-check + upstream canary (staggered after pxf-ci.yml)
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Start a tmate debug session if a job fails'
+        type: boolean
+        default: false
+      reason:
+        description: 'Why this run was dispatched'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Stacked pushes on a cold cache would stack ~10-minute WarehousePG
+  # builds; cancelling a stale PR run loses nothing because PR runs
+  # never save the cache anyway.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release-6.x' }}
+
+env:
+  # THE PIN — tag and commit SHA move together (see header).
+  WHPG_TAG: 7.6.0-WHPG
+  WHPG_TAG_SHA: 0f73ef6e0729cbf71cf225b41d58e1bd1090f335
+  # The build image digest. GitHub does not allow env in
+  # container.image, so the digest is literal on every container.image
+  # line — this value MUST equal those literals (bump all five
+  # together; procedure in the README). It feeds the cache keys so a
+  # digest bump invalidates trees built in the old image.
+  BUILD_IMAGE_DIGEST: sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+  WHPG_PREFIX: /usr/local/greenplum-db-devel
+
+jobs:
+
+  # ---------------------------------------------------------------------
+  # whpg-prepare: provide the installed WarehousePG tree this run tests
+  # against. Cache hit -> restore in seconds. Cache miss -> build from
+  # source in-run (slow once, never skipped). Only runs on the default
+  # branch may save the cache, so a topic-branch dispatch can never pin
+  # a cache PRs would miss.
+  # ---------------------------------------------------------------------
+  whpg-prepare:
+    name: whpg-prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45   # measured: ~10 min cold source build, ~1 min on cache hit
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore the installed tree from cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: whpg-dist
+          # Exact-match only (no restore-keys): a stale or wrong-version
+          # tree can never be silently reused; the key self-invalidates
+          # when the pin is bumped.
+          key: whpg-el8-${{ env.WHPG_TAG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+      - name: Build WarehousePG from source (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          WHPG_REF: ${{ env.WHPG_TAG }}
+          WHPG_SHA: ${{ env.WHPG_TAG_SHA }}
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          bash .github/scripts/build-whpg.bash
+          mkdir -p whpg-dist
+          tar czf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX" .
+      - name: Save the installed tree to cache
+        # Only runs on main may write the cache (the weekly schedule is
+        # the steady writer); a topic-branch or dispatch run can never
+        # pin a cache that PRs would then miss.
+        if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-${{ env.WHPG_TAG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+      - name: Verify the tree before handing it to consumers
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+          "$PREFIX/bin/pg_config" --version
+      - name: Hand the tree to the check jobs (same-run artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: whpg-install-el8
+          path: whpg-dist/whpg-install-el8.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### whpg-prepare (${{ job.status }})"
+            echo "- pin: $WHPG_TAG ($WHPG_TAG_SHA)"
+            echo "- cache hit: ${{ steps.cache.outputs.cache-hit == 'true' }}"
+            echo "- tarball: $(du -h whpg-dist/whpg-install-el8.tar.gz | cut -f1)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # compile: both extensions compile against the real WarehousePG
+  # headers. Cheap, no cluster, catches header/ABI drift — the most
+  # likely C regression class.
+  # ---------------------------------------------------------------------
+  compile:
+    name: compile${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # measured: ~1.5 min
+    needs: whpg-prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        # Weekly rot-check runs main explicitly (path filters do not
+        # apply to schedule events). The release-6.x leg is added by the
+        # backport that lands this workflow on that branch.
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: whpg-install-el8
+          path: whpg-dist
+      - name: Unpack and assert provenance
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+      - name: Compile both extensions
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          source "$PREFIX/greenplum_path.sh"
+          make -C external-table
+          make -C fdw
+      - name: Job summary
+        if: always()
+        run: echo "### compile (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # installcheck: demo cluster + the extensions' own pg_regress suites
+  # (external-table: 3, fdw: 4) — DDL, option validators, error paths.
+  # No PXF server involved. `needs: compile` carries no build outputs
+  # (this job compiles again via make install); its value is fail-fast —
+  # skipping a cluster bring-up when the compile is already red.
+  # ---------------------------------------------------------------------
+  installcheck:
+    name: installcheck${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # measured: ~1.5 min incl. demo-cluster bring-up
+    needs: compile
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main"]') || fromJSON('[""]') }}
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      # Unprivileged demo cluster: root user for setup, fixed hostname,
+      # and enough shared memory for the segments.
+      options: --user root --hostname cdw --shm-size=2gb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: whpg-install-el8
+          path: whpg-dist
+      - name: Unpack and assert provenance
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          # Same consumer discipline as compile: the ref alone is a
+          # mutable tag name — assert the commit SHA too before use.
+          test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+      - name: Demo cluster + extension installchecks
+        env:
+          WHPG_REF: ${{ env.WHPG_TAG }}
+          PREFIX: ${{ env.WHPG_PREFIX }}
+          PXF_SRC: ${{ github.workspace }}
+        run: bash .github/scripts/run-db-extension-checks.bash
+      - name: Upload regression diffs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: installcheck-results${{ matrix.ref && format('-{0}', matrix.ref) || '' }}
+          path: |
+            external-table/regression.diffs
+            external-table/regression.out
+            external-table/results/
+            fdw/regression.diffs
+            fdw/regression.out
+            fdw/results/
+          if-no-files-found: ignore
+      - name: Job summary
+        if: always()
+        run: echo "### installcheck (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+      # action-tmate assumes apt; install via yum on Rocky first.
+      - name: Install tmate (dispatch-only, opt-in)
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled
+        run: |
+          yum install -y --setopt=keepcache=1 epel-release
+          yum install -y --setopt=keepcache=1 tmate
+      - name: Debug session (dispatch-only, opt-in)
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113   # v3.24
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled
+        timeout-minutes: 30
+        with:
+          install-dependencies: false
+
+  # ---------------------------------------------------------------------
+  # upstream-canary: build WarehousePG@main and run the same checks —
+  # early warning that upstream changes broke the PXF C layer. Weekly
+  # only, never on pull requests: upstream drift is not a PR author's
+  # fault and must never appear as a red leg on someone's PR. The cache
+  # is keyed by main's current commit, so a week where main has not
+  # moved skips the rebuild.
+  # ---------------------------------------------------------------------
+  upstream-canary:
+    name: upstream-canary
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # measured: ~9 min incl. the upstream source build
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      options: --user root --hostname cdw --shm-size=2gb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The canary certifies PXF main against WarehousePG main.
+          ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
+      - name: Resolve WarehousePG main
+        id: upstream
+        run: |
+          sha=$(git ls-remote https://github.com/warehouse-pg/warehouse-pg refs/heads/main | cut -f1)
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Restore the canary tree from cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+      - name: Build WarehousePG@main (upstream moved since the last run)
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          WHPG_REF: main
+          WHPG_SHA: ${{ steps.upstream.outputs.sha }}
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          bash .github/scripts/build-whpg.bash
+          mkdir -p whpg-dist
+          tar czf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX" .
+      - name: Save the canary tree to cache
+        # Main-only writer, same rationale as whpg-prepare's save.
+        if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+      - name: Unpack and assert provenance
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+          UPSTREAM_SHA: ${{ steps.upstream.outputs.sha }}
+        run: |
+          mkdir -p "$PREFIX"
+          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          # Same consumer discipline as the compile job: assert before use
+          # (run-db-extension-checks.bash re-asserts later, but the compile step
+          # must not run against an unverified tree either).
+          test "$(cat "$PREFIX/whpg-build.ref")" = "main"
+          test "$(cat "$PREFIX/whpg-build.sha")" = "$UPSTREAM_SHA"
+      - name: Compile both extensions against upstream main
+        env:
+          PREFIX: ${{ env.WHPG_PREFIX }}
+        run: |
+          source "$PREFIX/greenplum_path.sh"
+          make -C external-table
+          make -C fdw
+      - name: Demo cluster + extension installchecks against upstream main
+        env:
+          WHPG_REF: main
+          PREFIX: ${{ env.WHPG_PREFIX }}
+          PXF_SRC: ${{ github.workspace }}
+        run: bash .github/scripts/run-db-extension-checks.bash
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### upstream-canary (${{ job.status }})"
+            echo "- WarehousePG main: ${{ steps.upstream.outputs.sha }}"
+            echo "- cache hit (main unmoved since last run): ${{ steps.cache.outputs.cache-hit == 'true' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # watcher-selftest: the pin watcher's decision table and tag filter
+  # are pure scripts with fixture tests. The pin-freshness job itself
+  # never runs on pull requests, so THIS job is what gates a PR that
+  # edits the watcher scripts (they are in the workflow's path filter):
+  # broken detector logic must fail the PR, not the next Monday cron.
+  # Seconds, no permissions, no WarehousePG needed.
+  # ---------------------------------------------------------------------
+  watcher-selftest:
+    name: watcher-selftest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the pin-watcher fixture tests
+        run: bash .github/scripts/test-pin-freshness-decide.bash
+
+  # ---------------------------------------------------------------------
+  # pin-freshness: weekly watcher over the version pin. Three
+  # conditions, in priority order: the pinned tag was DELETED upstream
+  # (the next cache miss cannot rebuild), the pinned tag MOVED
+  # (annotated tags are peeled to their commit before comparing — the
+  # 7.2.1-WHPG precedent), or a NEWER 7.x-WHPG tag exists (upgrade
+  # nudge). Files/updates/auto-closes ONE issue labeled ci-db-extensions-pin.
+  # The decision table is a pure script whose fixture tests run first;
+  # live issue mutation happens only on main runs (the same
+  # main-only-writer discipline as the caches) — elsewhere the decision
+  # is echoed to the step summary.
+  # ---------------------------------------------------------------------
+  pin-freshness:
+    name: pin-freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-test the decision logic (fixtures)
+        run: bash .github/scripts/test-pin-freshness-decide.bash
+      - name: Gather upstream state and decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PIN_TAG: ${{ env.WHPG_TAG }}
+          PIN_SHA: ${{ env.WHPG_TAG_SHA }}
+        run: |
+          # Prefix-narrowed server-side (the unqualified tags endpoint
+          # carries ~300 refs with the 7.x block near the end) and
+          # --paginate so growth past one page can never hide tags.
+          refs=$(gh api 'repos/warehouse-pg/warehouse-pg/git/matching-refs/tags/7.' --paginate)
+          # Selection filter lives in a pure fixture-tested script (see
+          # test-pin-freshness-decide.bash), not inline here.
+          newest=$(jq -r '.[].ref' <<<"$refs" | sed 's|refs/tags/||' \
+            | bash .github/scripts/pin-freshness-newest.bash 7)
+          # Peel the pinned tag to a COMMIT: annotated tags resolve to
+          # a tag object whose SHA can never equal the pinned commit.
+          obj_type=$(jq -r --arg t "refs/tags/${PIN_TAG}" '[.[] | select(.ref==$t)][0].object.type // empty' <<<"$refs")
+          pinned_commit=$(jq -r --arg t "refs/tags/${PIN_TAG}" '[.[] | select(.ref==$t)][0].object.sha // empty' <<<"$refs")
+          hops=0
+          while [ "$obj_type" = "tag" ] && [ "$hops" -lt 5 ]; do
+            IFS=$'\t' read -r obj_type pinned_commit < <(gh api "repos/warehouse-pg/warehouse-pg/git/tags/${pinned_commit}" --jq '[.object.type, .object.sha] | @tsv')
+            hops=$((hops + 1))
+          done
+          # One open watcher issue max; its body carries the state
+          # marker (never parsed from the title — titles get edited).
+          issue_json=$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci-db-extensions-pin --state open \
+            --json number,body --jq '.[0] // empty')
+          open_issue=""; open_state=""
+          if [ -n "$issue_json" ]; then
+            open_issue=$(jq -r '.number' <<<"$issue_json")
+            open_state=$(jq -r '.body' <<<"$issue_json" | sed -n 's/.*<!-- pin-state: \(.*\) -->.*/\1/p' | head -1)
+          fi
+          out=$(NEWEST_TAG="$newest" PINNED_TAG_COMMIT="$pinned_commit" \
+                OPEN_ISSUE="$open_issue" OPEN_STATE="$open_state" \
+                bash .github/scripts/pin-freshness-decide.bash)
+          echo "$out"
+          {
+            echo "action=$(sed -n 's/^ACTION=//p' <<<"$out")"
+            echo "state=$(sed -n 's/^STATE=//p' <<<"$out")"
+            echo "open_issue=$open_issue"
+            echo "newest=$newest"
+          } >> "$GITHUB_OUTPUT"
+      - name: Execute the decision (live on main, echo elsewhere)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ steps.decide.outputs.action }}
+          STATE: ${{ steps.decide.outputs.state }}
+          OPEN_ISSUE: ${{ steps.decide.outputs.open_issue }}
+          NEWEST: ${{ steps.decide.outputs.newest }}
+          PIN_TAG: ${{ env.WHPG_TAG }}
+          PIN_SHA: ${{ env.WHPG_TAG_SHA }}
+        run: |
+          kind="${STATE%%:*}"; detail="${STATE#*:}"
+          case "$kind" in
+            stale)
+              title="DB extensions CI: WHPG pin is stale: ${detail} available (pin: ${PIN_TAG})"
+              text="Upstream has a newer release tag: \`${detail}\` (this lane pins \`${PIN_TAG}\`). Bump procedure: .github/workflows/README.md → 'The version pin'." ;;
+            retag)
+              title="DB extensions CI: WHPG pinned tag moved upstream: ${PIN_TAG} no longer at ${PIN_SHA}"
+              text="⚠️ The pinned tag \`${PIN_TAG}\` now resolves to commit \`${detail}\`, not the pinned \`${PIN_SHA}\`. Either upstream re-cut the tag legitimately (verify, then bump the SHA) or something is wrong — treat as a supply-chain signal until explained." ;;
+            deleted)
+              title="DB extensions CI: WHPG pinned tag no longer exists upstream: ${PIN_TAG}"
+              text="⚠️ The pinned tag \`${PIN_TAG}\` is gone from warehouse-pg. The next cache miss cannot rebuild the install tree. Re-pin to an existing tag (procedure: .github/workflows/README.md → 'The version pin')." ;;
+            *)  title=""; text="" ;;
+          esac
+          body=$(printf '%s\n\n<!-- pin-state: %s -->' "$text" "$STATE")
+          if [ "$GITHUB_REF" != "refs/heads/main" ] && [ "$ACTION" != "none" ]; then
+            {
+              echo "### pin-freshness (DRY RUN — not on main, no issue mutation)"
+              echo "- action: $ACTION"
+              echo "- state: ${STATE:-healthy}"
+              echo "- title: ${title:-n/a}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          case "$ACTION" in
+            none)
+              echo "pin healthy or already reported (${STATE:-healthy}) — nothing to do" ;;
+            create)
+              gh label create ci-db-extensions-pin --repo "$GITHUB_REPOSITORY" \
+                --description "The C lane's WarehousePG version pin needs attention" --color D93F0B --force
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+                --label ci-db-extensions-pin --body "$body" ;;
+            comment)
+              gh issue comment "$OPEN_ISSUE" --repo "$GITHUB_REPOSITORY" --body "$text"
+              # Refresh the body marker so next week's run sees the
+              # currently-reported state, not the original one.
+              gh issue edit "$OPEN_ISSUE" --repo "$GITHUB_REPOSITORY" --body "$body" ;;
+            close)
+              gh issue close "$OPEN_ISSUE" --repo "$GITHUB_REPOSITORY" \
+                --comment "The pin caught up (\`${PIN_TAG}\` @ \`${PIN_SHA}\` is current) — auto-closing." ;;
+          esac
+          {
+            echo "### pin-freshness (${ACTION})"
+            echo "- pin: ${PIN_TAG} (${PIN_SHA})"
+            echo "- newest upstream: ${NEWEST}"
+            echo "- state: ${STATE:-healthy}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # failure-issue: scheduled failures block nobody's PR, so they
+  # are otherwise silent. Open (or update) a labeled issue on red.
+  # ---------------------------------------------------------------------
+  failure-issue:
+    name: failure-issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [whpg-prepare, compile, installcheck, upstream-canary, pin-freshness, watcher-selftest]
+    if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update the failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create ci-db-extensions-failure --repo "$GITHUB_REPOSITORY" \
+            --description "A scheduled C-extension CI run failed" --color B60205 --force
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label ci-db-extensions-failure --state open \
+            --json number --jq '.[0].number // empty')
+          body="A scheduled PXF DB Extensions CI run failed: $RUN_URL"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Weekly PXF DB Extensions CI run is failing" \
+              --label ci-db-extensions-failure --body "$body"
+          fi
