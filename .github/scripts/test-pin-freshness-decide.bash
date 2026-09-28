@@ -79,6 +79,9 @@ expect "whpg6 same state reported -> none"  none   whpg6:stale:6.27.7-WHPG "${B6
 # A caller bug that hands this leg the OTHER major's issue must fail
 # loud, never comment on the wrong issue.
 expect_error "cross-major OPEN_STATE fails loud" "${B6[@]}" NEWEST_TAG=6.27.7-WHPG PINNED_TAG_COMMIT=ccc OPEN_ISSUE=12 OPEN_STATE=whpg7:stale:7.7.0-WHPG
+# ...and the mirror: the whpg7 leg handed a whpg6 issue. Both directions
+# are pinned so a pattern change cannot break one side silently.
+expect_error "cross-major OPEN_STATE fails loud (7 given 6)" "${B[@]}" NEWEST_TAG=7.6.0-WHPG PINNED_TAG_COMMIT=aaa OPEN_ISSUE=14 OPEN_STATE=whpg6:stale:6.27.7-WHPG
 
 # --- Tag-selection filter (pin-freshness-newest.bash): catch AND
 # --- evasion fixtures for the detector's matching mechanism.

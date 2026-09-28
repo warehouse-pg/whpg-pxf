@@ -276,8 +276,10 @@ digest's layers were garbage-collected, jobs fail at container start
 with a pull error — bump the digest.
 
 A pin bump can also legitimately drift the pg_regress goldens.
-Known major-dependent NOISE lines (the WHPG 6 resource-queue NOTICE,
-the WHPG 7 zero-column CREATE warning) are absorbed by
+Known NOISE lines whose presence or position differs by major (the
+resource-queue NOTICE on CREATE ROLE; the zero-column CREATE warning,
+which every major emits but in a different position relative to the
+validator error) are absorbed by
 `start_matchignore` blocks in the suites' sql/expected files, so one
 expected file serves every supported major. If `installcheck` still
 goes red after a bump, read `regression.diffs` from the failed run's
@@ -364,7 +366,7 @@ fetches that exact commit and asserts it, and the container is the
 exact image.
 
 ```bash
-# From pxf-db-extensions-ci.yml env: -> WHPG_TAG, WHPG_TAG_SHA, BUILD_IMAGE_DIGEST
+# From pxf-db-extensions-ci.yml env: -> WHPG_TAG + WHPG_TAG_SHA (or WHPG6_TAG + WHPG6_TAG_SHA), BUILD_IMAGE_DIGEST
 WHPG_TAG=<WHPG_TAG>; WHPG_SHA=<WHPG_TAG_SHA>; DIGEST=<BUILD_IMAGE_DIGEST>
 docker run --rm -it --platform linux/amd64 \
   -v "$PWD:/pxf" -w /pxf \
@@ -376,6 +378,13 @@ docker run --rm -it --platform linux/amd64 \
 
 Dropping `@${DIGEST}` (bare tag) and `WHPG_SHA` gives a convenient
 approximation that can drift if either tag is ever moved.
+
+For the WHPG 6 leg, take `WHPG6_TAG` and `WHPG6_TAG_SHA` from the same
+`env:` block instead. Nothing else changes: `build-whpg.bash` derives
+the major from the ref and does the WHPG 6 bring-up itself (Python 2,
+the Xerces-C 3.1 build and its vendoring into the tree), and the check
+script's `userdel gpadmin` guard is keyed on the major it finds in the
+tree.
 
 The WarehousePG source build takes ~10 minutes on CI-class hardware
 (much longer under emulation on arm64 hosts). The invocation mirrors

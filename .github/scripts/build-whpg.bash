@@ -69,6 +69,13 @@ WHPG_MAJOR="${WHPG_MAJOR:-}"
 if [ -z "${WHPG_MAJOR}" ]; then
   case "${WHPG_REF}" in 6.*) WHPG_MAJOR=6 ;; *) WHPG_MAJOR=7 ;; esac
 fi
+# Allow-list the value before it selects a recipe. Anything else would
+# otherwise fall into the WHPG 7 branch below and only be caught by the
+# gp-major cross-check after a ~10-minute build; fail at second zero.
+case "${WHPG_MAJOR}" in
+  6|7) ;;
+  *) echo "ERROR: WHPG_MAJOR must be 6 or 7, got '${WHPG_MAJOR}' (WHPG_REF=${WHPG_REF})." >&2; exit 1 ;;
+esac
 
 echo "==> Configuring ccache"
 ccache --set-config=max_size=1G
@@ -171,9 +178,23 @@ if [ "${WHPG_MAJOR}" = "6" ]; then
   # same reason (concourse/scripts/compile_gpdb.bash, include_dependencies:
   # vendored_libs includes libxerces-c{,-3.1}.so).
   echo "==> Vendoring libxerces-c-3.1 into the install tree"
-  find -L /usr/local/lib /usr/lib64 -maxdepth 1 -name 'libxerces-c-3.1.so*' \
-    -exec cp -avn '{}' "${PREFIX}/lib/" \; 2>/dev/null || true
-  test -f "${PREFIX}/lib/libxerces-c-3.1.so"
+  # Copy from the build output only. /usr/lib64 holds our own absolute
+  # symlink back to /usr/local/lib (created above for the linker); it
+  # matches the same glob and cp -a would copy it AS a symlink, which
+  # resolves here but dangles in the check container. Only argument
+  # order kept the real file winning -n before; make it structural.
+  find /usr/local/lib -maxdepth 1 -name 'libxerces-c-3.1.so*' \
+    -exec cp -av '{}' "${PREFIX}/lib/" \;
+  vendored="${PREFIX}/lib/libxerces-c-3.1.so"
+  test -f "${vendored}"
+  # A regular file, not a link — and if it were a link, one that stays
+  # inside the tree. Both must hold in the CHECK container, which has
+  # neither /usr/local/lib/libxerces-c-3.1.so nor the /usr/lib64 link.
+  test ! -L "${vendored}"
+  case "$(readlink -f "${vendored}")" in
+    "${PREFIX}/lib/"*) ;;
+    *) echo "ERROR: ${vendored} resolves outside the install tree: $(readlink -f "${vendored}")" >&2; exit 1 ;;
+  esac
   # Prove the TREE is self-contained rather than trusting the builder's
   # /usr/local: resolve with only the tree's lib dir on the path and
   # require the hit to come from inside ${PREFIX} (LD_LIBRARY_PATH wins

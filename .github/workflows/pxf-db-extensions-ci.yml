@@ -239,6 +239,7 @@ jobs:
           tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
           test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
           test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
+          test "$(cat "$PREFIX/whpg-build.gp-major")" = "${{ matrix.major }}"
       - name: Compile both extensions
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
@@ -304,6 +305,7 @@ jobs:
           # mutable tag name — assert the commit SHA too before use.
           test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
           test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
+          test "$(cat "$PREFIX/whpg-build.gp-major")" = "${{ matrix.major }}"
       - name: Demo cluster + extension installchecks
         env:
           WHPG_REF: ${{ env.LEG_TAG }}
@@ -450,8 +452,11 @@ jobs:
   # conditions, in priority order: the pinned tag was DELETED upstream
   # (the next cache miss cannot rebuild), the pinned tag MOVED
   # (annotated tags are peeled to their commit before comparing — the
-  # 7.2.1-WHPG precedent), or a NEWER 7.x-WHPG tag exists (upgrade
-  # nudge). Files/updates/auto-closes ONE issue labeled ci-db-extensions-pin.
+  # 7.2.1-WHPG precedent), or a NEWER tag exists in that major's family
+  # (upgrade nudge). One matrix leg per pinned major; each leg
+  # files/updates/auto-closes ITS OWN issue, all labeled
+  # ci-db-extensions-pin and told apart by a major-scoped marker in the
+  # issue body, so the legs never touch each other's issue.
   # The decision table is a pure script whose fixture tests run first;
   # live issue mutation happens only on main runs (the same
   # main-only-writer discipline as the caches) — elsewhere the decision
@@ -506,6 +511,20 @@ jobs:
             IFS=$'\t' read -r obj_type pinned_commit < <(gh api "repos/warehouse-pg/warehouse-pg/git/tags/${pinned_commit}" --jq '[.object.type, .object.sha] | @tsv')
             hops=$((hops + 1))
           done
+          # Migration tripwire: the marker format changed from
+          # "<kind>:<detail>" to "whpg<major>:<kind>:<detail>". An issue
+          # written in the old format can never match the lookup below —
+          # it would be orphaned and a duplicate filed. None existed when
+          # this landed; if one ever appears, fail loud and name it rather
+          # than silently double up.
+          legacy=$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci-db-extensions-pin --state open \
+            --json number,body \
+            | jq -r '.[] | select(.body | test("<!-- pin-state: [^w]")) | .number')
+          if [ -n "$legacy" ]; then
+            echo "ERROR: open ci-db-extensions-pin issue(s) carry the pre-matrix marker format: #${legacy//$'\n'/ #}" >&2
+            echo "       Close or re-label them by hand, then re-run." >&2
+            exit 1
+          fi
           # One open watcher issue max PER MAJOR; the body marker
           # carries the major (never parsed from the title — titles get
           # edited), so this leg only ever sees its own major's issue.
