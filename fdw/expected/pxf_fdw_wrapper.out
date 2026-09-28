@@ -1,10 +1,20 @@
+-- CREATE ROLE's resource-queue NOTICE is gated in core by
+-- IsResQueueEnabled(), i.e. whether gp_resource_manager=queue -- it is not
+-- gated by major as such (the code path exists in WHPG 6 and 7 alike; see
+-- src/backend/commands/user.c). It shows up or not depending on which
+-- resource manager the cluster under test defaults to. Ignore it so one
+-- expected file serves every supported major regardless of that default.
+-- Every line inside the block is parsed as a directive, so this
+-- explanation stays outside it.
+-- start_matchignore
+-- m/^NOTICE:  resource queue required/
+-- end_matchignore
 -- ===================================================================
 -- create FDW objects
 -- ===================================================================
 CREATE EXTENSION pxf_fdw;
 DROP ROLE IF EXISTS pxf_fdw_user;
 CREATE ROLE pxf_fdw_user;
-NOTICE:  resource queue required -- using default resource queue "pg_default"
 -- ===================================================================
 -- Validation for WRAPPER options
 -- ===================================================================
