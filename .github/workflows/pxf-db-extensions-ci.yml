@@ -260,10 +260,12 @@ jobs:
   installcheck:
     name: installcheck${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }} [whpg${{ matrix.major }}]
     runs-on: ubuntu-latest
-    # The opt-in tmate step below is allowed 30 minutes, but a step can
-    # never outlive its job: give the job the headroom only when debugging
-    # was requested, so an unattended run keeps the tight ceiling.
-    timeout-minutes: ${{ inputs.debug_enabled && 60 || 15 }}
+    # Two ceilings in one expression. Unattended: 20 minutes — the demo
+    # cluster plus six suites; the whpg6 leg is several times slower than
+    # whpg7 (GP 6's gpinitsystem) and varies run to run. With
+    # debug_enabled: 60, because the opt-in tmate step below is allowed
+    # 30 minutes and a step can never outlive its job.
+    timeout-minutes: ${{ inputs.debug_enabled && 60 || 20 }}
     needs: compile
     strategy:
       fail-fast: false
