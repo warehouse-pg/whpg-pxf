@@ -335,23 +335,26 @@ The jobs run two scripts that work anywhere the build container runs —
 `.github/scripts/run-db-extension-checks.bash` (demo cluster + installchecks).
 On an x86_64 linux host with docker, from the repository root:
 
-To reproduce CI byte-for-byte, take the pins from the workflow itself
-(single source of truth — do not copy them into scripts or docs): use
-the image digest from any `container.image` line in
-`pxf-db-extensions-ci.yml` in place of the bare tag below, and
-additionally export `WHPG_SHA=<WHPG_TAG_SHA from the env block>` —
-`build-whpg.bash` asserts the checked-out commit against it when set.
-The bare-tag form below is the convenient variant and can drift if the
-image tag or the source tag is ever moved.
+To reproduce a CI run locally, take the three pins from the workflow's
+`env:` block — it is the single source of truth, so they are not copied
+here — and pass them in. With the digest on the image and `WHPG_SHA`
+set, the run is byte-for-byte what CI executed: `build-whpg.bash`
+fetches that exact commit and asserts it, and the container is the
+exact image.
 
 ```bash
+# From pxf-db-extensions-ci.yml env: -> WHPG_TAG, WHPG_TAG_SHA, BUILD_IMAGE_DIGEST
+WHPG_TAG=<WHPG_TAG>; WHPG_SHA=<WHPG_TAG_SHA>; DIGEST=<BUILD_IMAGE_DIGEST>
 docker run --rm -it --platform linux/amd64 \
   -v "$PWD:/pxf" -w /pxf \
   --hostname cdw --shm-size=2gb \
-  ghcr.io/warehouse-pg/whpg-rocky8-build \
-  bash -c 'WHPG_REF=7.6.0-WHPG bash .github/scripts/build-whpg.bash \
-           && WHPG_REF=7.6.0-WHPG PXF_SRC=/pxf bash .github/scripts/run-db-extension-checks.bash'
+  "ghcr.io/warehouse-pg/whpg-rocky8-build@${DIGEST}" \
+  bash -c "WHPG_REF=${WHPG_TAG} WHPG_SHA=${WHPG_SHA} bash .github/scripts/build-whpg.bash \
+           && WHPG_REF=${WHPG_TAG} PXF_SRC=/pxf bash .github/scripts/run-db-extension-checks.bash"
 ```
+
+Dropping `@${DIGEST}` (bare tag) and `WHPG_SHA` gives a convenient
+approximation that can drift if either tag is ever moved.
 
 The WarehousePG source build takes ~10 minutes on CI-class hardware
 (much longer under emulation on arm64 hosts). The invocation mirrors
@@ -369,4 +372,8 @@ themselves are exercised by every CI run of this lane.
 4. A red weekly run opens/updates the `ci-db-extensions-failure` issue; a red
    `upstream-canary` with a green `installcheck` means upstream
    WarehousePG `main` changed something the PXF C layer depends on —
-   that is the canary doing its job, not a PXF regression.
+   that is the canary doing its job, not a PXF regression. This reading
+   holds for the **scheduled** run, which checks out `main`. A canary
+   red on a `workflow_dispatch` from another branch tests *that
+   branch's* fixtures against upstream head, so it reads as "this
+   branch vs upstream" instead.

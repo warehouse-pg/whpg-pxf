@@ -14,9 +14,13 @@
 #   WHPG_SRC    scratch dir for the WarehousePG source clone (default: /tmp/whpg_src)
 #
 # The gpadmin half of the work lives in run-db-extension-checks-gpadmin.bash as a
-# standalone script: shell functions and exported variables do not
-# survive an `su` boundary, so nothing past that boundary may rely on
-# this script's scope.
+# standalone script. The boundary that matters is the SEPARATE SCRIPT:
+# shell functions defined here, and variables that are set but not
+# exported, do not exist inside it. Exported variables DO cross a plain
+# `su gpadmin -c` (which keeps the caller's environment) -- the demo
+# cluster's STATEMENT_MEM below relies on exactly that -- but they
+# would NOT survive `su -` (a login shell resets the environment), so
+# never switch these invocations to `su -`.
 
 set -euo pipefail
 
