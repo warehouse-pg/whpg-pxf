@@ -33,9 +33,15 @@ if [ -n "${WHPG_SHA:-}" ]; then
   # closes the canary's resolve-then-clone race: the commit that was
   # resolved is the commit that gets built.
   echo "==> Fetching ${WHPG_REPO} @ ${WHPG_SHA} (${WHPG_REF})"
-  git init -q "${SRC_DIR}"
+  # Guard the init so a re-run in the same container (a tmate session,
+  # the documented docker reproduction against a kept volume) does not
+  # die on "remote origin already exists" -- same guard the check
+  # script uses for its own clone.
+  if [ ! -d "${SRC_DIR}/.git" ]; then
+    git init -q "${SRC_DIR}"
+    git -C "${SRC_DIR}" remote add origin "${WHPG_REPO}"
+  fi
   cd "${SRC_DIR}"
-  git remote add origin "${WHPG_REPO}"
   git fetch --depth 1 origin "${WHPG_SHA}"
   git checkout -q FETCH_HEAD
   git submodule update --init --depth 1 --recursive

@@ -202,6 +202,11 @@ jobs:
           tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
           test "$(cat "$PREFIX/whpg-build.ref")" = "$WHPG_TAG"
           test "$(cat "$PREFIX/whpg-build.sha")" = "$WHPG_TAG_SHA"
+          # Every consumer asserts all three provenance files, not just
+          # the two the cache key is built from. The expected major is the
+          # pinned tag's leading component (7.6.0-WHPG -> 7), the same
+          # derivation build-whpg.bash applies to WHPG_REF.
+          test "$(cat "$PREFIX/whpg-build.gp-major")" = "${WHPG_TAG%%.*}"
       - name: Compile both extensions
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
@@ -223,7 +228,10 @@ jobs:
   installcheck:
     name: installcheck${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15   # measured: ~1.5 min incl. demo-cluster bring-up
+    # The opt-in tmate step below is allowed 30 minutes, but a step can
+    # never outlive its job: give the job the headroom only when debugging
+    # was requested, so an unattended run keeps the tight ceiling.
+    timeout-minutes: ${{ inputs.debug_enabled && 60 || 15 }}
     needs: compile
     strategy:
       fail-fast: false
@@ -306,7 +314,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The canary certifies PXF main against WarehousePG main.
+          # On the weekly schedule the canary certifies PXF main against
+          # WarehousePG main. On workflow_dispatch it deliberately tests
+          # the DISPATCHED ref instead: that is how a branch checks its own
+          # fixtures against upstream head before merging. A red
+          # dispatched canary therefore means "this branch vs upstream",
+          # not necessarily "upstream broke main".
           ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
       - name: Resolve WarehousePG main
         id: upstream
@@ -521,7 +534,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [whpg-prepare, compile, installcheck, upstream-canary, pin-freshness, watcher-selftest]
-    if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    # A needed job that hits its own timeout-minutes ends 'cancelled', not
+    # 'failure' -- match both, or a hung canary files no issue at all.
+    if: always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     permissions:
       contents: read
       issues: write
