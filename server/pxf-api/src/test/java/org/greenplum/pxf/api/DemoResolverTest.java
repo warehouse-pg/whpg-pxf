@@ -23,6 +23,7 @@ package org.greenplum.pxf.api;
 import org.greenplum.pxf.api.examples.DemoResolver;
 import org.greenplum.pxf.api.examples.DemoTextResolver;
 import org.greenplum.pxf.api.model.RequestContext;
+import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -62,6 +63,21 @@ public class DemoResolverTest {
     public void testGetCustomData() {
         List<OneField> output = customResolver.getFields(row);
         assertEquals("value1", output.get(0).toString());
+        assertEquals("value2", output.get(1).toString());
+    }
+
+    @Test
+    public void testGetCustomDataHonorsColumnProjection() {
+        RequestContext context = new RequestContext();
+        context.setConfig("default");
+        context.setUser("test-user");
+        context.getTupleDescription().add(new ColumnDescriptor("a", VARCHAR.getOID(), 0, "varchar", null, false));
+        context.getTupleDescription().add(new ColumnDescriptor("b", VARCHAR.getOID(), 1, "varchar", null, true));
+        customResolver.setRequestContext(context);
+
+        List<OneField> output = customResolver.getFields(row);
+        assertEquals(2, output.size());
+        assertNull(output.get(0).val);
         assertEquals("value2", output.get(1).toString());
     }
 
