@@ -208,9 +208,9 @@ SELECT through PXF returns rows.
 
 | Job | What it runs | Measured time |
 |---|---|---|
-| `whpg-prepare` (×2: whpg7, whpg6) | Provides the installed WarehousePG tree per database major: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit / 8–13m on miss (measured 2026-09: whpg7 8–11m; whpg6 9–12.5m — observed 8m54s, 10m59s, 12m28s — which includes building the Xerces 3.1 that WHPG 6's ORCA requires) |
+| `whpg-prepare` (×2: whpg7, whpg6) | Provides the installed WarehousePG tree per database major: restored from the Actions cache, or **built from source in-run on a cache miss** | ~1m on cache hit; a cold build is around ten minutes per major, the whpg6 one longer because it also builds the Xerces 3.1 its ORCA needs |
 | `compile` (×2) | `make -C external-table && make -C fdw` against the delivered tree — catches header/API drift; both extensions compile on both majors (fdw builds at `GP_MAJORVERSION >= 6`) | ~1.5m |
-| `installcheck` (×2) | Demo cluster (no mirrors, single segment) + the full suite set on BOTH majors — dense fdw validator coverage (`wrapper`/`server`/`user_mapping`/`foreign_table`) plus the external-table install smoke (`setup`, `pxfinvalid`). The expected files are major-neutral: gpdiff `start_matchignore` blocks absorb the known per-major noise (the WHPG 6 resource-queue NOTICE; the zero-column CREATE warning, whose ORDER relative to the validator error differs across majors) | ~1.5m (whpg7, stable) / 2–9m (whpg6 — GP6's `gpinitsystem` dominates and varies run to run; four runs measured 2m09s / 2m25s / 6m01s / 8m39s) |
+| `installcheck` (×2) | Demo cluster (no mirrors, single segment) + the full suite set on BOTH majors — dense fdw validator coverage (`wrapper`/`server`/`user_mapping`/`foreign_table`) plus the external-table install smoke (`setup`, `pxfinvalid`). The expected files are major-neutral: gpdiff `start_matchignore` blocks absorb the known per-major noise (the WHPG 6 resource-queue NOTICE; the zero-column CREATE warning, whose ORDER relative to the validator error differs across majors) | a few minutes; whpg6 is the slow leg (GP 6's `gpinitsystem`) and varies run to run |
 | `upstream-canary` | Weekly: builds WarehousePG at its `main` branch (7.x line) and runs the same checks — early warning that upstream changes broke the PXF C layer | ~9m (skipped rebuild when upstream hasn't moved) |
 | `pin-freshness` (×2) | Weekly, one leg per pinned major: stale (newer `<major>.x-WHPG` exists), moved (annotated tags peeled first), or deleted. Files/updates/auto-closes one issue PER MAJOR, all labeled `ci-db-extensions-pin` (the issue-body marker carries the major, so the legs never touch each other's issues). Decision logic self-tests against fixtures first | seconds |
 | `failure-issue` | On a scheduled run's failure, opens or updates a GitHub issue labeled `ci-db-extensions-failure` | seconds |
@@ -221,9 +221,14 @@ slow run is by design**: the alternative (skipping when the cache is
 cold) would silently drop coverage, and PR runs cannot refill the cache
 (see Caches below), so slow-but-tested always wins.
 
-The external-table suite's `pxf` test is deliberately not run: it
-queries external tables through the built-in Demo connectors and needs
-a running PXF service, which is outside this lane's scope. The eight
+Two external-table suites are deliberately not run — `pxf` and
+`pxfpartition` — because they query external tables through the
+built-in Demo connectors and need a running PXF service, which is
+outside this lane's scope. The suite list is derived from the Makefile's
+`REGRESS` line minus that named exclusion list
+(`run-db-extension-checks-gpadmin.bash`), so a suite added upstream runs
+here by default and, if it turns out to need a service, fails loudly
+rather than being skipped without anyone noticing. The eight
 external-table C mock tests are also not run: they link against built
 backend objects and must sit inside a configured, compiled WarehousePG
 source tree (their Makefile assumes a `gpcontrib/pxf` layout), which
@@ -314,15 +319,16 @@ decision.
 |---|---|
 | `pull_request` → `main`, `release-6.x`, touching `fdw/**`, `external-table/**`, `api_version`, or the lane's own files | `whpg-prepare` → `compile` → `installcheck` |
 | `push` → `ci/**` | Same (no path filter — a `ci/**` push is an explicit request) |
-| `schedule` (Mondays 04:30 UTC) | The same checks as a rot-check (path filters don't apply to schedules) plus `upstream-canary` and `pin-freshness`; failures feed `failure-issue` |
+| `schedule` (Mondays 04:30 UTC) | The same checks as a rot-check over **both branches** (`main`, `release-6.x` — schedules fire only from the default branch, so this is release-6.x's weekly coverage) and **both majors**: four `compile` and four `installcheck` legs, sharing the two `whpg-prepare` trees. Plus `upstream-canary` and `pin-freshness`; failures feed `failure-issue`. Path filters don't apply to schedules |
 | `workflow_dispatch` | Everything incl. the canary and the pin watcher; optional `debug_enabled` tmate input |
 
-The `release-6.x` trigger entry is pre-wired but inert for PRs cut
-from that branch: a `pull_request` run uses the workflow file from the
-merge ref (the PR head merged into the base), and a head cut from
-release-6.x does not carry this file until the backport lands. A PR
-whose head does carry it — notably the backport PR itself — will run
-the lane, which is expected and self-validating for the backport.
+Both branches carry this file. A `pull_request` run uses the copy from
+the merge ref (the PR head merged into the base), so a PR against
+release-6.x runs release-6.x's copy and a PR against main runs main's —
+each branch's lane is self-contained for PR and push events. Only the
+weekly schedule is centralised on main (table row above). Keep the two
+copies identical: a change to the lane lands on main first and reaches
+release-6.x as a cherry-pick of the squash.
 
 ### Caches
 
