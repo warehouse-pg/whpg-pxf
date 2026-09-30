@@ -5,7 +5,7 @@ title: About the Installation and Configuration Directories
 This documentation uses `<PXF_INSTALL_DIR>` to refer to the PXF installation directory. Its value depends on how you have installed PXF:
 
  - If you installed PXF as part of WarehousePG, its value is `$GPHOME/pxf`.
- - If you installed the PXF `rpm` or `deb` package, its value is `/usr/local/pxf-gp<greenplum-major-version>`, or the directory of your choosing (CentOS/RHEL only). 
+ - If you installed the PXF `rpm` package, its value is `/usr/edb/whpg<warehousepg-major-version>-pxf` (for example, `/usr/edb/whpg7-pxf`), or the directory of your choosing (`rpm --prefix`). Earlier `rpm` packages installed to `/usr/local/edb-whpg<warehousepg-major-version>-pxf`; see [Upgrading from a Release Installed Under /usr/local](upgrade_6.html#usrlocal).
 
 `<PXF_INSTALL_DIR>` includes both the PXF executables and the PXF runtime configuration files and directories. In PXF 5.x, you needed to specify a `$PXF_CONF` directory for the runtime configuration when you initialized PXF. In PXF 6.x, however, no initialization is required: `$PXF_BASE` now identifies the runtime configuration directory, and the default `$PXF_BASE` is `<PXF_INSTALL_DIR>`.
 
