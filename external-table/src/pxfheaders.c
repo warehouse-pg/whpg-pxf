@@ -576,7 +576,7 @@ add_projection_desc_httpheaders(CHURL_HEADERS headers,
 	 * by an external table scan and silently skips rows that do not satisfy
 	 * them. If the referenced columns were not part of the projection, PXF
 	 * would return NULL for them, the checks would fail for every row and the
-	 * query would lose all rows of the partition (see PTT-1850).
+	 * query would lose all rows of the partition.
 	 */
 	if (!add_attnums_from_constraints(rel, &attrs_used))
 	{

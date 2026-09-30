@@ -54,7 +54,7 @@ public class DemoResolver extends BasePlugin implements Resolver {
         List<ColumnDescriptor> tupleDescription =
                 context != null ? context.getTupleDescription() : Collections.emptyList();
         for (int i = 0; i < fields.length; i++) {
-            // Honor column projection like a real resolver would: Greenplum
+            // Honor column projection like a real resolver would: WarehousePG
             // did not ask for columns that are not projected, so send NULL
             // for them instead of the value.
             boolean projected = i >= tupleDescription.size() || tupleDescription.get(i).isProjected();

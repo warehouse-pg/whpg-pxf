@@ -147,7 +147,7 @@ public class ColumnProjectionTest extends BaseFeature {
     }
 
     /**
-     * PTT-1850: gp_exttable_fdw checks every row of an external table that is a
+     * gp_exttable_fdw checks every row of an external table that is a
      * partition against the partition constraint. The partition key column must
      * therefore be part of the column projection sent to PXF even when the query
      * does not reference it, otherwise PXF returns NULL for it and every row of

@@ -1,5 +1,5 @@
 ------------------------------------------------------------------
--- PXF column projection on external tables that are partitions (PTT-1850)
+-- PXF column projection on external tables that are partitions
 ------------------------------------------------------------------
 -- gp_exttable_fdw checks every row of an external table partition against
 -- the partition constraint. The partition key must therefore be fetched from

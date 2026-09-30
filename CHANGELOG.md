@@ -10,7 +10,7 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
 
 ### Bug Fixes:
 
-- PTT-1850: external tables that are partitions of a partitioned table (or that
+- External tables that are partitions of a partitioned table (or that
   carry CHECK constraints) lost rows when the query projected only columns that
   the partition constraint does not reference. gp_exttable_fdw evaluates the
   partition and CHECK constraints against every row of an external table scan,
