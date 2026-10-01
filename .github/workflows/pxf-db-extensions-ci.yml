@@ -171,6 +171,19 @@ jobs:
           # tree can never be silently reused; the key self-invalidates
           # when the pin is bumped.
           key: whpg${{ matrix.major }}-el8-${{ env.LEG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+      - name: Restore the whpg6 toolchain cache (build legs only)
+        # Only the whpg6 recipe reaches the network on a whpg-dist miss
+        # (python2 via yum, Xerces 3.1 via archive.apache.org). Keyed on
+        # the image digest, not the pin, so pin-bump weeks — when the
+        # whpg-dist cache is cold — still build offline.
+        id: toolchain
+        if: steps.cache.outputs.cache-hit != 'true' && matrix.major == '6'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /var/cache/dnf
+            /tmp/xerces-prebuilt
+          key: whpg6-toolchain-el8-xerces312-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Build WarehousePG from source (cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
         env:
@@ -191,6 +204,16 @@ jobs:
         with:
           path: whpg-dist
           key: whpg${{ matrix.major }}-el8-${{ env.LEG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+      - name: Save the whpg6 toolchain cache
+        if: >-
+          steps.cache.outputs.cache-hit != 'true' && matrix.major == '6' &&
+          steps.toolchain.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /var/cache/dnf
+            /tmp/xerces-prebuilt
+          key: whpg6-toolchain-el8-xerces312-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Unpack and assert provenance
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
