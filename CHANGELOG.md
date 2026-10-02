@@ -6,6 +6,19 @@ which has been archived as
 [greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive), and
 may not resolve. Releases from 6.10.2 onward are cut from this repository.
 
+## 6.10.3
+
+### Bug Fixes:
+
+- External tables that are partitions of a partitioned table (or that
+  carry CHECK constraints) lost rows when the query projected only columns that
+  the partition constraint does not reference. gp_exttable_fdw evaluates the
+  partition and CHECK constraints against every row of an external table scan,
+  so the external-table protocol now always includes the columns referenced by
+  those constraints in the column projection sent to PXF. The `DemoResolver`
+  example plugin now honors column projection (returns NULL for unprojected
+  columns) so that the external-table regression suite can exercise this path.
+
 ## 6.10.2
 
 ### Enhancements:
