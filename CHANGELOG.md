@@ -340,6 +340,15 @@ Two things deliberately did **not** move:
   those constraints in the column projection sent to PXF. The `DemoResolver`
   example plugin now honors column projection (returns NULL for unprojected
   columns) so that the external-table regression suite can exercise this path.
+- The `DemoTextResolver` example plugin rejected every TEXT/CSV write with
+  `Unexpected record format, expected 1 field, found N`. Since PXF 5.15 the
+  service no longer hands resolvers a single whole-line `byte[]`: it passes the
+  raw stream to resolvers annotated `@InputStreamHandler`, and (since 6.7.0)
+  parses the line into one typed field per table column for all others. The
+  demo now re-joins those fields with the table's delimiter, so the
+  external-table regression suite's `pxf` write test passes on every supported
+  WarehousePG major and the suite is no longer order-dependent. Example code
+  only; real connectors were not affected.
 
 ### Compatibility notes
 
