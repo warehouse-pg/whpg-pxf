@@ -22,15 +22,21 @@ package org.greenplum.pxf.api;
 
 import org.greenplum.pxf.api.examples.DemoResolver;
 import org.greenplum.pxf.api.examples.DemoTextResolver;
+import org.greenplum.pxf.api.model.GreenplumCSV;
 import org.greenplum.pxf.api.model.RequestContext;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.greenplum.pxf.api.io.DataType.BYTEA;
+import static org.greenplum.pxf.api.io.DataType.INTEGER;
+import static org.greenplum.pxf.api.io.DataType.TEXT;
 import static org.greenplum.pxf.api.io.DataType.VARCHAR;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,6 +47,7 @@ public class DemoResolverTest {
 
     private static final String DATA = "value1,value2";
 
+    private RequestContext context;
     private DemoResolver customResolver;
     private DemoTextResolver textResolver;
     private OneRow row;
@@ -48,15 +55,17 @@ public class DemoResolverTest {
 
     @BeforeEach
     public void setup() {
-        RequestContext context = new RequestContext();
+        context = new RequestContext();
         context.setConfig("default");
         context.setUser("test-user");
+        context.setDatabaseEncoding(StandardCharsets.UTF_8);
 
         customResolver = new DemoResolver();
         textResolver = new DemoTextResolver();
+        textResolver.setRequestContext(context);
 
         row = new OneRow("0.0", DATA);
-        field = new OneField(VARCHAR.getOID(), DATA.getBytes());
+        field = new OneField(VARCHAR.getOID(), DATA);
     }
 
     @Test
@@ -88,16 +97,43 @@ public class DemoResolverTest {
     }
 
     @Test
-    public void testSetTextData() throws Exception {
+    public void testSetTextDataSingleField() throws Exception {
+        // a one-column table: the line is the field plus the newline
         OneRow output = textResolver.setFields(Collections.singletonList(field));
-        assertArrayEquals(DATA.getBytes(), (byte[]) output.getData());
+        assertArrayEquals((DATA + "\n").getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
     }
 
     @Test
-    public void testSetEmptyTextData() throws Exception {
-        OneField field = new OneField(VARCHAR.getOID(), new byte[]{});
-        OneRow output = textResolver.setFields(Collections.singletonList(field));
-        assertNull(output);
+    public void testSetTextDataManyFieldsAreJoinedWithDelimiter() throws Exception {
+        // the service parses a TEXT line into one field per column (typed, not bytes);
+        // the demo must re-join them into the line the database sent
+        List<OneField> record = Arrays.asList(
+                new OneField(INTEGER.getOID(), 10),
+                new OneField(TEXT.getOID(), "data_10"));
+        OneRow output = textResolver.setFields(record);
+        assertArrayEquals("10,data_10\n".getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
+    }
+
+    @Test
+    public void testSetTextDataHonorsDelimiterAndNullString() throws Exception {
+        context.setGreenplumCSV(new GreenplumCSV().withDelimiter('|').withValueOfNull("\\N"));
+        List<OneField> record = Arrays.asList(
+                new OneField(INTEGER.getOID(), 7),
+                new OneField(TEXT.getOID(), null),
+                new OneField(TEXT.getOID(), "x"));
+        OneRow output = textResolver.setFields(record);
+        assertArrayEquals("7|\\N|x\n".getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
+    }
+
+    @Test
+    public void testSetTextDataRendersByteaAsText() throws Exception {
+        // the service parses BYTEA columns into a ByteBuffer; the demo writes the bytes back as text
+        List<OneField> record = Arrays.asList(
+                new OneField(INTEGER.getOID(), 1),
+                new OneField(BYTEA.getOID(), ByteBuffer.wrap("raw".getBytes(StandardCharsets.UTF_8))),
+                new OneField(BYTEA.getOID(), "arr".getBytes(StandardCharsets.UTF_8)));
+        OneRow output = textResolver.setFields(record);
+        assertArrayEquals("1,raw,arr\n".getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
     }
 
     @Test
@@ -112,11 +148,6 @@ public class DemoResolverTest {
                 () -> textResolver.setFields(Collections.emptyList()));
     }
 
-    @Test
-    public void testSetTextDataManyElements() {
-        assertThrows(Exception.class,
-                () -> textResolver.setFields(Arrays.asList(field, field)));
-    }
 
     @Test
     public void testSetFieldsIsUnsupported() {
