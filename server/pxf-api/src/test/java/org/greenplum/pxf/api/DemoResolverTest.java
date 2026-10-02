@@ -126,6 +126,19 @@ public class DemoResolverTest {
     }
 
     @Test
+    public void testSetTextDataWithDelimiterOff() throws Exception {
+        // DELIMITER 'OFF' leaves getDelimiter() null. The database only allows it for
+        // single-column tables, where no separator is ever emitted; the resolver must
+        // still not render a null delimiter as the string "null" if it does get more.
+        context.setGreenplumCSV(new GreenplumCSV().withDelimiter("OFF"));
+        OneRow single = textResolver.setFields(Collections.singletonList(new OneField(TEXT.getOID(), "only")));
+        assertArrayEquals("only\n".getBytes(StandardCharsets.UTF_8), (byte[]) single.getData());
+        OneRow two = textResolver.setFields(Arrays.asList(
+                new OneField(INTEGER.getOID(), 10), new OneField(TEXT.getOID(), "data_10")));
+        assertArrayEquals("10data_10\n".getBytes(StandardCharsets.UTF_8), (byte[]) two.getData());
+    }
+
+    @Test
     public void testSetTextDataRendersByteaAsText() throws Exception {
         // the service parses BYTEA columns into a ByteBuffer; the demo writes the bytes back as text
         List<OneField> record = Arrays.asList(

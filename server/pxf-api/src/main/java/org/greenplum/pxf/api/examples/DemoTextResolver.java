@@ -76,7 +76,9 @@ public class DemoTextResolver extends DemoResolver {
         GreenplumCSV csv = context.getGreenplumCSV();
         Charset encoding = context.getDatabaseEncoding() != null
                 ? context.getDatabaseEncoding() : StandardCharsets.UTF_8;
-        StringJoiner line = new StringJoiner(String.valueOf(csv.getDelimiter()), "", csv.getNewline());
+        // DELIMITER 'OFF' (single-column tables) leaves the delimiter null: join with nothing
+        String delimiter = csv.getDelimiter() == null ? "" : String.valueOf(csv.getDelimiter());
+        StringJoiner line = new StringJoiner(delimiter, "", csv.getNewline());
         for (OneField field : record) {
             line.add(formatField(field.val, csv.getValueOfNull(), encoding));
         }
