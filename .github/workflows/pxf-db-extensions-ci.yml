@@ -171,13 +171,17 @@ jobs:
           # tree can never be silently reused; the key self-invalidates
           # when the pin is bumped.
           key: whpg${{ matrix.major }}-el8-${{ env.LEG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
-      - name: Restore the whpg6 toolchain cache (build legs only)
+      - name: Restore the whpg6 toolchain cache
         # Only the whpg6 recipe reaches the network on a whpg-dist miss
         # (python2 via yum, Xerces 3.1 via archive.apache.org). Keyed on
         # the image digest, not the pin, so pin-bump weeks — when the
-        # whpg-dist cache is cold — still build offline.
+        # whpg-dist cache is cold — still build offline. Restored on
+        # EVERY whpg6 leg, not just build legs: restore refreshes the
+        # cache's last-access time, and entries unused ~7 days are
+        # evicted (README) — gating this on a whpg-dist miss would let
+        # the cache die between pin bumps, the one window it exists for.
         id: toolchain
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.major == '6'
+        if: matrix.major == '6'
         uses: actions/cache/restore@v4
         with:
           path: |
