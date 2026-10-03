@@ -18,11 +18,15 @@
 # through a running PXF server needs Hadoop-family datasources) and
 # non-el8 platforms.
 #
-# Delivery model: the whpg-prepare job provides an installed WarehousePG
-# tree — restored from the Actions cache, or REBUILT IN-RUN on any cache
-# miss (~10 min, once). A miss is never a skip: a rare slow run is by
-# design, so a cold cache can never silently drop coverage. Check jobs
-# receive the tree as a same-run artifact.
+# Delivery model: every checks leg is SELF-CONTAINED (the shape
+# warehouse-pg's own whpg-ci.yml uses, and the shape the upstream-canary
+# job here always had): restore the installed WarehousePG tree from the
+# Actions cache, or REBUILD IN-RUN on a cache miss (~10 min, once), then
+# compile and installcheck as steps in the same job. A miss is never a
+# skip. There are NO needs: edges between majors — a matrix job's
+# needs is all-or-nothing, so the previous prepare→compile→installcheck
+# chain let one major's infrastructure failure grey out the other
+# major's signal entirely (raised in review of the release-6.x mirror).
 #
 # Version pins: ONE WarehousePG version PER MAJOR, each built from
 # source at its tag below. Bump a tag, its commit SHA, and the
@@ -108,26 +112,49 @@ env:
 jobs:
 
   # ---------------------------------------------------------------------
-  # whpg-prepare: provide the installed WarehousePG tree this run tests
-  # against. Cache hit -> restore in seconds. Cache miss -> build from
-  # source in-run (slow once, never skipped). Only runs on the default
-  # branch may save the cache, so a topic-branch dispatch can never pin
-  # a cache PRs would miss.
+  # checks: ONE self-contained job per (ref x major) leg — restore the
+  # pinned WarehousePG tree from cache (or build it in-run on a miss,
+  # main-only cache writer), verify provenance, compile both extensions,
+  # then run their pg_regress suites in a demo cluster. Steps, not
+  # chained jobs: a whpg6 infrastructure failure cannot touch the whpg7
+  # leg, because no job waits on another. The compile step is kept
+  # separate from the installcheck script so header/ABI drift (the most
+  # likely C regression class) still fails with its own name.
+  #
+  # Cold-cache note: on a weekly run (two refs post-backport) the legs
+  # of one major share a cache key; on a cold week both build the same
+  # tree in parallel and the second save is a no-op warning. Accepted:
+  # pin bumps are rare and wall time is unchanged (legs are parallel).
   # ---------------------------------------------------------------------
-  whpg-prepare:
-    name: whpg-prepare [whpg${{ matrix.major }}]
+  checks:
+    name: checks${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }} [whpg${{ matrix.major }}]
     runs-on: ubuntu-latest
-    timeout-minutes: 60   # a cold source build of one major, with headroom;
-                          # a cache hit finishes in a minute or two
+    # Cold worst case: one major's source build plus the demo cluster
+    # and six suites (whpg6 is the slow leg) — 60 covers it with
+    # headroom; a cache-hit run finishes well under half that. With
+    # debug_enabled: +30 for the opt-in tmate step.
+    timeout-minutes: ${{ inputs.debug_enabled && 90 || 60 }}
     strategy:
       fail-fast: false
       matrix:
+        # Weekly rot-check: schedules fire only from the default branch,
+        # so this matrix is where release-6.x gets its weekly coverage —
+        # both branches, both majors, from main's copy of the file (path
+        # filters do not apply to schedule events). Both extensions
+        # compile on both majors (fdw builds at GP_MAJORVERSION >= 6);
+        # both majors run the full suite set (the expected files are
+        # major-neutral — gpdiff matchignore absorbs the per-major noise).
+        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
         major: ['7', '6']
     container:
       image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
-      options: --user root
+      # Unprivileged demo cluster: root user for setup, fixed hostname,
+      # and enough shared memory for the segments.
+      options: --user root --hostname cdw --shm-size=2gb
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
       - name: Resolve this leg's pin
         run: |
           if [ "${{ matrix.major }}" = "6" ]; then
@@ -144,6 +171,23 @@ jobs:
           # tree can never be silently reused; the key self-invalidates
           # when the pin is bumped.
           key: whpg${{ matrix.major }}-el8-${{ env.LEG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
+      - name: Restore the whpg6 toolchain cache
+        # Only the whpg6 recipe reaches the network on a whpg-dist miss
+        # (python2 via yum, Xerces 3.1 via archive.apache.org). Keyed on
+        # the image digest, not the pin, so pin-bump weeks — when the
+        # whpg-dist cache is cold — still build offline. Restored on
+        # EVERY whpg6 leg, not just build legs: restore refreshes the
+        # cache's last-access time, and entries unused ~7 days are
+        # evicted (README) — gating this on a whpg-dist miss would let
+        # the cache die between pin bumps, the one window it exists for.
+        id: toolchain
+        if: matrix.major == '6'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /var/cache/dnf
+            /tmp/xerces-prebuilt
+          key: whpg6-toolchain-el8-xerces312-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Build WarehousePG from source (cache miss)
         if: steps.cache.outputs.cache-hit != 'true'
         env:
@@ -164,80 +208,28 @@ jobs:
         with:
           path: whpg-dist
           key: whpg${{ matrix.major }}-el8-${{ env.LEG_SHA }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ env.BUILD_IMAGE_DIGEST }}
-      - name: Verify the tree before handing it to consumers
-        env:
-          PREFIX: ${{ env.WHPG_PREFIX }}
-        run: |
-          mkdir -p "$PREFIX"
-          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
-          test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
-          test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
-          test "$(cat "$PREFIX/whpg-build.gp-major")" = "${{ matrix.major }}"
-          "$PREFIX/bin/pg_config" --version
-      - name: Hand the tree to the check jobs (same-run artifact)
-        uses: actions/upload-artifact@v4
+      - name: Save the whpg6 toolchain cache
+        if: >-
+          steps.cache.outputs.cache-hit != 'true' && matrix.major == '6' &&
+          steps.toolchain.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
         with:
-          name: whpg${{ matrix.major }}-install-el8
-          path: whpg-dist/whpg-install-el8.tar.gz
-          retention-days: 7
-          if-no-files-found: error
-      - name: Job summary
-        if: always()
-        run: |
-          {
-            echo "### whpg-prepare whpg${{ matrix.major }} (${{ job.status }})"
-            echo "- pin: $LEG_TAG ($LEG_SHA)"
-            echo "- cache hit: ${{ steps.cache.outputs.cache-hit == 'true' }}"
-            echo "- tarball: $(du -h whpg-dist/whpg-install-el8.tar.gz | cut -f1)"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  # ---------------------------------------------------------------------
-  # compile: both extensions compile against the real WarehousePG
-  # headers. Cheap, no cluster, catches header/ABI drift — the most
-  # likely C regression class.
-  # ---------------------------------------------------------------------
-  compile:
-    name: compile${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }} [whpg${{ matrix.major }}]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15   # two extensions against an installed tree; well under this
-    needs: whpg-prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        # Weekly rot-check: schedules fire only from the default branch,
-        # so this matrix is where release-6.x gets its weekly coverage —
-        # both branches, both majors, from main's copy of the file (path
-        # filters do not apply to schedule events). Both extensions
-        # compile on both majors (fdw builds at GP_MAJORVERSION >= 6).
-        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
-        major: ['7', '6']
-    container:
-      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
-      options: --user root
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.ref }}
-      - name: Resolve this leg's pin
-        run: |
-          if [ "${{ matrix.major }}" = "6" ]; then
-            { echo "LEG_TAG=$WHPG6_TAG"; echo "LEG_SHA=$WHPG6_TAG_SHA"; } >> "$GITHUB_ENV"
-          else
-            { echo "LEG_TAG=$WHPG_TAG"; echo "LEG_SHA=$WHPG_TAG_SHA"; } >> "$GITHUB_ENV"
-          fi
-      - uses: actions/download-artifact@v4
-        with:
-          name: whpg${{ matrix.major }}-install-el8
-          path: whpg-dist
+          path: |
+            /var/cache/dnf
+            /tmp/xerces-prebuilt
+          key: whpg6-toolchain-el8-xerces312-${{ env.BUILD_IMAGE_DIGEST }}
       - name: Unpack and assert provenance
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
         run: |
           mkdir -p "$PREFIX"
           tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
+          # The ref alone is a mutable tag name — assert the commit SHA
+          # too before using the tree.
           test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
           test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
           test "$(cat "$PREFIX/whpg-build.gp-major")" = "${{ matrix.major }}"
+          "$PREFIX/bin/pg_config" --version
       - name: Compile both extensions
         env:
           PREFIX: ${{ env.WHPG_PREFIX }}
@@ -245,65 +237,6 @@ jobs:
           source "$PREFIX/greenplum_path.sh"
           make -C external-table
           make -C fdw
-      - name: Job summary
-        if: always()
-        run: echo "### compile whpg${{ matrix.major }} (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
-
-  # ---------------------------------------------------------------------
-  # installcheck: demo cluster + the extensions' own pg_regress suites
-  # (external-table: 3, fdw: 4) — DDL, option validators, error paths.
-  # No PXF server involved. `needs: compile` carries no build outputs
-  # (this job compiles again via make install); its value is fail-fast —
-  # skipping a cluster bring-up when the compile is already red.
-  # ---------------------------------------------------------------------
-  installcheck:
-    name: installcheck${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }} [whpg${{ matrix.major }}]
-    runs-on: ubuntu-latest
-    # Two ceilings in one expression. Unattended: 20 minutes — the demo
-    # cluster plus six suites; the whpg6 leg is several times slower than
-    # whpg7 (GP 6's gpinitsystem) and varies run to run. With
-    # debug_enabled: 60, because the opt-in tmate step below is allowed
-    # 30 minutes and a step can never outlive its job.
-    timeout-minutes: ${{ inputs.debug_enabled && 60 || 20 }}
-    needs: compile
-    strategy:
-      fail-fast: false
-      matrix:
-        ref: ${{ github.event_name == 'schedule' && fromJSON('["main", "release-6.x"]') || fromJSON('[""]') }}
-        # Both majors run the full suite set: the expected files are
-        # major-neutral (gpdiff matchignore absorbs per-major noise).
-        major: ['7', '6']
-    container:
-      image: ghcr.io/warehouse-pg/whpg-rocky8-build@sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
-      # Unprivileged demo cluster: root user for setup, fixed hostname,
-      # and enough shared memory for the segments.
-      options: --user root --hostname cdw --shm-size=2gb
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.ref }}
-      - name: Resolve this leg's pin
-        run: |
-          if [ "${{ matrix.major }}" = "6" ]; then
-            { echo "LEG_TAG=$WHPG6_TAG"; echo "LEG_SHA=$WHPG6_TAG_SHA"; } >> "$GITHUB_ENV"
-          else
-            { echo "LEG_TAG=$WHPG_TAG"; echo "LEG_SHA=$WHPG_TAG_SHA"; } >> "$GITHUB_ENV"
-          fi
-      - uses: actions/download-artifact@v4
-        with:
-          name: whpg${{ matrix.major }}-install-el8
-          path: whpg-dist
-      - name: Unpack and assert provenance
-        env:
-          PREFIX: ${{ env.WHPG_PREFIX }}
-        run: |
-          mkdir -p "$PREFIX"
-          tar xzf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX"
-          # Same consumer discipline as compile: the ref alone is a
-          # mutable tag name — assert the commit SHA too before use.
-          test "$(cat "$PREFIX/whpg-build.ref")" = "$LEG_TAG"
-          test "$(cat "$PREFIX/whpg-build.sha")" = "$LEG_SHA"
-          test "$(cat "$PREFIX/whpg-build.gp-major")" = "${{ matrix.major }}"
       - name: Demo cluster + extension installchecks
         env:
           WHPG_REF: ${{ env.LEG_TAG }}
@@ -325,7 +258,12 @@ jobs:
           if-no-files-found: ignore
       - name: Job summary
         if: always()
-        run: echo "### installcheck whpg${{ matrix.major }} (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          {
+            echo "### checks whpg${{ matrix.major }} (${{ job.status }})"
+            echo "- pin: $LEG_TAG ($LEG_SHA)"
+            echo "- cache hit: ${{ steps.cache.outputs.cache-hit == 'true' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
       # action-tmate assumes apt; install via yum on Rocky first.
       - name: Install tmate (dispatch-only, opt-in)
         if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug_enabled
@@ -611,7 +549,7 @@ jobs:
     name: failure-issue
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [whpg-prepare, compile, installcheck, upstream-canary, pin-freshness, watcher-selftest]
+    needs: [checks, upstream-canary, pin-freshness, watcher-selftest]
     # A needed job that hits its own timeout-minutes ends 'cancelled', not
     # 'failure' -- match both, or a hung canary files no issue at all.
     if: always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
