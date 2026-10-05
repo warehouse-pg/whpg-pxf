@@ -31,14 +31,18 @@ make -C "${PXF_SRC}/external-table" install
 # Derive the suite list from the Makefile rather than hardcoding it, so
 # a suite added upstream runs here by default instead of being skipped
 # silently (an allowlist did exactly that when `pxfpartition` was added).
+# Ask make for the EVALUATED value (print-regress target) rather than
+# scraping the text: a scrape of `^REGRESS =` silently dropped a later
+# `REGRESS +=` line, aborted on `:=`, and mis-read continuations and
+# ifeq arms (fixture test: test-derive-regress.bash).
 # Then subtract the suites that need a RUNNING PXF service on :5888 —
 # they SELECT through pxf:// tables via the built-in Demo connectors,
 # which is out of scope for this lane. A new service-needing suite will
 # fail loudly here and get added to this list on purpose, which is the
 # right default.
 needs_service='pxf pxfpartition'
-all_suites=$(sed -n 's/^REGRESS[[:space:]]*=[[:space:]]*//p' "${PXF_SRC}/external-table/Makefile")
-test -n "${all_suites}" || { echo "ERROR: could not read REGRESS from external-table/Makefile" >&2; exit 1; }
+all_suites=$(make -s --no-print-directory -C "${PXF_SRC}/external-table" print-regress)
+test -n "${all_suites}" || { echo "ERROR: 'make print-regress' returned no suites from external-table/Makefile" >&2; exit 1; }
 suites=""
 for s in ${all_suites}; do
   case " ${needs_service} " in *" ${s} "*) ;; *) suites="${suites} ${s}" ;; esac
