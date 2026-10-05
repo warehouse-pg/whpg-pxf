@@ -15,6 +15,14 @@ ifndef PGXS
 endif
 include $(PGXS)
 
+# Print the evaluated suite list, one token per word. CI derives the
+# installcheck list from this instead of parsing the text above, so
+# +=, :=, line continuations and conditionals all resolve the way make
+# resolves them.
+.PHONY: print-regress
+print-regress:
+	@echo $(REGRESS)
+
 .PHONY: stage
 stage: pxf.so
 	mkdir -p build/stage/gpextable
