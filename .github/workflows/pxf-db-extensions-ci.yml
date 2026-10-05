@@ -382,6 +382,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run the pin-watcher fixture tests
         run: bash .github/scripts/test-pin-freshness-decide.bash
+      - name: Run the suite-derivation fixture tests
+        run: bash .github/scripts/test-derive-regress.bash
 
   # ---------------------------------------------------------------------
   # pin-freshness: weekly watcher over the version pin. Three
