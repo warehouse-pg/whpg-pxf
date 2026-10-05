@@ -96,7 +96,11 @@ if [ "${WHPG_MAJOR}" = "6" ]; then
   # registers the alternatives entry), exactly as warehouse-pg's own
   # 6.x CI does; -devel is needed because --with-python builds
   # PL/Python against the Python 2 headers.
-  yum install -y --setopt=keepcache=1 python2 python2-devel
+  # Cache-only first (-C): with the lane's dnf cache restored, this
+  # resolves entirely offline; fall back to the network on a true cold
+  # cache. keepcache=1 keeps the RPMs for the cache-save step.
+  yum install -y -C --setopt=keepcache=1 python2 python2-devel \
+    || yum install -y --setopt=keepcache=1 python2 python2-devel
   alternatives --set python /usr/bin/python2
   python --version
 
@@ -119,17 +123,37 @@ if [ "${WHPG_MAJOR}" = "6" ]; then
   # SHA-256 committed next to it.
   echo "==> Replacing Xerces-C 3.2 with the 3.1 build ORCA needs"
   yum remove -y xerces-c xerces-c-devel
-  rm -rf /tmp/xerces_build
-  mkdir -p /tmp/xerces_build/xerces_patch/concourse
-  cp -r "${SRC_DIR}/src/backend/gporca/concourse/xerces-c" \
-        /tmp/xerces_build/xerces_patch/concourse/
-  # build_xerces.py resolves the checksum file relative to the cwd,
-  # so it must run from the parent of xerces_patch/.
-  ( cd /tmp/xerces_build && /usr/bin/python2 \
-      xerces_patch/concourse/xerces-c/build_xerces.py --output_dir=/usr/local )
+  # The built 3.1 tree is cacheable (keyed on the build image digest,
+  # NOT the WHPG pin — so it stays warm across pin bumps, exactly the
+  # window where the whpg-dist cache goes cold). The in-tree helper
+  # downloads from archive.apache.org unconditionally, so the cache
+  # must hold its OUTPUT, not its input tarball. Hit and miss converge
+  # on the same install step (untar into /usr/local).
+  XERCES_PREBUILT=/tmp/xerces-prebuilt/xerces31-el8-install.tar.gz
+  if [ ! -f "$XERCES_PREBUILT" ]; then
+    echo "==> No cached Xerces build — building from source (archive.apache.org)"
+    rm -rf /tmp/xerces_build
+    mkdir -p /tmp/xerces_build/xerces_patch/concourse
+    cp -r "${SRC_DIR}/src/backend/gporca/concourse/xerces-c" \
+          /tmp/xerces_build/xerces_patch/concourse/
+    # build_xerces.py resolves the checksum file relative to the cwd,
+    # so it must run from the parent of xerces_patch/.
+    ( cd /tmp/xerces_build && /usr/bin/python2 \
+        xerces_patch/concourse/xerces-c/build_xerces.py --output_dir=/tmp/xerces_build/install )
+    # libtool/pkgconfig metadata embeds the build prefix; nothing in the
+    # WHPG 6 build consumes either (orca.m4 links the .so via
+    # AC_CHECK_LIB), so drop them rather than ship a wrong prefix.
+    rm -f /tmp/xerces_build/install/lib/libxerces-c*.la
+    rm -rf /tmp/xerces_build/install/lib/pkgconfig
+    mkdir -p /tmp/xerces-prebuilt
+    tar czf "$XERCES_PREBUILT" -C /tmp/xerces_build/install .
+    rm -rf /tmp/xerces_build
+  else
+    echo "==> Installing cached Xerces-C 3.1 build (no network)"
+  fi
+  tar xzf "$XERCES_PREBUILT" -C /usr/local
   ln -sf /usr/local/lib/libxerces-c-3.1.so /usr/lib64/libxerces-c-3.1.so
   ldconfig
-  rm -rf /tmp/xerces_build
   # Postcondition: the 3.1 library is the one ORCA will find (testing
   # principle 8 — a bring-up step asserts its own outcome rather than
   # letting a silent miss surface as a confusing compile error).
