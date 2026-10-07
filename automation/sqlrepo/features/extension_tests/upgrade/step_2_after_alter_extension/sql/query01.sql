@@ -4,6 +4,9 @@
 -- m{.*/usr/local/pxf-(dev|gp\d).*}
 -- s{/usr/local/pxf-(dev|gp\d)}{\$PXF_HOME}
 --
+-- m{.*/usr/local/edb-whpg\d+-pxf.*}
+-- s{/usr/local/edb-whpg\d+-pxf}{\$PXF_HOME}
+--
 -- m{.*\$libdir/pxf.*}
 -- s{\$libdir}{\$PXF_HOME/gpextable}
 --
