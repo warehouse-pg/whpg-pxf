@@ -4,6 +4,9 @@
 -- m{.*/usr/local/pxf-(dev|gp\d).*}
 -- s{/usr/local/pxf-(dev|gp\d)}{\$PXF_HOME}
 --
+-- m{.*/usr(/local/edb-|/edb/)whpg\d+-pxf.*}
+-- s{/usr(/local/edb-|/edb/)whpg\d+-pxf}{\$PXF_HOME}
+--
 -- end_matchsubs
 
 SELECT extname, extversion FROM pg_catalog.pg_extension WHERE extname = 'pxf';
