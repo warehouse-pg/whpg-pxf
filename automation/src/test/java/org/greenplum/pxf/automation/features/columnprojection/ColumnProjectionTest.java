@@ -183,7 +183,11 @@ public class ColumnProjectionTest extends BaseFeature {
         gpdb.runQuery("DROP TABLE IF EXISTS test_column_projection_parent", true, false);
         gpdb.runQuery("CREATE TABLE test_column_projection_parent (t0 text, a1 integer, b2 boolean, colprojvalue text) " +
                 "DISTRIBUTED BY (t0) PARTITION BY RANGE (a1)");
-        gpdb.runQuery("ALTER TABLE test_column_projection_parent ATTACH PARTITION test_column_projection_part FOR VALUES FROM (0) TO (100)");
+        // GPDB warns that it cannot validate the partition constraint against an external table;
+        // that is the point of the test, so expect the warning instead of failing on it
+        gpdb.runQueryWithExpectedWarning(
+                "ALTER TABLE test_column_projection_parent ATTACH PARTITION test_column_projection_part FOR VALUES FROM (0) TO (100)",
+                "partition constraints are not validated when attaching a readable external table", false, true);
 
         runSqlTest("features/columnprojection/checkColumnProjectionPartition");
     }
