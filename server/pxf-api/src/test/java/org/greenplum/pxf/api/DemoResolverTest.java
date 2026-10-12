@@ -98,9 +98,11 @@ public class DemoResolverTest {
 
     @Test
     public void testSetTextDataSingleField() throws Exception {
-        // a one-column table: the line is the field plus the newline
+        // a one-column table: the line is the field plus the newline. DATA holds the
+        // delimiter, so it comes back quoted — otherwise the single column would read
+        // back as two fields.
         OneRow output = textResolver.setFields(Collections.singletonList(field));
-        assertArrayEquals((DATA + "\n").getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
+        assertArrayEquals(("\"" + DATA + "\"\n").getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
     }
 
     @Test
@@ -136,6 +138,27 @@ public class DemoResolverTest {
         OneRow two = textResolver.setFields(Arrays.asList(
                 new OneField(INTEGER.getOID(), 10), new OneField(TEXT.getOID(), "data_10")));
         assertArrayEquals("10data_10\n".getBytes(StandardCharsets.UTF_8), (byte[]) two.getData());
+    }
+
+    @Test
+    public void testSetTextDataQuotesValuesHoldingTheDelimiter() throws Exception {
+        // the service unquotes on the way in, so a value holding the delimiter must be
+        // quoted again or the line reads back as three fields instead of two
+        OneRow output = textResolver.setFields(Arrays.asList(
+                new OneField(INTEGER.getOID(), 1),
+                new OneField(TEXT.getOID(), "a,b")));
+        assertArrayEquals("1,\"a,b\"\n".getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
+    }
+
+    @Test
+    public void testSetTextDataQuotesValuesHoldingQuotesAndNewlines() throws Exception {
+        OneRow quoteInValue = textResolver.setFields(Collections.singletonList(
+                new OneField(TEXT.getOID(), "has\"quote")));
+        assertArrayEquals("\"has\"\"quote\"\n".getBytes(StandardCharsets.UTF_8), (byte[]) quoteInValue.getData());
+
+        OneRow newlineInValue = textResolver.setFields(Collections.singletonList(
+                new OneField(TEXT.getOID(), "two\nlines")));
+        assertArrayEquals("\"two\nlines\"\n".getBytes(StandardCharsets.UTF_8), (byte[]) newlineInValue.getData());
     }
 
     @Test

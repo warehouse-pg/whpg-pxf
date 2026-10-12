@@ -80,9 +80,40 @@ public class DemoTextResolver extends DemoResolver {
         String delimiter = csv.getDelimiter() == null ? "" : String.valueOf(csv.getDelimiter());
         StringJoiner line = new StringJoiner(delimiter, "", csv.getNewline());
         for (OneField field : record) {
-            line.add(formatField(field.val, csv.getValueOfNull(), encoding));
+            String value = formatField(field.val, csv.getValueOfNull(), encoding);
+            line.add(field.val == null ? value : quoteIfNeeded(value, csv));
         }
         return new OneRow(line.toString().getBytes(encoding));
+    }
+
+    /**
+     * Re-applies the table's quoting to one value. The service parses the
+     * incoming line with the table's quote and escape characters and hands the
+     * resolver the unquoted values, so a value holding the delimiter, a quote,
+     * or a line break has to be quoted again or the line it is joined into
+     * would not read back as the row that was written.
+     */
+    private static String quoteIfNeeded(String value, GreenplumCSV csv) {
+        char quote = csv.getQuote();
+        char escape = csv.getEscape() == null ? quote : csv.getEscape();
+        Character delimiter = csv.getDelimiter();
+        boolean needsQuoting = value.indexOf(quote) >= 0
+                || value.indexOf(escape) >= 0
+                || (delimiter != null && value.indexOf(delimiter) >= 0)
+                || value.indexOf('\n') >= 0
+                || value.indexOf('\r') >= 0;
+        if (!needsQuoting) {
+            return value;
+        }
+        StringBuilder quoted = new StringBuilder(value.length() + 2).append(quote);
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == quote || c == escape) {
+                quoted.append(escape);
+            }
+            quoted.append(c);
+        }
+        return quoted.append(quote).toString();
     }
 
     /**
