@@ -10,6 +10,8 @@ The PXF upgrade procedure has three steps. You perform one pre-install procedure
 -   [Step 2: Install the New PXF 6.x](#pxfinst)
 -   [Step 3: Complete the Upgrade to a Newer PXF 6.x](#pxfup)
 
+PXF `rpm` packages now install to `/usr/edb/whpg<version>-pxf` (for example, `/usr/edb/whpg7-pxf`). Earlier releases installed to `/usr/local/edb-whpg<version>-pxf`. If you are upgrading from such a release, also perform the actions in [Upgrading from a Release Installed Under /usr/local](#usrlocal).
+
 
 ## <a id="pxfpre"></a>Step 1: Perform the PXF Pre-Upgrade Actions
 
@@ -33,10 +35,10 @@ Perform this procedure before you upgrade to a new version of PXF 6.x:
     gpadmin@coordinator$ pxf cluster stop
     ```
 
-1. (Optional, Recommended) Back up the PXF user configuration files; for example, if `PXF_BASE=/usr/local/pxf-gp6`:
+1. (Optional, Recommended) Back up the PXF user configuration files; for example, if `PXF_BASE=/usr/local/edb-whpg7-pxf`:
 
     ``` shell
-    gpadmin@coordinator$ cp -avi /usr/local/pxf-gp6 pxf_base.bak
+    gpadmin@coordinator$ cp -avi /usr/local/edb-whpg7-pxf pxf_base.bak
     ```
 
 
@@ -168,4 +170,52 @@ After you install the new version of PXF, perform the following procedure:
     ``` shell
     gpadmin@coordinator$ pxf cluster start
     ```
- 
+
+
+## <a id="usrlocal"></a>Upgrading from a Release Installed Under /usr/local
+
+Earlier PXF `rpm` packages installed to `/usr/local/edb-whpg<version>-pxf`. The current packages install to `/usr/edb/whpg<version>-pxf`. The examples in this section use WarehousePG 7; substitute your WarehousePG major version.
+
+When you upgrade the `rpm` package on a host, the package does the following:
+
+- Installs PXF to `/usr/edb/whpg7-pxf` and removes the files that the previous package installed under `/usr/local/edb-whpg7-pxf`.
+- If you did not relocate `$PXF_BASE`, copies your runtime configuration (`servers/`, `lib/`, `keytabs/`, `run/`, and any files you added to `conf/`) from `/usr/local/edb-whpg7-pxf` to `/usr/edb/whpg7-pxf`. It does not overwrite files that already exist in the new location, and it does not copy `logs/`.
+- Keeps your edited copies of the `conf/pxf-*` configuration files in place and saves the packaged versions next to them with a `.rpmnew` suffix, as for an in-place upgrade.
+- Gives the new directory the same owner as the old one.
+- Leaves symbolic links to the new PXF libraries (`gpextable/pxf.so` and `fdw/pxf_fdw.so`) in `/usr/local/edb-whpg7-pxf`. Your existing `pxf` and `pxf_fdw` function definitions record the absolute path of these libraries, so these links keep existing external tables and foreign tables working until you perform the steps below.
+
+To keep PXF in its previous location instead, upgrade the package with `rpm -Uvh --prefix /usr/local/edb-whpg7-pxf <pxf-rpm-file>` on every host; no further action is required.
+
+After you upgrade the package on every WarehousePG host, perform the following procedure **before** you perform [Step 3](#pxfup):
+
+1. Update the `$PATH` in the `.bashrc` or `.bash_profile` shell initialization scripts on each host, replacing any occurrences of `/usr/local/edb-whpg7-pxf` with `/usr/edb/whpg7-pxf`. If you set `$PXF_BASE` to the old installation directory, update it as well.
+
+1. Review any `.rpmnew` files in `/usr/edb/whpg7-pxf/conf/` and merge changes from the packaged configuration into your configuration files.
+
+1. Update the `pxf` and `pxf_fdw` function definitions in every database so that they reference the new installation directory. A superuser must run the following commands from the WarehousePG coordinator host:
+
+    ``` shell
+    gpadmin@coordinator$ OLD=/usr/local/edb-whpg7-pxf NEW=/usr/edb/whpg7-pxf
+    gpadmin@coordinator$ for db in $(psql -d postgres -Atc "SELECT datname FROM pg_database WHERE datallowconn"); do
+        psql -d "$db" -Atc "SELECT replace(pg_get_functiondef(oid), '$OLD/', '$NEW/') || ';' FROM pg_proc WHERE position('$OLD/' in probin) = 1" |
+            psql -d "$db" -v ON_ERROR_STOP=1 -q
+    done
+    ```
+
+    The commands recreate each function whose library path starts with the old directory, pointing it at the new directory. Existing external tables and foreign tables are not affected.
+
+1. If you ran `pxf-pre-gpupgrade`, the `dynamic_library_path` server configuration parameter may include `/usr/local/edb-whpg7-pxf/gpextable`. Check the value with `gpconfig -s dynamic_library_path` and, if necessary, replace the old directory with `/usr/edb/whpg7-pxf/gpextable` using `gpconfig -c dynamic_library_path -v '<new-value>'` followed by `gpstop -u`.
+
+1. Perform [Step 3](#pxfup), running the `pxf` commands from `/usr/edb/whpg7-pxf/bin`.
+
+After you complete Step 3:
+
+1. Verify that PXF can access each external data source by querying external tables that specify each PXF server configuration.
+
+1. Verify that no function definition references the old directory; the following query must return `0` in every database:
+
+    ``` sql
+    SELECT count(*) FROM pg_proc WHERE position('/usr/local/edb-whpg7-pxf/' in probin) = 1;
+    ```
+
+1. Remove the `/usr/local/edb-whpg7-pxf` directory on every WarehousePG host.

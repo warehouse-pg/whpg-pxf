@@ -21,7 +21,7 @@ Perform the following steps before you upgrade the operating system:
 
 1. Upgrade PXF in your current cluster to at least the version of PXF listed in the table above and verify PXF operation **before** you commence the OS upgrade. For example, if you want to upgrade your WarehousePG 6 cluster to RHEL 8, upgrade to PXF v6.3+.
 
-1. Retain the following PXF user configuration directories, typically located in `/usr/local/pxf-gp6`: `conf/`, `keytabs/`, `lib/`, and `servers/`. If you relocated `$PXF_BASE`, retain the configuration in that directory.
+1. Retain the following PXF user configuration directories, typically located in `/usr/edb/whpg<version>-pxf` (`/usr/local/edb-whpg<version>-pxf` for earlier releases): `conf/`, `keytabs/`, `lib/`, and `servers/`. If you relocated `$PXF_BASE`, retain the configuration in that directory.
 
 
 ## <a id="post"></a>Post-OS Upgrade Actions
@@ -30,7 +30,7 @@ After you upgrade the operating system and install, configure, and verify Wareho
 
 1. Install PXF for the upgraded OS on all WarehousePG hosts as described in [Installing PXF](https://warehouse-pg.io/pxf/6x/installing.html). *You must install the same version of PXF as the version that was running on the original WarehousePG cluster.*
 
-1. Copy the PXF configuration files from the original cluster to `/user/local/pxf-gp6` on the upgraded OS WarehousePG coordinator host. If you choose to [relocate $PXF_BASE](about_pxf_dir.html#movebase), copy the configuration to that directory instead.
+1. Copy the PXF configuration files from the original cluster to `/usr/edb/whpg<version>-pxf` on the upgraded OS WarehousePG coordinator host. If you choose to [relocate $PXF_BASE](about_pxf_dir.html#movebase), copy the configuration to that directory instead.
 
 1. Synchronize the PXF configuration to all hosts in the WarehousePG cluster:
 

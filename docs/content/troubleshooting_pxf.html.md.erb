@@ -127,10 +127,10 @@ By default, PXF does not bundle the LZO compression library. If the Hadoop clust
 
 1. Log in to the WarehousePG coordinator host.
 
-1. Copy `hadoop-lzo.jar` from the Hadoop NameNode to the PXF configuration directory on the WarehousePG coordinator host. For example, if `$PXF_BASE` is `/usr/local/pxf-gp6`:
+1. Copy `hadoop-lzo.jar` from the Hadoop NameNode to the PXF configuration directory on the WarehousePG coordinator host. For example, if `$PXF_BASE` is `/usr/edb/whpg7-pxf`:
 
     ``` shell
-    gpadmin@coordinator$ scp <hadoop-user>@<namenode-host>:/usr/lib/hadoop-lzo/lib/hadoop-lzo.jar /usr/local/pxf-gp6/lib/
+    gpadmin@coordinator$ scp <hadoop-user>@<namenode-host>:/usr/lib/hadoop-lzo/lib/hadoop-lzo.jar /usr/edb/whpg7-pxf/lib/
     ```
 
 1. Synchronize the PXF configuration and restart PXF:
@@ -174,7 +174,7 @@ To remedy this situation, specify an executable directory for the Snappy `tempdi
 1.  Locate the `pxf-env.sh` file in your PXF installation. If you did not relocate `$PXF_BASE`, the file is located here:
 
     ``` pre
-    /usr/local/pxf-gp6/conf/pxf-env.sh
+    /usr/edb/whpg7-pxf/conf/pxf-env.sh
     ```
 
 1.  Open `pxf-env.sh` in the editor of your choice, locate the line where `PXF_JVM_OPTS` is set, uncomment the line if it is not already uncommented, and add `-Dorg.xerial.snappy.tempdir=${PXF_BASE}/run` to the setting. For example:
@@ -222,10 +222,10 @@ The workaround described in this section applies when all of the following hold 
 
 1. Identify the name of your Hadoop PXF server configuration.
 
-1. Locate the `hive-site.xml` configuration file in the server configuration directory. For example, if `$PXF_BASE` is `/usr/local/pxf-gp6` and the server name is `<server_name>`, the file is located here:
+1. Locate the `hive-site.xml` configuration file in the server configuration directory. For example, if `$PXF_BASE` is `/usr/edb/whpg7-pxf` and the server name is `<server_name>`, the file is located here:
 
     ``` pre
-    /usr/local/pxf-gp6/servers/<server_name>/hive-site.xml
+    /usr/edb/whpg7-pxf/servers/<server_name>/hive-site.xml
     ```
 
 1. Add or update the following property definition in the `hive-site.xml` file, and then save and exit the editor:
