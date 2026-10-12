@@ -446,7 +446,7 @@ public class HdfsWritableTextTest extends BaseWritableFeature {
      *
      * @throws Exception if test fails to run
      */
-    @Test(groups = {"features", "gpdb", "hcfs", "security"})
+    @Test(groups = {"features", "gpdb", "hcfs", "security", "load"})
     public void copyFromFileMultiBlockedDataNoCompression() throws Exception {
 
         Table data = new Table("data", null);
@@ -475,7 +475,7 @@ public class HdfsWritableTextTest extends BaseWritableFeature {
      *
      * @throws Exception if test fails to run
      */
-    @Test(groups = {"features", "gpdb", "hcfs", "security"})
+    @Test(groups = {"features", "gpdb", "hcfs", "security", "load"})
     public void copyFromFileMultiBlockedDataGZip() throws Exception {
 
         Table data = new Table("data", null);

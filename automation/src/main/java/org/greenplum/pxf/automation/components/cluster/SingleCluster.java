@@ -57,7 +57,9 @@ public class SingleCluster extends PhdCluster {
 
         // treat standalone PXF case separately
         if (service == EnumClusterServices.pxf && getPxfHome() != null) {
-            String command = String.format("PXF_DEBUG=%s %s/bin/pxf restart", getPxfServerDebug(), getPxfHome());
+            // pass PXF_BASE like restart() does: without it the pxf script falls back to
+            // PXF_HOME and the restarted service loses its servers/, lib/ and conf/
+            String command = String.format("PXF_BASE=%s PXF_DEBUG=%s %s/bin/pxf restart", getPxfBase(), getPxfServerDebug(), getPxfHome());
             runCommand(command);
         } else {
             String serviceName = service.toString();
