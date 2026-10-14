@@ -10,11 +10,11 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
 
 ### Bug Fixes:
 
-- The `DemoTextResolver` example plugin wrote a value holding the table's
-  delimiter, quote or escape character, or a line break, without quoting it
-  again, so the line it produced did not read back as the row that was
-  written. Values that hold none of those are written as before. Example code
-  only; real connectors were not affected.
+- The `DemoTextResolver` example plugin, on a CSV table, wrote a value holding
+  the delimiter, the quote or escape character, or a line break without quoting
+  it again, so the line it produced did not read back as the row that was
+  written. CSV values are now quoted; TEXT tables are written as-is (TEXT has no
+  CSV quoting). Example code only; real connectors were not affected.
 
 ## 6.10.3
 
