@@ -98,11 +98,21 @@ public class DemoResolverTest {
 
     @Test
     public void testSetTextDataSingleField() throws Exception {
-        // a one-column table: the line is the field plus the newline. DATA holds the
-        // delimiter, so it comes back quoted — otherwise the single column would read
-        // back as two fields.
+        // a one-column TEXT table (no format set): the value is written as-is, plus
+        // the newline. TEXT has no quoting even though DATA holds the delimiter.
         OneRow output = textResolver.setFields(Collections.singletonList(field));
-        assertArrayEquals(("\"" + DATA + "\"\n").getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
+        assertArrayEquals((DATA + "\n").getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
+    }
+
+    @Test
+    public void testSetTextDataTextTableIsNotQuoted() throws Exception {
+        // a value holding a quote on a TEXT table is written literally, not CSV-quoted
+        // (context.getFormat() is null here). This is what the service's reader expects
+        // for TEXT and is the behaviour that must not regress.
+        OneRow output = textResolver.setFields(Arrays.asList(
+                new OneField(INTEGER.getOID(), 3),
+                new OneField(TEXT.getOID(), "has\"quote")));
+        assertArrayEquals("3,has\"quote\n".getBytes(StandardCharsets.UTF_8), (byte[]) output.getData());
     }
 
     @Test
@@ -141,9 +151,11 @@ public class DemoResolverTest {
     }
 
     @Test
-    public void testSetTextDataQuotesValuesHoldingTheDelimiter() throws Exception {
-        // the service unquotes on the way in, so a value holding the delimiter must be
-        // quoted again or the line reads back as three fields instead of two
+    public void testSetCsvDataQuotesValuesHoldingTheDelimiter() throws Exception {
+        // CSV table (format=csv): the service unquotes on the way in, so a value
+        // holding the delimiter must be quoted again or the line reads back as three
+        // fields instead of two.
+        context.setFormat("csv");
         OneRow output = textResolver.setFields(Arrays.asList(
                 new OneField(INTEGER.getOID(), 1),
                 new OneField(TEXT.getOID(), "a,b")));
@@ -151,7 +163,8 @@ public class DemoResolverTest {
     }
 
     @Test
-    public void testSetTextDataQuotesValuesHoldingQuotesAndNewlines() throws Exception {
+    public void testSetCsvDataQuotesValuesHoldingQuotesAndNewlines() throws Exception {
+        context.setFormat("csv");
         OneRow quoteInValue = textResolver.setFields(Collections.singletonList(
                 new OneField(TEXT.getOID(), "has\"quote")));
         assertArrayEquals("\"has\"\"quote\"\n".getBytes(StandardCharsets.UTF_8), (byte[]) quoteInValue.getData());

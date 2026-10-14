@@ -19,6 +19,7 @@ package org.greenplum.pxf.api.examples;
  * under the License.
  */
 
+import org.apache.commons.lang3.Strings;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
 import org.greenplum.pxf.api.io.DataType;
@@ -78,10 +79,16 @@ public class DemoTextResolver extends DemoResolver {
                 ? context.getDatabaseEncoding() : StandardCharsets.UTF_8;
         // DELIMITER 'OFF' (single-column tables) leaves the delimiter null: join with nothing
         String delimiter = csv.getDelimiter() == null ? "" : String.valueOf(csv.getDelimiter());
+        // Re-quoting is a CSV concern only. TEXT tables are written as-is: TEXT
+        // has no CSV quoting, and the service hands this resolver already-unquoted
+        // values only for CSV (for a TEXT table a value holding the delimiter fails
+        // in the reader before it ever reaches here). context.getFormat() is "csv"
+        // for a CSV table, null or "text" otherwise.
+        boolean csvTable = Strings.CI.equals("csv", context.getFormat());
         StringJoiner line = new StringJoiner(delimiter, "", csv.getNewline());
         for (OneField field : record) {
             String value = formatField(field.val, csv.getValueOfNull(), encoding);
-            line.add(field.val == null ? value : quoteIfNeeded(value, csv));
+            line.add(field.val == null || !csvTable ? value : quoteIfNeeded(value, csv));
         }
         return new OneRow(line.toString().getBytes(encoding));
     }
