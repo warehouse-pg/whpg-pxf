@@ -45,6 +45,7 @@ import org.greenplum.pxf.plugins.hdfs.utilities.DecimalUtilities;
 import org.greenplum.pxf.plugins.hdfs.utilities.PgUtilities;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
@@ -268,15 +269,27 @@ public class ParquetResolver extends BasePlugin implements Resolver {
     private byte[] getFixedLenByteArray(String value, Type type, String columnName) {
         // From org.apache.hadoop.hive.ql.io.parquet.write.DataWritableWriter.DecimalDataWriter#decimalToBinary
         DecimalLogicalTypeAnnotation typeAnnotation = (DecimalLogicalTypeAnnotation) type.getLogicalTypeAnnotation();
-        int precision = Math.min(HiveDecimal.MAX_PRECISION, typeAnnotation.getPrecision());
-        int scale = Math.min(HiveDecimal.MAX_SCALE, typeAnnotation.getScale());
+        int precision = typeAnnotation.getPrecision();
+        int scale = typeAnnotation.getScale();
 
-        HiveDecimal hiveDecimal = decimalUtilities.parseDecimalStringWithHiveDecimal(value, precision, scale, columnName);
-        if (hiveDecimal == null) {
-           return null;
+        byte[] decimalBytes;
+        int signum;
+        if (precision <= HiveDecimal.MAX_PRECISION) {
+            HiveDecimal hiveDecimal = decimalUtilities.parseDecimalStringWithHiveDecimal(value, precision, scale, columnName);
+            if (hiveDecimal == null) {
+                return null;
+            }
+            decimalBytes = hiveDecimal.bigIntegerBytesScaled(scale);
+            signum = hiveDecimal.signum();
+        } else {
+            // HiveDecimal cannot hold more than 38 digits, so wider decimals are parsed with BigDecimal
+            BigDecimal bigDecimal = decimalUtilities.parseDecimalStringWithBigDecimal(value, precision, scale, columnName);
+            if (bigDecimal == null) {
+                return null;
+            }
+            decimalBytes = bigDecimal.unscaledValue().toByteArray();
+            signum = bigDecimal.signum();
         }
-
-        byte[] decimalBytes = hiveDecimal.bigIntegerBytesScaled(scale);
 
         // Estimated number of bytes needed.
         int precToBytes = ParquetFileAccessor.PRECISION_TO_BYTE_COUNT[precision - 1];
@@ -286,7 +299,7 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         }
 
         byte[] tgt = new byte[precToBytes];
-        if (hiveDecimal.signum() == -1) {
+        if (signum == -1) {
             // For negative number, initializing bits to 1
             for (int i = 0; i < precToBytes; i++) {
                 tgt[i] |= 0xFF;
