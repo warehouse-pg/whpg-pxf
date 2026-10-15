@@ -150,8 +150,9 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         }
 
         Type type = schema.getType(columnIndex);
+        String columnName = columnDescriptors.get(columnIndex).columnName();
         if (type.isPrimitive()) {
-            fillGroupWithPrimitive(group, columnIndex, field.val, type.asPrimitiveType());
+            fillGroupWithPrimitive(group, columnIndex, field.val, type.asPrimitiveType(), columnName);
             return;
         }
 
@@ -193,7 +194,9 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         for (Object value : values) {
             Group repeatedGroup = listGroup.addGroup(0);
             if (value != null) {
-                fillGroupWithPrimitive(repeatedGroup, 0, value, elementType);
+                // the element is always at index 0 of the repeated group, so the
+                // column name must come from the enclosing list column
+                fillGroupWithPrimitive(repeatedGroup, 0, value, elementType, columnName);
             }
         }
     }
@@ -205,8 +208,9 @@ public class ParquetResolver extends BasePlugin implements Resolver {
      * @param columnIndex   the index of the column in a row that needs to be filled with data
      * @param fieldValue    OneField object holding the value we need to fill into the Parquet Group object
      * @param primitiveType the Primitive Parquet schema we need to fill into the Parquet Group object
+     * @param columnName    the name of the Greenplum column the value belongs to, used in error messages
      */
-    private void fillGroupWithPrimitive(Group group, int columnIndex, Object fieldValue, PrimitiveType primitiveType) {
+    private void fillGroupWithPrimitive(Group group, int columnIndex, Object fieldValue, PrimitiveType primitiveType, String columnName) {
         LogicalTypeAnnotation logicalTypeAnnotation = primitiveType.getLogicalTypeAnnotation();
         PrimitiveType.PrimitiveTypeName primitiveTypeName = primitiveType.getPrimitiveTypeName();
 
@@ -242,7 +246,7 @@ public class ParquetResolver extends BasePlugin implements Resolver {
                 group.add(columnIndex, (Float) fieldValue);
                 break;
             case FIXED_LEN_BYTE_ARRAY:
-                byte[] fixedLenByteArray = getFixedLenByteArray((String) fieldValue, primitiveType, columnDescriptors.get(columnIndex).columnName());
+                byte[] fixedLenByteArray = getFixedLenByteArray((String) fieldValue, primitiveType, columnName);
                 if (fixedLenByteArray == null) {
                     return;
                 }

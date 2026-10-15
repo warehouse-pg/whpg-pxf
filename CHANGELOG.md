@@ -365,6 +365,11 @@ Two things deliberately did **not** move:
   external-table regression suite's `pxf` write test passes on every supported
   WarehousePG major and the suite is no longer order-dependent. Example code
   only; real connectors were not affected.
+- When a `NUMERIC[]` element did not fit the Parquet decimal type on write, the
+  overflow error (or, with `pxf.parquet.write.decimal.overflow=ignore`, the
+  warning) named the table's first column instead of the array column. The
+  value handling itself was correct; only the column name in the message is
+  fixed.
 
 ### Compatibility notes
 
