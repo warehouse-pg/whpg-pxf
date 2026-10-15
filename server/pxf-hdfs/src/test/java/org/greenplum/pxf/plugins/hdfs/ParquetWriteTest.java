@@ -1526,6 +1526,116 @@ public class ParquetWriteTest {
         fileReader.close();
     }
 
+    // Values from a reported case: 18, 19 and 61 decimal places
+    private static final String[] NUMERIC_ARRAY_SCALE_VALUES = new String[]{
+            "0.123456789012345678",
+            "0.1234567890123456789",
+            "0." + StringUtils.repeat('0', 60) + "1"
+    };
+
+    // Numeric array precision not defined, PXF falls back to DECIMAL(38,18) and rounds values with more than 18 decimal places
+    @Test
+    public void testWriteNumericArrayWithUndefinedPrecisionRoundsToDefaultScale() throws Exception {
+        writeAndValidateNumericArrayScale("numeric_array_undefined_precision", null, 38, 18, new String[]{
+                "0.123456789012345678",
+                "0.123456789012345679",
+                "0.000000000000000000"
+        });
+    }
+
+    // Numeric array precision and scale defined, the declared scale is kept in the file
+    @Test
+    public void testWriteNumericArrayWithDefinedScale() throws Exception {
+        writeAndValidateNumericArrayScale("numeric_array_38_20", new Integer[]{38, 20}, 38, 20, new String[]{
+                "0.12345678901234567800",
+                "0.12345678901234567890",
+                "0.00000000000000000000"
+        });
+    }
+
+    @Test
+    public void testWriteNumericArrayWithMaxScale() throws Exception {
+        writeAndValidateNumericArrayScale("numeric_array_38_37", new Integer[]{38, 37}, 38, 37, new String[]{
+                "0.1234567890123456780000000000000000000",
+                "0.1234567890123456789000000000000000000",
+                "0.0000000000000000000000000000000000000"
+        });
+    }
+
+    // Numeric array precision defined above 38, an error should be thrown
+    @Test
+    public void testWriteNumericArrayWithPrecisionOverflow() {
+        columnDescriptors.add(new ColumnDescriptor("numeric_array", DataType.NUMERICARRAY.getOID(), 0, "numericarray", new Integer[]{45, 25}));
+        context.setDataSource(temp + "/out/numeric_array_45_25/");
+        context.setTransactionId("XID-XYZ-123510");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+
+        Exception e = assertThrows(UnsupportedTypeException.class, () -> accessor.openForWrite());
+        assertEquals(String.format("Column numeric_array is defined as NUMERIC with precision 45 which exceeds the maximum supported precision %d.", HiveDecimal.MAX_PRECISION), e.getMessage());
+    }
+
+    // Numeric array element overflow with error flag, the error should name the array column, not the first column of the table
+    @Test
+    public void testWriteNumericArrayScaleOverflowWithErrorFlagReportsArrayColumn() throws Exception {
+        columnDescriptors.add(new ColumnDescriptor("id", DataType.INTEGER.getOID(), 0, "int4", null));
+        columnDescriptors.add(new ColumnDescriptor("numeric_array", DataType.NUMERICARRAY.getOID(), 1, "numericarray", null));
+        configuration.set("pxf.parquet.write.decimal.overflow", "error");
+        context.setDataSource(temp + "/out/numeric_array_error_flag/");
+        context.setTransactionId("XID-XYZ-123511");
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+        List<OneField> record = Arrays.asList(
+                new OneField(DataType.INTEGER.getOID(), 2),
+                new OneField(DataType.NUMERICARRAY.getOID(), "{0.1234567890123456789}"));
+        Exception e = assertThrows(UnsupportedTypeException.class, () -> resolver.setFields(record));
+        assertEquals("The value 0.1234567890123456789 for the NUMERIC column numeric_array exceeds the maximum supported scale 18, " +
+                "and cannot be stored without precision loss.", e.getMessage());
+        accessor.closeForWrite();
+    }
+
+    private void writeAndValidateNumericArrayScale(String directory, Integer[] typeModifiers, int expectedPrecision, int expectedScale,
+                                                   String[] expectedValues) throws Exception {
+        columnDescriptors.add(new ColumnDescriptor("numeric_array", DataType.NUMERICARRAY.getOID(), 0, "numericarray", typeModifiers));
+        context.setDataSource(temp + "/out/" + directory + "/");
+        context.setTransactionId("XID-XYZ-" + directory);
+
+        accessor.setRequestContext(context);
+        accessor.afterPropertiesSet();
+        resolver.setRequestContext(context);
+        resolver.afterPropertiesSet();
+
+        assertTrue(accessor.openForWrite());
+        for (String value : NUMERIC_ARRAY_SCALE_VALUES) {
+            List<OneField> record = Collections.singletonList(new OneField(DataType.NUMERICARRAY.getOID(), "{" + value + "}"));
+            assertTrue(accessor.writeNextObject(resolver.setFields(record)));
+        }
+        accessor.closeForWrite();
+
+        Path expectedFile = new Path(HcfsType.FILE.getUriForWrite(context) + ".snappy.parquet");
+        MessageType schema = validateFooter(expectedFile, 1, NUMERIC_ARRAY_SCALE_VALUES.length);
+        PrimitiveType elementType = schema.getType(0).asGroupType().getType(0).asGroupType().getType(0).asPrimitiveType();
+        assertEquals(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, elementType.getPrimitiveTypeName());
+        assertEquals(DecimalLogicalTypeAnnotation.decimalType(expectedScale, expectedPrecision), elementType.getLogicalTypeAnnotation());
+
+        try (ParquetReader<Group> fileReader = ParquetReader.builder(new GroupReadSupport(), expectedFile)
+                .withConf(configuration)
+                .build()) {
+            for (String expectedValue : expectedValues) {
+                Group element = fileReader.read().getGroup(0, 0).getGroup(0, 0);
+                BigDecimal actual = new BigDecimal(new BigInteger(element.getBinary(0, 0).getBytes()), expectedScale);
+                assertEquals(expectedValue, actual.toPlainString());
+            }
+            assertNull(fileReader.read());
+        }
+    }
+
     @Test
     public void testWriteMultipleTypes() throws Exception {
         String path = temp + "/out/multiple/";
