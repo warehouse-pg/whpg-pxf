@@ -4,8 +4,10 @@ Pull requests targeting this branch run the in-repository
 [PXF CI](.github/workflows/README.md) workflow: unit tests, CLI tests, a
 compile check for the integration-test tree, and static docs checks.
 
-The legacy Concourse pipeline tooling has been removed from this branch; the upstream
-copy remains in [greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive).
+The legacy Concourse pipeline tooling has been removed from this branch. Its final
+in-branch copy is tagged [`archive/concourse-final-6.x`](https://github.com/warehouse-pg/whpg-pxf/tree/archive/concourse-final-6.x/concourse)
+(`git show archive/concourse-final-6.x:concourse/<path>`); the upstream copy remains in
+[greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive).
 
 ----------------------------------------------------------------------
 
