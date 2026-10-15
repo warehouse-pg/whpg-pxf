@@ -505,7 +505,12 @@ public class HdfsWritableTextTest extends BaseWritableFeature {
      *
      * @throws Exception if test fails to run
      */
-    @Test(groups = {"features", "gpdb", "hcfs", "security"})
+    // `load` like its two siblings above (#81): the same 15M-row COPY through
+    // PXF to the single-box HDFS, and the same stall -- 0 rows after the
+    // automation's 10-min psql timeout -- seen in an FDW-mode run of the
+    // routine groups after passing in ~70 s in the five runs before it.
+    // Concourse ran the load group in its own heavy-data swimlane.
+    @Test(groups = {"features", "gpdb", "hcfs", "security", "load"})
     public void copyFromFileMultiBlockedDataBZip2() throws Exception {
 
         Table data = new Table("data", null);

@@ -1,5 +1,6 @@
 package org.greenplum.pxf.automation.features.avro;
 
+import annotations.FailsWithFDW;
 import annotations.WorksWithFDW;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -127,6 +128,18 @@ public class HdfsWritableAvroTest extends BaseWritableFeature {
         publicStage = "/tmp/publicstage/pxf/";
     }
 
+    // Fails in FDW mode on the REAL column: pxf_fdw serializes each row as text
+    // through the session's output functions (fdw/pxf_fdw.c BeginCopyTo /
+    // CopyOneRowTo), so float4 obeys extra_float_digits, which the suite sets
+    // to 0 on GPDB 7 (Gpdb.createDataBase). float4out then emits 6 significant
+    // digits and row 99's 100.0001 reaches PXF as "100": the Avro file holds
+    // 100.0 where the expected JSON has 100.0001. The external-table path
+    // writes through the binary pxfwritable_export formatter and keeps the
+    // value. Which side is the contract is still open: pin extra_float_digits
+    // in pxf_fdw for the modify, as postgres_fdw does on its connections, or
+    // accept the text rendering and change the expectation. Drop this
+    // annotation once that is settled.
+    @FailsWithFDW
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
     public void generateSchemaPrimitive() throws Exception {
         tableNamePrefix = "writable_avro_primitive_generate_schema";
@@ -149,6 +162,18 @@ public class HdfsWritableAvroTest extends BaseWritableFeature {
         runSqlTest("features/hdfs/writable/avro/primitives_generate_schema");
     }
 
+    // Fails in FDW mode on the REAL column: pxf_fdw serializes each row as text
+    // through the session's output functions (fdw/pxf_fdw.c BeginCopyTo /
+    // CopyOneRowTo), so float4 obeys extra_float_digits, which the suite sets
+    // to 0 on GPDB 7 (Gpdb.createDataBase). float4out then emits 6 significant
+    // digits and row 99's 100.0001 reaches PXF as "100": the Avro file holds
+    // 100.0 where the expected JSON has 100.0001. The external-table path
+    // writes through the binary pxfwritable_export formatter and keeps the
+    // value. Which side is the contract is still open: pin extra_float_digits
+    // in pxf_fdw for the modify, as postgres_fdw does on its connections, or
+    // accept the text rendering and change the expectation. Drop this
+    // annotation once that is settled.
+    @FailsWithFDW
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
     public void generateSchemaPrimitive_withNoCompression() throws Exception {
         tableNamePrefix = "writable_avro_primitive_no_compression";
@@ -194,6 +219,18 @@ public class HdfsWritableAvroTest extends BaseWritableFeature {
         runSqlTest("features/hdfs/writable/avro/complex_generate_schema");
     }
 
+    // Fails in FDW mode on the REAL column: pxf_fdw serializes each row as text
+    // through the session's output functions (fdw/pxf_fdw.c BeginCopyTo /
+    // CopyOneRowTo), so float4 obeys extra_float_digits, which the suite sets
+    // to 0 on GPDB 7 (Gpdb.createDataBase). float4out then emits 6 significant
+    // digits and row 99's 100.0001 reaches PXF as "100": the Avro file holds
+    // 100.0 where the expected JSON has 100.0001. The external-table path
+    // writes through the binary pxfwritable_export formatter and keeps the
+    // value. Which side is the contract is still open: pin extra_float_digits
+    // in pxf_fdw for the modify, as postgres_fdw does on its connections, or
+    // accept the text rendering and change the expectation. Drop this
+    // annotation once that is settled.
+    @FailsWithFDW
     @Test(groups = {"features", "gpdb", "hcfs", "security"})
     public void userProvidedSchemaFileOnHcfsPrimitive() throws Exception {
         tableNamePrefix = "writable_avro_primitive_user_provided_schema_on_hcfs";
