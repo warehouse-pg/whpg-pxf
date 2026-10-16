@@ -330,6 +330,19 @@ Two things deliberately did **not** move:
   compatibility fallback no longer exists in the Hive 4.x thrift
   bindings.
 
+### Parquet DECIMAL precision up to 76
+
+- PXF can now write a `NUMERIC(<precision>, <scale>)` column with a precision
+  of up to 76 to Parquet; previously any precision above 38 was rejected. The
+  column is written as a Parquet `DECIMAL` on a `FIXED_LEN_BYTE_ARRAY` wide
+  enough for the precision (32 bytes at 76), which Arrow-based readers such as
+  PyArrow read as `decimal256`. Values are no longer limited by `HiveDecimal`
+  for these columns, and `pxf.parquet.write.decimal.overflow` applies to them
+  as before. Precision up to 38, and the `DECIMAL(38,18)` mapping of a
+  `NUMERIC` column without a precision, are unchanged. Spark, Hive and other
+  readers limited to precision 38 cannot read a column written with a greater
+  precision. ORC writes are unchanged.
+
 ### Bug Fixes
 
 - PTT-1850: external tables that are partitions of a partitioned table (or that
@@ -352,6 +365,11 @@ Two things deliberately did **not** move:
   external-table regression suite's `pxf` write test passes on every supported
   WarehousePG major and the suite is no longer order-dependent. Example code
   only; real connectors were not affected.
+- When a `NUMERIC[]` element did not fit the Parquet decimal type on write, the
+  overflow error (or, with `pxf.parquet.write.decimal.overflow=ignore`, the
+  warning) named the table's first column instead of the array column. The
+  value handling itself was correct; only the column name in the message is
+  fixed.
 
 ### Compatibility notes
 
