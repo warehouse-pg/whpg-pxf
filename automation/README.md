@@ -22,66 +22,35 @@ In order to run PXF automation tests the following are needed
 
 ### SSH Setup
 
-The PXF automation project uses an old SSH2 Java library that does not support newer key exchange algorithms (`KexAlgorithms`).
-Newer operating systems such as MacOS 12+ and Debian's openssh-server package (1:8.4p1-5) do not enable support for these algorithms by default.
-You can check the supported algorithms with
+The automation harness drives every system object (gpdb, pxf, hdfs, hbase, hive, ...) through an
+interactive shell it opens over SSH to the host named in the SUT. The connection is made with
+[sshj](https://github.com/hierynomus/sshj) (`components/common/cli/SshRsa.java`), which negotiates
+the algorithms a current OpenSSH server offers by default (curve25519 / ecdh KEX, aes-ctr / gcm and
+chacha20 ciphers, rsa-sha2 / ed25519 host keys). No `sshd_config` changes are needed: the legacy
+`KexAlgorithms` / `HostKeyAlgorithms` block that the former Ganymed SSH2 client required is gone,
+and on el9 those algorithms are not compiled into sshd at all.
+
+What you need on the machine that runs the tests:
+
+- `sshd` listening on `localhost:22` (or the host/port your SUT names), and the test user able to
+  log in with a key. Password login works too (`<password>` in the SUT), but the default SUT uses a
+  key.
+- A private key the harness can read. The default location is `~/.ssh/id_rsa` (override per system
+  object with `<privateKey>/path/to/key</privateKey>` in the SUT). RSA, ECDSA and ed25519 keys are
+  accepted in the OpenSSH (`-----BEGIN OPENSSH PRIVATE KEY-----`), PEM and PuTTY formats, so a key
+  made with a plain `ssh-keygen` works; it must not be passphrase-protected.
 
 ```bash
-sudo sshd -T | grep 'kexalgorithms' | grep -e diffie-hellman-group-exchange-sha1 -e diffie-hellman-group14-sha1 -e diffie-hellman-group1-sha1
-```
-
-The following algorithms _must_ be included:
-
-- diffie-hellman-group-exchange-sha1
-- diffie-hellman-group14-sha1
-- diffie-hellman-group1-sha1
-
-We also need to ensure that the `rsa` and `dss` key algorithms are accepted for both the host and public key authentication.
-If they are not, you can enable them with the following config file:
-
-```bash
-sudo tee -a /etc/ssh/sshd_config.d/pxf-automation.conf >/dev/null <<EOF
-# pxf automation uses an old SSH2 Java library that doesn't support newer KexAlgorithms
-# this assumes that /etc/ssh/sshd_config contains "Include /etc/ssh/sshd_config.d/*.conf"
-# if it doesn't, try adding this directly to /etc/ssh/sshd_config
-KexAlgorithms +diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1
-HostKeyAlgorithms +ssh-rsa,ssh-dss
-PubkeyAcceptedAlgorithms +ssh-rsa,ssh-dss
-EOF
-```
-
-Then restart sshd based on your OS.
-For MacOS, either run in terminal
-
-```shell
-sudo launchctl unload /System/Library/LaunchDaemons/ssh.plist
-sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist
-```
-
-or go to System Preferences > Sharing and toggle `Remote Login`
-
-For Linux, run
-
-```shell
-sudo systemctl reload ssh
-```
-
-Recheck the support algorithms before proceeding
-
-```bash
-sudo sshd -T | grep 'kexalgorithms' | grep -e diffie-hellman-group-exchange-sha1 -e diffie-hellman-group14-sha1 -e diffie-hellman-group1-sha1
-```
-
-In addition to updating the `sshd_config`, you must have an RSA key for the local system ([you're not still using RSA keys for SSH are you?][ssh-ed25519])
-
-```bash
-# requires an id_rsa key in PEM format
-# private key *must* be stored in id_rsa
-ssh-keygen -m PEM -t rsa -b 4096 -C "pxf-automation"
+ssh-keygen -t ed25519 -N '' -C "pxf-automation" -f ~/.ssh/id_rsa   # or -t rsa -b 4096
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+ssh -o BatchMode=yes localhost true && echo "ssh to localhost works"
 ```
 
-[ssh-ed25519]: https://medium.com/risan/upgrade-your-ssh-key-to-ed25519-c6e8d60d3c54
+On macOS, enable *Remote Login* (System Settings > General > Sharing) to start sshd.
+
+Host keys are not verified by the harness (it only talks to the hosts in the SUT), so a changed host
+key never breaks a run. The shell is started on a `dumb` PTY, so terminal-aware commands do not emit
+colour escape sequences into the output the tests parse.
 
 ### General Automation Setup
 
