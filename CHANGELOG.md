@@ -293,6 +293,12 @@ Two things deliberately did **not** move:
   newer Hive server under an older client is the direction real deployments
   skew. Hive 4.x is also what allows the test cluster to run Hadoop 3.4.x —
   Hive 2.3.8 cannot execute MapReduce jobs on a Hadoop 3.4 cluster.
+- The kerberized multi-node dev cluster (`dev/ipa-cluster.bash` with the
+  terraform and ansible modules under `dev/ipa-multinode-hadoop/`) no longer
+  assumes the retired CI's GCP project: the VPC network and subnet default to
+  `default`, no CI-specific network tags or labels are applied, and the
+  Kerberos realm and IPA LDAP base DN are derived from the project the
+  cluster is created in instead of being hard-coded.
 
 ### Hive 4.x client migration
 
@@ -320,6 +326,12 @@ Two things deliberately did **not** move:
 
 ### Breaking changes
 
+- The Greenplum-era source-build packaging path is gone: the root `make tar`,
+  `rpm`, `rpm-tar`, `deb` and `deb-tar` targets and the `package/` specs,
+  Debian control files and `install_*` helper scripts they used. `make stage`
+  no longer adds an `install_component` script to the staged tree. The shipped
+  package is the `edb-whpg<N>-pxf` RPM built by the WarehousePG
+  extension-packaging repository from `make stage` (see `package/README.md`).
 - This release targets **HBase 2.x**. HBase 1.x support is maintained on a
   separate branch.
 - **Hive 1.x metastores are no longer supported** by the Hive

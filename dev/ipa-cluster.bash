@@ -286,20 +286,20 @@ function print_user_instructions() {
     echo "2. --- add the following to your /etc/krb5.conf :"
     cat << EOF
 [libdefaults]
- default_realm = C.DATA-GPDB-UD-IPA.INTERNAL
+ default_realm = ${domain_name_upper}
  ticket_lifetime = 1d
  forwardable = true
  proxiable = true
 
 [realms]
- C.DATA-GPDB-UD-IPA.INTERNAL = {
-  kdc = ccp-${TF_VAR_env_name}-ipa.c.data-gpdb-ud-ipa.internal
-  admin_server = ccp-${TF_VAR_env_name}-ipa.c.data-gpdb-ud-ipa.internal
+ ${domain_name_upper} = {
+  kdc = ${ipa_server}.${domain_name_lower}
+  admin_server = ${ipa_server}.${domain_name_lower}
  }
 
 [domain_realm]
- .c.data-gpdb-ud-ipa.internal = C.DATA-GPDB-UD-IPA.INTERNAL
- c.data-gpdb-ud-ipa.internal = C.DATA-GPDB-UD-IPA.INTERNAL
+ .${domain_name_lower} = ${domain_name_upper}
+ ${domain_name_lower} = ${domain_name_upper}
 EOF
     cd "$WORKING_DIR" || fail "cannot return to $WORKING_DIR"
 }
