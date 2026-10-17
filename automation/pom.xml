@@ -83,6 +83,16 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- sshj declares slf4j-api 2.0.17, but the only SLF4J binding on the
+                 classpath is hadoop-common's slf4j-reload4j 1.7.36, which a 2.x API
+                 ignores ("No SLF4J providers were found" -> every Hadoop/HBase client
+                 log line goes to NOP). Keep the API on the 1.7 line the binding
+                 understands; sshj only uses the Logger/LoggerFactory calls both have. -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.36</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -202,6 +212,13 @@
                     <groupId>javax.comm</groupId>
                     <artifactId>comm</artifactId>
                 </exclusion>
+                <!-- Ganymed SSH2 backs JSystem's own systemobject.terminal.SSH, which the
+                     harness no longer uses: it only speaks legacy KEX/CBC crypto that an
+                     el9 sshd does not have. The harness opens its sessions with sshj (below). -->
+                <exclusion>
+                    <groupId>ch.ethz.ganymed</groupId>
+                    <artifactId>ganymed-ssh2</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -211,10 +228,12 @@
             <version>1.10.19</version>
         </dependency>
 
+        <!-- SSH client for the JSystem terminal (SshRsa): modern KEX/ciphers/host-key
+             algorithms, OpenSSH/PEM/PuTTY key formats, Java 8 compatible. -->
         <dependency>
-            <groupId>ch.ethz.ganymed</groupId>
-            <artifactId>ganymed-ssh2</artifactId>
-            <version>261</version>
+            <groupId>com.hierynomus</groupId>
+            <artifactId>sshj</artifactId>
+            <version>0.41.2</version>
         </dependency>
 
         <dependency>
@@ -437,6 +456,18 @@
                 <exclusion>
                     <groupId>org.pentaho</groupId>
                     <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+                </exclusion>
+                <!-- Old Bouncy Castle (1.68, jdk15on) via hive-shims -> yarn web-proxy.
+                     It ships the same org.bouncycastle classes as the jdk18on 1.84
+                     that sshj uses; two copies on the classpath means whichever jar
+                     comes first wins, so keep the one BC the harness needs. -->
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>bcprov-jdk15on</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>bcpkix-jdk15on</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

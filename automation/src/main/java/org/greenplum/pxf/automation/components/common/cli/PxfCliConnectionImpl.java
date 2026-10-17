@@ -7,7 +7,6 @@ import systemobject.terminal.BufferInputStream;
 import systemobject.terminal.Cli;
 import systemobject.terminal.Prompt;
 import systemobject.terminal.RS232;
-import systemobject.terminal.SSH;
 import systemobject.terminal.Telnet;
 import systemobject.terminal.VT100FilterInputStream;
 
@@ -116,9 +115,9 @@ public class PxfCliConnectionImpl extends CliConnectionImpl {
 			}
 			terminal = new RS232(params[0], Integer.parseInt(params[1]), Integer.parseInt(params[2]), Integer.parseInt(params[3]), Integer.parseInt(params[4]));
 		} else if (protocol.toLowerCase().equals(EnumConnectionType.SSH.value())) {
-			terminal = new SSH(host, user, password);
+			terminal = new SshRsa(host, port, user, password, null);
 		} else if (protocol.toLowerCase().equals(EnumConnectionType.SSH_RSA.value())) {
-			terminal = new SshRsa(host, user, password, getPrivateKey());
+			terminal = new SshRsa(host, port, user, password, getPrivateKey());
 			isRsa = true;
 		} else {
 			terminal = new Telnet(host, port, useTelnetInputStream);
