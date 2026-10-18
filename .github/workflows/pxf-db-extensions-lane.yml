@@ -274,7 +274,7 @@ jobs:
       - name: Unpack and assert provenance
         # The ref alone is a mutable tag name — the action asserts the
         # commit SHA (and the gp major) before anything uses the tree.
-        uses: warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@main
+        uses: warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@ci/db-extensions-reusable-workflow
         with:
           prefix: ${{ env.PREFIX }}
           ref: ${{ matrix.tag }}
@@ -385,7 +385,7 @@ jobs:
         # (run-db-extension-checks.bash re-asserts later, but the compile
         # step must not run against an unverified tree either). No major
         # assert: upstream main is whatever major upstream says it is.
-        uses: warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@main
+        uses: warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@ci/db-extensions-reusable-workflow
         with:
           prefix: ${{ env.PREFIX }}
           ref: main
