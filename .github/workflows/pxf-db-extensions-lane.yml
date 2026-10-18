@@ -489,18 +489,21 @@ jobs:
       # body marker carries the major), so the legs never touch each
       # other's issues and can run in parallel.
       matrix: ${{ fromJSON(needs.plan.outputs.pins-matrix) }}
-    env:
-      PIN_TAG: ${{ matrix.tag }}
-      PIN_SHA: ${{ matrix.sha }}
     steps:
       - uses: actions/checkout@v4
       - name: Self-test the decision logic (fixtures)
+        # Runs with a CLEAN environment on purpose: the fixtures include
+        # "missing PIN_TAG fails loud", so the leg's pin must not be in
+        # scope here — it is step-scoped on the two steps below, not
+        # job-level env.
         run: bash .github/scripts/test-pin-freshness-decide.bash
       - name: Gather upstream state and decide
         id: decide
         env:
           GH_TOKEN: ${{ github.token }}
           MAJOR: ${{ matrix.major }}
+          PIN_TAG: ${{ matrix.tag }}
+          PIN_SHA: ${{ matrix.sha }}
         run: |
           # Prefix-narrowed server-side (the unqualified tags endpoint
           # carries ~300 refs) and --paginate so growth past one page
@@ -564,6 +567,8 @@ jobs:
           OPEN_ISSUE: ${{ steps.decide.outputs.open_issue }}
           NEWEST: ${{ steps.decide.outputs.newest }}
           MAJOR: ${{ matrix.major }}
+          PIN_TAG: ${{ matrix.tag }}
+          PIN_SHA: ${{ matrix.sha }}
         run: |
           # STATE format: whpg<major>:<kind>:<detail>
           kind=$(cut -d: -f2 <<<"$STATE"); detail=$(cut -d: -f3- <<<"$STATE")
