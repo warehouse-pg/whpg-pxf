@@ -1,0 +1,66 @@
+# Unpack a WarehousePG install tree built by .github/scripts/build-whpg.bash
+# and assert its provenance before anything uses it. The ref alone is a
+# mutable tag name, so the commit SHA (and, when given, the gp major)
+# are asserted too — every consumer of a built tree in the DB-extensions
+# lane goes through this action, so the discipline cannot drift between
+# the checks legs and the upstream canary.
+#
+# Lives on main only and is referenced
+# `warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@main` from
+# the reusable lane (a relative `./.github/actions/...` would resolve
+# from the TRIGGERING branch's checkout and bring the per-branch copy
+# problem straight back).
+
+name: Unpack and assert a WarehousePG tree
+description: >-
+  Unpack the lane's whpg-install tarball into the prefix and assert the
+  provenance files (ref, commit SHA, optionally gp major) match.
+
+inputs:
+  tarball:
+    description: Path of the install-tree tarball produced by the build step
+    default: whpg-dist/whpg-install-el8.tar.gz
+  prefix:
+    description: Install prefix to unpack into (the tree's build-time PREFIX)
+    required: true
+  ref:
+    description: Expected whpg-build.ref (the tag or branch that was built)
+    required: true
+  sha:
+    description: Expected whpg-build.sha (the commit that was built)
+    required: true
+  major:
+    description: Expected whpg-build.gp-major; empty skips the major assert
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Unpack and assert provenance
+      shell: bash
+      env:
+        TARBALL: ${{ inputs.tarball }}
+        PREFIX: ${{ inputs.prefix }}
+        EXPECT_REF: ${{ inputs.ref }}
+        EXPECT_SHA: ${{ inputs.sha }}
+        EXPECT_MAJOR: ${{ inputs.major }}
+      run: |
+        set -euo pipefail
+        test -n "$PREFIX" || { echo "ERROR: prefix is empty" >&2; exit 1; }
+        test -f "$TARBALL" || { echo "ERROR: no install tarball at $TARBALL" >&2; exit 1; }
+        mkdir -p "$PREFIX"
+        tar xzf "$TARBALL" -C "$PREFIX"
+        assert() {  # assert <provenance file> <expected>
+          local got; got=$(cat "$PREFIX/$1")
+          if [ "$got" != "$2" ]; then
+            echo "ERROR: $PREFIX/$1 is '$got', expected '$2' — refusing to use this tree." >&2
+            exit 1
+          fi
+        }
+        assert whpg-build.ref "$EXPECT_REF"
+        assert whpg-build.sha "$EXPECT_SHA"
+        if [ -n "$EXPECT_MAJOR" ]; then
+          assert whpg-build.gp-major "$EXPECT_MAJOR"
+        fi
+        "$PREFIX/bin/pg_config" --version
+        echo "provenance ok: $EXPECT_REF @ $EXPECT_SHA${EXPECT_MAJOR:+ (gp major $EXPECT_MAJOR)}"
