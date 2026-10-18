@@ -22,8 +22,6 @@ run-name: >-
 on:
   schedule:
     - cron: '30 4 * * 1'   # Mondays 04:30 UTC — weekly rot-check + upstream canary (staggered after pxf-ci.yml)
-  push:   # TRIAL ONLY: registers this file so it can be dispatched from the branch
-    branches: ['ci/db-extensions-reusable-workflow']
   workflow_dispatch:
     inputs:
       debug_enabled:
@@ -46,7 +44,7 @@ concurrency:
 jobs:
   db-extensions:
     name: db-extensions
-    uses: warehouse-pg/whpg-pxf/.github/workflows/pxf-db-extensions-lane.yml@ci/db-extensions-reusable-workflow
+    uses: warehouse-pg/whpg-pxf/.github/workflows/pxf-db-extensions-lane.yml@main
     with:
       # Weekly rot-check over both branches (schedules fire only from the
       # default branch, so this is where release-6.x gets its weekly
