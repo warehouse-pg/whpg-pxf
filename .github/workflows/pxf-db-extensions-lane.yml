@@ -1,0 +1,652 @@
+# PXF DB Extensions lane — the ONE copy of the advisory checks for the
+# database-resident C extensions. Lives on main only; every branch
+# reaches it through a short stub that pins this file @main:
+#
+#   pxf-db-extensions-ci.yml      pull_request + ci/** push   (read-only token)
+#   pxf-db-extensions-weekly.yml  schedule + workflow_dispatch (issues: write)
+#
+# Triggers, path filters and the token grant live in the stubs; the
+# jobs, the pins and the cache discipline live here. A fix to the lane
+# lands once and takes effect on every branch at the next run — there
+# is no release-6.x copy of this file to keep in sync.
+#
+# Scope: the two C extensions (external-table/ and fdw/) — compile
+# against real WarehousePG headers and run their pg_regress suites in a
+# demo cluster. Everything here is secret-free and fork-PR-safe: the
+# pull_request stub grants a read-only token, cache access is
+# restore-only off main, and the only write permission (issues) is
+# inherited from the weekly stub by jobs that never run on pull requests.
+#
+# The lane tests BOTH database majors: every run matrixes over the two
+# pins below (WHPG 7 and WHPG 6), building each from source and running
+# the FULL suite set on each. The expected files are major-neutral —
+# gpdiff matchignore blocks absorb the per-major noise lines — so every
+# run is also a continuous proof that those blocks still cover both
+# majors' real output.
+#
+# What this lane does NOT cover (by design): data-path testing (SELECT
+# through a running PXF server needs Hadoop-family datasources) and
+# non-el8 platforms.
+#
+# Delivery model: every checks leg is SELF-CONTAINED (the shape
+# warehouse-pg's own whpg-ci.yml uses, and the shape the upstream-canary
+# job here always had): restore the installed WarehousePG tree from the
+# Actions cache, or REBUILD IN-RUN on a cache miss (~10 min, once), then
+# compile and installcheck as steps in the same job. A miss is never a
+# skip. The only needs: edge into a checks leg is the `plan` job — a
+# pure-expression job with no infrastructure that turns the pins into
+# the leg matrix; a whpg6 infrastructure failure still cannot touch the
+# whpg7 leg, because no major's job waits on another major's job.
+#
+# Version pins: ONE WarehousePG version PER MAJOR, each built from
+# source at its tag. The pins are workflow_call INPUTS with defaults
+# (below): the stubs pass nothing, so the defaults here are the single
+# source of truth, and a branch that must diverge (release-6.x pinning
+# an older WHPG 7, say) passes `with:` in its stub instead of forking
+# the file. The build-image digest is an input too, so it is written
+# ONCE here and flows into every container.image line and cache key.
+#
+# Advisory status: the stubs' path filter means these checks do not
+# report on most PRs, so they must not be added to required status
+# checks (a required check that never reports blocks merges). This is
+# documented policy, not a platform guarantee.
+#
+# Testing a change to THIS file: a pull_request run resolves @main to
+# the real main, not the PR's merge ref, so a PR cannot test its own
+# lane edit. Push to a ci/** branch with the stubs' `uses:` ref (and the
+# composite-action refs below) temporarily re-pointed at that branch;
+# restore @main before merge. Procedure and the tripwire that enforces
+# the restore are in .github/workflows/README.md.
+#
+# See .github/workflows/README.md for the operating manual.
+
+name: PXF DB Extensions lane
+
+on:
+  workflow_call:
+    inputs:
+      # THE PINS — one per database major; each tag and commit SHA move
+      # together. Bump a tag, its commit SHA, and the image digest
+      # together in a deliberate PR (procedure in the README).
+      whpg7-tag:
+        description: 'WarehousePG 7 tag to build and test against'
+        type: string
+        default: 7.6.0-WHPG
+      whpg7-sha:
+        description: 'Commit the WHPG 7 tag must resolve to (asserted at build and before every use)'
+        type: string
+        default: 0f73ef6e0729cbf71cf225b41d58e1bd1090f335
+      whpg6-tag:
+        description: 'WarehousePG 6 tag to build and test against'
+        type: string
+        default: 6.27.6-WHPG
+      whpg6-sha:
+        description: 'Commit the WHPG 6 tag must resolve to'
+        type: string
+        default: 21ac220dadff9b5db4469a40a13247ee422e482a
+      build-image-digest:
+        # Feeds every container.image line AND the cache keys, so a
+        # digest bump invalidates trees built in the old image.
+        description: 'Digest of ghcr.io/warehouse-pg/whpg-rocky8-build to build and test in'
+        type: string
+        default: sha256:eb86bfda04a722d1159282fd2468c772d4647b5d416bb0d204c757b66d8dff98
+      refs:
+        # The checks legs run once per ref in this JSON list, per major.
+        # "" = the triggering ref (every PR/push/dispatch run). The weekly
+        # stub passes '["main", "release-6.x"]' on the schedule, because
+        # schedules fire only from the default branch and this is how
+        # release-6.x gets its weekly coverage.
+        description: 'JSON list of refs to check out for the checks legs ("" = the triggering ref)'
+        type: string
+        default: '[""]'
+      debug-enabled:
+        description: 'Start a tmate debug session if a checks leg fails (workflow_dispatch only)'
+        type: boolean
+        default: false
+
+# No workflow-level `permissions:` here on purpose. A called job can only
+# DOWNGRADE the token its caller passes; a called job that asks for more
+# than the caller granted fails the run at startup. So the jobs that
+# never write (plan, checks, upstream-canary, watcher-selftest) pin
+# themselves to contents: read, and the two that file issues
+# (pin-freshness, failure-issue) declare nothing and inherit the
+# caller's grant: contents: read from the pull_request stub (they never
+# run there — see their `if:`), contents: read + issues: write from the
+# weekly stub.
+
+# No `concurrency:` here either: the stubs own it (a called workflow
+# reusing the caller's group would cancel the caller).
+
+env:
+  PREFIX: /usr/local/greenplum-db-devel
+
+jobs:
+
+  # ---------------------------------------------------------------------
+  # plan: the single source of the major list and the pins. Turns the
+  # four pin inputs into the leg matrices every other job consumes via
+  # fromJSON: checks gets (ref x major) legs, pin-freshness gets one leg
+  # per major. Pure expression work — seconds, no checkout, no
+  # infrastructure — so it is a safe needs: edge; if it fails, nothing
+  # else should run anyway (a malformed pin is a lane bug, not a
+  # per-major failure).
+  # ---------------------------------------------------------------------
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      checks-matrix: ${{ steps.emit.outputs.checks }}
+      pins-matrix: ${{ steps.emit.outputs.pins }}
+    steps:
+      - name: Emit the leg matrices from the pins
+        id: emit
+        env:
+          WHPG7_TAG: ${{ inputs.whpg7-tag }}
+          WHPG7_SHA: ${{ inputs.whpg7-sha }}
+          WHPG6_TAG: ${{ inputs.whpg6-tag }}
+          WHPG6_SHA: ${{ inputs.whpg6-sha }}
+          REFS: ${{ inputs.refs }}
+        run: |
+          # Fail at second zero on a malformed pin: a SHA that is not a
+          # full commit id would otherwise be found ~10 minutes into a
+          # cold build, by git.
+          for v in WHPG7_SHA WHPG6_SHA; do
+            [[ "${!v}" =~ ^[0-9a-f]{40}$ ]] || { echo "ERROR: $v must be a 40-hex commit SHA, got '${!v}'" >&2; exit 1; }
+          done
+          for v in WHPG7_TAG WHPG6_TAG; do
+            [ -n "${!v}" ] || { echo "ERROR: $v is empty" >&2; exit 1; }
+          done
+          jq -e 'type == "array" and length > 0 and all(type == "string")' <<<"$REFS" >/dev/null \
+            || { echo "ERROR: refs must be a non-empty JSON list of strings, got '$REFS'" >&2; exit 1; }
+          # Order matters for nothing but the Actions UI: whpg7 first.
+          pins=$(jq -nc --arg t7 "$WHPG7_TAG" --arg s7 "$WHPG7_SHA" --arg t6 "$WHPG6_TAG" --arg s6 "$WHPG6_SHA" \
+                 '[{major: "7", tag: $t7, sha: $s7}, {major: "6", tag: $t6, sha: $s6}]')
+          checks=$(jq -nc --argjson refs "$REFS" --argjson pins "$pins" \
+                   '[$refs[] as $r | $pins[] | . + {ref: $r}]')
+          {
+            echo "pins={\"include\":$pins}"
+            echo "checks={\"include\":$checks}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### plan"
+            echo '```json'
+            jq . <<<"$checks"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # checks: ONE self-contained job per (ref x major) leg — restore the
+  # pinned WarehousePG tree from cache (or build it in-run on a miss,
+  # main-only cache writer), verify provenance, compile both extensions,
+  # then run their pg_regress suites in a demo cluster. Steps, not
+  # chained jobs: a whpg6 infrastructure failure cannot touch the whpg7
+  # leg, because no major's job waits on another's. The compile step is
+  # kept separate from the installcheck script so header/ABI drift (the
+  # most likely C regression class) still fails with its own name.
+  #
+  # Cold-cache note: on a weekly run (two refs post-backport) the legs
+  # of one major share a cache key; on a cold week both build the same
+  # tree in parallel and the second save is a no-op warning. Accepted:
+  # pin bumps are rare and wall time is unchanged (legs are parallel).
+  # ---------------------------------------------------------------------
+  checks:
+    name: checks${{ matrix.ref && format(' [{0}]', matrix.ref) || '' }} [whpg${{ matrix.major }}]
+    needs: [plan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Cold worst case: one major's source build plus the demo cluster
+    # and six suites (whpg6 is the slow leg) — 60 covers it with
+    # headroom; a cache-hit run finishes well under half that. With
+    # debug-enabled: +30 for the opt-in tmate step.
+    timeout-minutes: ${{ inputs.debug-enabled && 90 || 60 }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.checks-matrix) }}
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@${{ inputs.build-image-digest }}
+      # Unprivileged demo cluster: root user for setup, fixed hostname,
+      # and enough shared memory for the segments.
+      options: --user root --hostname cdw --shm-size=2gb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref }}
+      - name: Restore the installed tree from cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: whpg-dist
+          # Exact-match only (no restore-keys): a stale or wrong-version
+          # tree can never be silently reused; the key self-invalidates
+          # when the pin is bumped. The script hash is of the CHECKED-OUT
+          # branch's build-whpg.bash (scripts travel with the branch).
+          key: whpg${{ matrix.major }}-el8-${{ matrix.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ inputs.build-image-digest }}
+      - name: Restore the whpg6 toolchain cache
+        # Only the whpg6 recipe reaches the network on a whpg-dist miss
+        # (python2 via yum, Xerces 3.1 via archive.apache.org). Keyed on
+        # the image digest, not the pin, so pin-bump weeks — when the
+        # whpg-dist cache is cold — still build offline. Restored on
+        # EVERY whpg6 leg, not just build legs: restore refreshes the
+        # cache's last-access time, and entries unused ~7 days are
+        # evicted (README) — gating this on a whpg-dist miss would let
+        # the cache die between pin bumps, the one window it exists for.
+        id: toolchain
+        if: matrix.major == '6'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /var/cache/dnf
+            /tmp/xerces-prebuilt
+          key: whpg6-toolchain-el8-xerces312-${{ inputs.build-image-digest }}
+      - name: Build WarehousePG from source (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          WHPG_REF: ${{ matrix.tag }}
+          WHPG_SHA: ${{ matrix.sha }}
+          WHPG_MAJOR: ${{ matrix.major }}
+        run: |
+          bash .github/scripts/build-whpg.bash
+          mkdir -p whpg-dist
+          tar czf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX" .
+      - name: Save the installed tree to cache
+        # Only runs on main may write the cache (the weekly schedule is
+        # the steady writer); a topic-branch or dispatch run can never
+        # pin a cache that PRs would then miss.
+        if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: whpg-dist
+          key: whpg${{ matrix.major }}-el8-${{ matrix.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ inputs.build-image-digest }}
+      - name: Save the whpg6 toolchain cache
+        if: >-
+          steps.cache.outputs.cache-hit != 'true' && matrix.major == '6' &&
+          steps.toolchain.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /var/cache/dnf
+            /tmp/xerces-prebuilt
+          key: whpg6-toolchain-el8-xerces312-${{ inputs.build-image-digest }}
+      - name: Unpack and assert provenance
+        # The ref alone is a mutable tag name — the action asserts the
+        # commit SHA (and the gp major) before anything uses the tree.
+        uses: warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@main
+        with:
+          prefix: ${{ env.PREFIX }}
+          ref: ${{ matrix.tag }}
+          sha: ${{ matrix.sha }}
+          major: ${{ matrix.major }}
+      - name: Compile both extensions
+        run: |
+          source "$PREFIX/greenplum_path.sh"
+          make -C external-table
+          make -C fdw
+      - name: Demo cluster + extension installchecks
+        env:
+          WHPG_REF: ${{ matrix.tag }}
+          PXF_SRC: ${{ github.workspace }}
+        run: bash .github/scripts/run-db-extension-checks.bash
+      - name: Upload regression diffs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: installcheck-results${{ matrix.ref && format('-{0}', matrix.ref) || '' }}-whpg${{ matrix.major }}
+          path: |
+            external-table/regression.diffs
+            external-table/regression.out
+            external-table/results/
+            fdw/regression.diffs
+            fdw/regression.out
+            fdw/results/
+          if-no-files-found: ignore
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### checks whpg${{ matrix.major }} (${{ job.status }})"
+            echo "- pin: ${{ matrix.tag }} (${{ matrix.sha }})"
+            echo "- cache hit: ${{ steps.cache.outputs.cache-hit == 'true' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+      # action-tmate assumes apt; install via yum on Rocky first.
+      - name: Install tmate (dispatch-only, opt-in)
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug-enabled
+        run: |
+          yum install -y --setopt=keepcache=1 epel-release
+          yum install -y --setopt=keepcache=1 tmate
+      - name: Debug session (dispatch-only, opt-in)
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113   # v3.24
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.debug-enabled
+        timeout-minutes: 30
+        with:
+          install-dependencies: false
+
+  # ---------------------------------------------------------------------
+  # upstream-canary: build WarehousePG@main and run the same checks —
+  # early warning that upstream changes broke the PXF C layer. Weekly
+  # only, never on pull requests: upstream drift is not a PR author's
+  # fault and must never appear as a red leg on someone's PR. The cache
+  # is keyed by main's current commit, so a week where main has not
+  # moved skips the rebuild.
+  # ---------------------------------------------------------------------
+  upstream-canary:
+    name: upstream-canary
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 60   # includes a cold source build of upstream main when it has moved
+    container:
+      image: ghcr.io/warehouse-pg/whpg-rocky8-build@${{ inputs.build-image-digest }}
+      options: --user root --hostname cdw --shm-size=2gb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # On the weekly schedule the canary certifies PXF main against
+          # WarehousePG main. On workflow_dispatch it deliberately tests
+          # the DISPATCHED ref instead: that is how a branch checks its own
+          # fixtures against upstream head before merging. A red
+          # dispatched canary therefore means "this branch vs upstream",
+          # not necessarily "upstream broke main".
+          ref: ${{ github.event_name == 'schedule' && 'main' || '' }}
+      - name: Resolve WarehousePG main
+        id: upstream
+        run: |
+          sha=$(git ls-remote https://github.com/warehouse-pg/warehouse-pg refs/heads/main | cut -f1)
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Restore the canary tree from cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ inputs.build-image-digest }}
+      - name: Build WarehousePG@main (upstream moved since the last run)
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          WHPG_REF: main
+          WHPG_SHA: ${{ steps.upstream.outputs.sha }}
+        run: |
+          bash .github/scripts/build-whpg.bash
+          mkdir -p whpg-dist
+          tar czf whpg-dist/whpg-install-el8.tar.gz -C "$PREFIX" .
+      - name: Save the canary tree to cache
+        # Main-only writer, same rationale as the checks legs' save.
+        if: steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: whpg-dist
+          key: whpg-el8-main-${{ steps.upstream.outputs.sha }}-${{ hashFiles('.github/scripts/build-whpg.bash') }}-${{ inputs.build-image-digest }}
+      - name: Unpack and assert provenance
+        # Same consumer discipline as the checks legs: assert before use
+        # (run-db-extension-checks.bash re-asserts later, but the compile
+        # step must not run against an unverified tree either). No major
+        # assert: upstream main is whatever major upstream says it is.
+        uses: warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@main
+        with:
+          prefix: ${{ env.PREFIX }}
+          ref: main
+          sha: ${{ steps.upstream.outputs.sha }}
+      - name: Compile both extensions against upstream main
+        run: |
+          source "$PREFIX/greenplum_path.sh"
+          make -C external-table
+          make -C fdw
+      - name: Demo cluster + extension installchecks against upstream main
+        env:
+          WHPG_REF: main
+          PXF_SRC: ${{ github.workspace }}
+        run: bash .github/scripts/run-db-extension-checks.bash
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### upstream-canary (${{ job.status }})"
+            echo "- WarehousePG main: ${{ steps.upstream.outputs.sha }}"
+            echo "- cache hit (main unmoved since last run): ${{ steps.cache.outputs.cache-hit == 'true' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # watcher-selftest: the pin watcher's decision table and tag filter
+  # are pure scripts with fixture tests. The pin-freshness job itself
+  # never runs on pull requests, so THIS job is what gates a PR that
+  # edits the watcher scripts (they are in the stub's path filter):
+  # broken detector logic must fail the PR, not the next Monday cron.
+  # Seconds, no permissions, no WarehousePG needed.
+  #
+  # It also carries the lane's tripwire: on a pull_request every
+  # `warehouse-pg/whpg-pxf/.github/...@<ref>` reference in the PR's
+  # workflow and action files must point at @main. Trialling a lane
+  # change from a ci/** branch re-points those refs at the branch
+  # (README: "Testing a change to the lane"); a PR must not merge with
+  # the re-point still in place, or the stub would follow a branch that
+  # is about to be deleted. Pushes to ci/** are exempt — there the
+  # re-point is the point.
+  # ---------------------------------------------------------------------
+  watcher-selftest:
+    name: watcher-selftest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the pin-watcher fixture tests
+        run: bash .github/scripts/test-pin-freshness-decide.bash
+      - name: Run the suite-derivation fixture tests
+        run: bash .github/scripts/test-derive-regress.bash
+      - name: Assert the lane references resolve to @main (pull requests only)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Match the ref part of every same-repo reusable-workflow or
+          # composite-action reference in the YAML (not the README, which
+          # spells out the re-point as an example); anything but @main
+          # is a trial re-point that must not merge.
+          offenders=$(grep -rnoE --include='*.yml' \
+                        'warehouse-pg/whpg-pxf/\.github/[A-Za-z0-9._/-]+@[A-Za-z0-9._/-]+' \
+                        .github/workflows .github/actions 2>/dev/null \
+                      | grep -v '@main$' || true)
+          if [ -n "$offenders" ]; then
+            echo "ERROR: lane references re-pointed away from @main (restore before merge):" >&2
+            echo "$offenders" >&2
+            exit 1
+          fi
+          echo "all same-repo lane references resolve @main"
+
+  # ---------------------------------------------------------------------
+  # pin-freshness: weekly watcher over the version pin. Three
+  # conditions, in priority order: the pinned tag was DELETED upstream
+  # (the next cache miss cannot rebuild), the pinned tag MOVED
+  # (annotated tags are peeled to their commit before comparing — the
+  # 7.2.1-WHPG precedent), or a NEWER tag exists in that major's family
+  # (upgrade nudge). One matrix leg per pinned major; each leg
+  # files/updates/auto-closes ITS OWN issue, all labeled
+  # ci-db-extensions-pin and told apart by a major-scoped marker in the
+  # issue body, so the legs never touch each other's issue.
+  # The decision table is a pure script whose fixture tests run first;
+  # live issue mutation happens only on main runs (the same
+  # main-only-writer discipline as the caches) — elsewhere the decision
+  # is echoed to the step summary.
+  #
+  # Token: NO permissions block here, deliberately — this job inherits
+  # the caller's grant (issues: write from the weekly stub, which is the
+  # only stub whose events reach this job's `if:`). Declaring
+  # issues: write here would make the pull_request stub's call fail at
+  # startup, because that stub grants contents: read only.
+  # ---------------------------------------------------------------------
+  pin-freshness:
+    name: pin-freshness [whpg${{ matrix.major }}]
+    needs: [plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      # One leg per pinned major; issue state is major-scoped (the
+      # body marker carries the major), so the legs never touch each
+      # other's issues and can run in parallel.
+      matrix: ${{ fromJSON(needs.plan.outputs.pins-matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-test the decision logic (fixtures)
+        # Runs with a CLEAN environment on purpose: the fixtures include
+        # "missing PIN_TAG fails loud", so the leg's pin must not be in
+        # scope here — it is step-scoped on the two steps below, not
+        # job-level env.
+        run: bash .github/scripts/test-pin-freshness-decide.bash
+      - name: Gather upstream state and decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAJOR: ${{ matrix.major }}
+          PIN_TAG: ${{ matrix.tag }}
+          PIN_SHA: ${{ matrix.sha }}
+        run: |
+          # Prefix-narrowed server-side (the unqualified tags endpoint
+          # carries ~300 refs) and --paginate so growth past one page
+          # can never hide tags.
+          refs=$(gh api "repos/warehouse-pg/warehouse-pg/git/matching-refs/tags/${MAJOR}." --paginate)
+          # Selection filter lives in a pure fixture-tested script (see
+          # test-pin-freshness-decide.bash), not inline here.
+          newest=$(jq -r '.[].ref' <<<"$refs" | sed 's|refs/tags/||' \
+            | bash .github/scripts/pin-freshness-newest.bash "$MAJOR")
+          # Peel the pinned tag to a COMMIT: annotated tags resolve to
+          # a tag object whose SHA can never equal the pinned commit.
+          obj_type=$(jq -r --arg t "refs/tags/${PIN_TAG}" '[.[] | select(.ref==$t)][0].object.type // empty' <<<"$refs")
+          pinned_commit=$(jq -r --arg t "refs/tags/${PIN_TAG}" '[.[] | select(.ref==$t)][0].object.sha // empty' <<<"$refs")
+          hops=0
+          while [ "$obj_type" = "tag" ] && [ "$hops" -lt 5 ]; do
+            IFS=$'\t' read -r obj_type pinned_commit < <(gh api "repos/warehouse-pg/warehouse-pg/git/tags/${pinned_commit}" --jq '[.object.type, .object.sha] | @tsv')
+            hops=$((hops + 1))
+          done
+          # Migration tripwire: the marker format changed from
+          # "<kind>:<detail>" to "whpg<major>:<kind>:<detail>". An issue
+          # written in the old format can never match the lookup below —
+          # it would be orphaned and a duplicate filed. None existed when
+          # this landed; if one ever appears, fail loud and name it rather
+          # than silently double up.
+          legacy=$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci-db-extensions-pin --state open \
+            --json number,body \
+            | jq -r '.[] | select(.body | test("<!-- pin-state: [^w]")) | .number')
+          if [ -n "$legacy" ]; then
+            echo "ERROR: open ci-db-extensions-pin issue(s) carry the pre-matrix marker format: #${legacy//$'\n'/ #}" >&2
+            echo "       Close or re-label them by hand, then re-run." >&2
+            exit 1
+          fi
+          # One open watcher issue max PER MAJOR; the body marker
+          # carries the major (never parsed from the title — titles get
+          # edited), so this leg only ever sees its own major's issue.
+          # gh's --jq does not take jq flags like --arg — use real jq.
+          # shellcheck disable=SC2016  # $m is a jq variable, not shell
+          issue_json=$(gh issue list --repo "$GITHUB_REPOSITORY" --label ci-db-extensions-pin --state open \
+            --json number,body \
+            | jq --arg m "<!-- pin-state: whpg${MAJOR}:" '[.[] | select(.body | contains($m))][0] // empty')
+          open_issue=""; open_state=""
+          if [ -n "$issue_json" ]; then
+            open_issue=$(jq -r '.number' <<<"$issue_json")
+            open_state=$(jq -r '.body' <<<"$issue_json" | sed -n 's/.*<!-- pin-state: \(.*\) -->.*/\1/p' | head -1)
+          fi
+          out=$(MAJOR="$MAJOR" NEWEST_TAG="$newest" PINNED_TAG_COMMIT="$pinned_commit" \
+                OPEN_ISSUE="$open_issue" OPEN_STATE="$open_state" \
+                bash .github/scripts/pin-freshness-decide.bash)
+          echo "$out"
+          {
+            echo "action=$(sed -n 's/^ACTION=//p' <<<"$out")"
+            echo "state=$(sed -n 's/^STATE=//p' <<<"$out")"
+            echo "open_issue=$open_issue"
+            echo "newest=$newest"
+          } >> "$GITHUB_OUTPUT"
+      - name: Execute the decision (live on main, echo elsewhere)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ steps.decide.outputs.action }}
+          STATE: ${{ steps.decide.outputs.state }}
+          OPEN_ISSUE: ${{ steps.decide.outputs.open_issue }}
+          NEWEST: ${{ steps.decide.outputs.newest }}
+          MAJOR: ${{ matrix.major }}
+          PIN_TAG: ${{ matrix.tag }}
+          PIN_SHA: ${{ matrix.sha }}
+        run: |
+          # STATE format: whpg<major>:<kind>:<detail>
+          kind=$(cut -d: -f2 <<<"$STATE"); detail=$(cut -d: -f3- <<<"$STATE")
+          case "$kind" in
+            stale)
+              title="DB extensions CI: WHPG${MAJOR} pin is stale: ${detail} available (pin: ${PIN_TAG})"
+              text="Upstream has a newer WHPG${MAJOR} release tag: \`${detail}\` (this lane pins \`${PIN_TAG}\`). Bump procedure: .github/workflows/README.md → 'The version pins'." ;;
+            retag)
+              title="DB extensions CI: WHPG${MAJOR} pinned tag moved upstream: ${PIN_TAG} no longer at ${PIN_SHA}"
+              text="⚠️ The pinned tag \`${PIN_TAG}\` now resolves to commit \`${detail}\`, not the pinned \`${PIN_SHA}\`. Either upstream re-cut the tag legitimately (verify, then bump the SHA) or something is wrong — treat as a supply-chain signal until explained." ;;
+            deleted)
+              title="DB extensions CI: WHPG${MAJOR} pinned tag no longer exists upstream: ${PIN_TAG}"
+              text="⚠️ The pinned tag \`${PIN_TAG}\` is gone from warehouse-pg. The next cache miss cannot rebuild the install tree. Re-pin to an existing tag (procedure: .github/workflows/README.md → 'The version pins')." ;;
+            *)  title=""; text="" ;;
+          esac
+          body=$(printf '%s\n\n<!-- pin-state: %s -->' "$text" "$STATE")
+          if [ "$GITHUB_REF" != "refs/heads/main" ] && [ "$ACTION" != "none" ]; then
+            {
+              echo "### pin-freshness (DRY RUN — not on main, no issue mutation)"
+              echo "- action: $ACTION"
+              echo "- state: ${STATE:-healthy}"
+              echo "- title: ${title:-n/a}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          case "$ACTION" in
+            none)
+              echo "pin healthy or already reported (${STATE:-healthy}) — nothing to do" ;;
+            create)
+              gh label create ci-db-extensions-pin --repo "$GITHUB_REPOSITORY" \
+                --description "A WarehousePG version pin of the DB-extensions lane needs attention" --color D93F0B --force
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+                --label ci-db-extensions-pin --body "$body" ;;
+            comment)
+              gh issue comment "$OPEN_ISSUE" --repo "$GITHUB_REPOSITORY" --body "$text"
+              # Refresh the body marker so next week's run sees the
+              # currently-reported state, not the original one.
+              gh issue edit "$OPEN_ISSUE" --repo "$GITHUB_REPOSITORY" --body "$body" ;;
+            close)
+              gh issue close "$OPEN_ISSUE" --repo "$GITHUB_REPOSITORY" \
+                --comment "The pin caught up (\`${PIN_TAG}\` @ \`${PIN_SHA}\` is current) — auto-closing." ;;
+          esac
+          {
+            echo "### pin-freshness whpg${MAJOR} (${ACTION})"
+            echo "- pin: ${PIN_TAG} (${PIN_SHA})"
+            echo "- newest upstream: ${NEWEST}"
+            echo "- state: ${STATE:-healthy}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # failure-issue: scheduled failures block nobody's PR, so they
+  # are otherwise silent. Open (or update) a labeled issue on red.
+  # Token: inherited from the weekly stub (see pin-freshness).
+  # ---------------------------------------------------------------------
+  failure-issue:
+    name: failure-issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [plan, checks, upstream-canary, pin-freshness, watcher-selftest]
+    # A needed job that hits its own timeout-minutes ends 'cancelled', not
+    # 'failure' -- match both, or a hung canary files no issue at all.
+    if: always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    steps:
+      - name: Open or update the failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create ci-db-extensions-failure --repo "$GITHUB_REPOSITORY" \
+            --description "A scheduled C-extension CI run failed" --color B60205 --force
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label ci-db-extensions-failure --state open \
+            --json number --jq '.[0].number // empty')
+          body="A scheduled PXF DB Extensions CI run failed: $RUN_URL"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Weekly PXF DB Extensions CI run is failing" \
+              --label ci-db-extensions-failure --body "$body"
+          fi
