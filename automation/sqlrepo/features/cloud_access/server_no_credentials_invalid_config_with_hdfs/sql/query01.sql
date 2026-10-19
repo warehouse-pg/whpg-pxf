@@ -6,6 +6,9 @@
 --
 -- # create a match/subs
 --
+-- # SDK v1 wording (AmazonS3Exception: Forbidden) and the hadoop-aws 3.4 / SDK v2
+-- # wording (getFileStatus on s3a://...: software.amazon.awssdk.services.s3.model.S3Exception:
+-- # Forbidden (Service: S3, Status Code: 403, Request ID: ...)) both normalize to the line below
 -- m/PXF server error.*(AmazonS3Exception: Forbidden|S3Exception: Forbidden).*/
 -- s/PXF server error.*/PXF server error : com.amazonaws.services.s3.model.AmazonS3Exception: Forbidden/
 --

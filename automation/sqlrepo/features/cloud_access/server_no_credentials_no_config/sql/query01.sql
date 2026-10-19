@@ -6,6 +6,10 @@
 --
 -- # create a match/subs
 --
+-- # SDK v1 wording (AmazonClientException: No AWS Credentials provided by
+-- # BasicAWSCredentialsProvider) and the hadoop-aws 3.4 / SDK v2 wording
+-- # (NoAuthWithAWSException: No AWS Credentials provided by TemporaryAWSCredentialsProvider
+-- # SimpleAWSCredentialsProvider ... : SdkClientException) both normalize to the line below
 -- m/PXF server error.*No AWS Credentials provided by.*/
 -- s/PXF server error.*/PXF server error : com.amazonaws.AmazonClientException: No AWS Credentials provided by BasicAWSCredentialsProvider/
 --
