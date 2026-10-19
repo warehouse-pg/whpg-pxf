@@ -6,7 +6,7 @@ m/^Picked up JAVA_TOOL_OPTIONS: -Dfile\.encoding=UTF8$/
 m/^SLF4J: Class path contains multiple SLF4J bindings\.$/
 m/^SLF4J: Found binding in \[jar:file:.*\.class\]$/
 m/^SLF4J: See http:\/\/www\.slf4j\.org\/codes\.html#multiple_bindings for an explanation\.$/
-m/^SLF4J: Actual binding is of type \[org\.slf4j\.impl\.Log4jLoggerFactory\]$/
+m/^SLF4J: Actual binding is of type \[.*\]$/
 m/^\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} INFO Configuration\.deprecation: io\.bytes\.per\.checksum is deprecated\. Instead, use dfs\.bytes-per-checksum$/
 m/^\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} INFO gcs\.GoogleHadoopFileSystemBase: GHFS version: \d+\.\d+\.\d+-hadoop\d$/
 m/\d{2}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} WARN gcs\.GoogleHadoopFileSystemBase: No working directory configured, using default: 'gs:\/\/data-gpdb-ud-tpch\/'$/
