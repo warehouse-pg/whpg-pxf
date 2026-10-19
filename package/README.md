@@ -8,9 +8,13 @@ PXF consists of 3 groups of artifacts, each developed using a different underlyi
 * Script Cluster Plugin -- written in Go; when built, produces a `pxf-cli` executable
 
 The distributed PXF package for WarehousePG is **`edb-whpg<N>-pxf`** — one RPM per WarehousePG major
-version. It is produced by the WarehousePG extension-packaging build (which compiles PXF via the top-level
-`make stage` target and assembles the RPM from its own release spec); it is **not** built from this
-directory. This document describes that package and how to install, upgrade, and remove it.
+version. It is produced by the WarehousePG extension-packaging build, which compiles PXF via the top-level
+`make stage` target and assembles the RPM from its own release spec. This repository holds no package
+specs or installer scripts of its own; the former in-tree `pxf-gp<N>.spec`, Debian control files and
+`install_*` helpers (and the `make tar` / `rpm` / `deb` targets that used them) were a Greenplum-era
+source-build path with no consumer and were removed. They remain in history under the
+`archive/concourse-final` tag. This document describes the shipped package and how to install, upgrade,
+and remove it.
 
 ## The package
 
@@ -46,8 +50,3 @@ sudo rpm -e edb-whpg7-pxf
 ```
 This removes the files installed by the package and the PXF runtime directories. The PXF configuration
 directory is preserved.
-
----
-> The in-repo `pxf-gp<N>.spec` files (and the `make rpm` / `make deb` targets) are a **legacy source-build**
-> path; they are **not** used to produce the released `edb-whpg<N>-pxf` package and are retained for
-> reference only.

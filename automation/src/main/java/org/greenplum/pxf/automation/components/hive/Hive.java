@@ -128,7 +128,12 @@ public class Hive extends DbSystemObject {
     @Override
     public void setHost(String host) {
 
-        this.host = replaceUser(host);
+        this.host = replaceIpa(replaceUser(host));
+    }
+
+    @Override
+    public void setKerberosPrincipal(String kerberosPrincipal) {
+        this.kerberosPrincipal = replaceIpa(kerberosPrincipal);
     }
 
     @Override

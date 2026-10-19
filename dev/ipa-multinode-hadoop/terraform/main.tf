@@ -14,7 +14,7 @@ resource "tls_private_key" "keypair_gen" {
 # This is tricky because the tls_private_key appends a newline to the key blob
 # This variable gets around the trickyness in order to form a valid key
 locals {
-  ssh-key = "${replace(tls_private_key.keypair_gen.public_key_openssh, "\n", "")} pvtl-gp-ud@vmware.com"
+  ssh-key = "${replace(tls_private_key.keypair_gen.public_key_openssh, "\n", "")} whpg-pxf-dev@example.com"
 }
 
 resource "google_compute_instance" "ipa" {
@@ -33,7 +33,7 @@ resource "google_compute_instance" "ipa" {
     subnetwork  = var.subnet
   }
 
-  tags = ["tag-concourse-dynamic", "bosh-network", "outbound-through-nat"]
+  tags = var.network_tags
 
   metadata = {
     block-project-ssh-keys = true
@@ -42,12 +42,7 @@ resource "google_compute_instance" "ipa" {
 
   labels = {
     terraform                = true
-    build_id                 = var.build_id
-    concourse_team_name      = var.build_team_name
     host_name                = "ipa"
-    ccp_fail_timestamp       = ""
-    ccp_reap_mins            = var.ccp_reap_mins
-    ccp_fail_status_behavior = var.ccp_fail_status_behavior
   }
 }
 
@@ -91,7 +86,7 @@ resource "google_compute_instance" "namenode" {
     subnetwork  = var.subnet
   }
 
-  tags = ["tag-concourse-dynamic", "bosh-network", "outbound-through-nat"]
+  tags = var.network_tags
 
   metadata = {
     block-project-ssh-keys = true
@@ -100,12 +95,7 @@ resource "google_compute_instance" "namenode" {
 
   labels = {
     terraform                = true
-    build_id                 = var.build_id
-    concourse_team_name      = var.build_team_name
     host_name                = "nn${count.index+1}"
-    ccp_fail_timestamp       = ""
-    ccp_reap_mins            = var.ccp_reap_mins
-    ccp_fail_status_behavior = var.ccp_fail_status_behavior
   }
 
   # this allows the VM to read objects from GCS without passing around a service account key
@@ -157,7 +147,7 @@ resource "google_compute_instance" "datanode" {
     subnetwork  = var.subnet
   }
 
-  tags = ["tag-concourse-dynamic", "bosh-network", "outbound-through-nat"]
+  tags = var.network_tags
 
   metadata = {
     block-project-ssh-keys = true
@@ -166,12 +156,7 @@ resource "google_compute_instance" "datanode" {
 
   labels = {
     terraform                = true
-    build_id                 = var.build_id
-    concourse_team_name      = var.build_team_name
     host_name                = "nn${count.index+1}"
-    ccp_fail_timestamp       = ""
-    ccp_reap_mins            = var.ccp_reap_mins
-    ccp_fail_status_behavior = var.ccp_fail_status_behavior
   }
 
   # this allows the VM to read objects from GCS without passing around a service account key
