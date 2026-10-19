@@ -82,6 +82,21 @@ dependencies {
     // joda-time, commons-logging — are already on the classpath).
     implementation("software.amazon.encryption.s3:amazon-s3-encryption-client-java:4.0.0") { transitive = false }
     implementation("software.amazon.awssdk:kms:${awsJavaSdkV2}")
+    // ... and, on every CSE *read*, the SAAJ reference implementation: the
+    // encryption client's ContentMetadataDecodingStrategy decodes the
+    // object's x-amz-* metadata with
+    // com.sun.xml.messaging.saaj.packaging.mime.internet.MimeUtility.decodeText
+    // (RFC 2047), declared compile-scope in its pom as saaj-impl, which the
+    // `transitive = false` above dropped. Writes worked (the encoding side
+    // does not use it); the first read of a CSE-KMS object failed with
+    //   NoClassDefFoundError: com/sun/xml/messaging/saaj/packaging/mime/internet/MimeUtility
+    // Found by the packaging smoke's CSE lane (PTT-1619, run 39257393110).
+    // Version tracks the encryption client's pom. Non-transitive: the
+    // packaging.mime classes MimeUtility.decodeText reaches (and their
+    // static initialisers, incl. SAAJUtil.getSystemProperty) reference only
+    // the JDK and saaj-impl itself -- the SOAP/StAX/activation dependencies
+    // of saaj-impl serve its SOAP side, which nothing here touches.
+    implementation("com.sun.xml.messaging.saaj:saaj-impl:2.0.1")                 { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-core")                { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-kms")                 { transitive = false }
     implementation("com.amazonaws:aws-java-sdk-s3")                  { transitive = false }
