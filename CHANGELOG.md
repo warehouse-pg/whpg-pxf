@@ -337,7 +337,10 @@ Two things deliberately did **not** move:
   service no longer hands resolvers a single whole-line `byte[]`: it passes the
   raw stream to resolvers annotated `@InputStreamHandler`, and (since 6.7.0)
   parses the line into one typed field per table column for all others. The
-  demo now re-joins those fields with the table's delimiter, so the
+  demo now re-joins those fields with the table's delimiter. For a CSV table it
+  also quotes a value again when it holds the delimiter, the quote or escape
+  character, or a line break, so the line reads back as the row that was
+  written; TEXT tables are written as-is (TEXT has no CSV quoting). The
   external-table regression suite's `pxf` write test passes on every supported
   WarehousePG major. Example code only; real connectors were not affected.
 
