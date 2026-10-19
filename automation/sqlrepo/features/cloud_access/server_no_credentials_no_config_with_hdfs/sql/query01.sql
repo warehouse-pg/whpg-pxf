@@ -6,7 +6,7 @@
 --
 -- # create a match/subs
 --
--- m/PXF server error.*(com.amazonaws.AmazonClientException: No AWS Credentials provided by BasicAWSCredentialsProvider).*/
+-- m/PXF server error.*No AWS Credentials provided by.*/
 -- s/PXF server error.*/PXF server error : com.amazonaws.AmazonClientException: No AWS Credentials provided by BasicAWSCredentialsProvider/
 --
 -- m/Check the PXF logs located in the.*/

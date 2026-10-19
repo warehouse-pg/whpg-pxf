@@ -6,7 +6,7 @@
 --
 -- # create a match/subs
 --
--- m/PXF server error.*(com.amazonaws.services.s3.model.AmazonS3Exception: Forbidden).*/
+-- m/PXF server error.*(AmazonS3Exception: Forbidden|S3Exception: Forbidden).*/
 -- s/PXF server error.*/PXF server error : com.amazonaws.services.s3.model.AmazonS3Exception: Forbidden/
 --
 -- m/DETAIL/

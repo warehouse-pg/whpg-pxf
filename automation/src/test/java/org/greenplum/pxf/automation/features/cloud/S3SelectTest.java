@@ -73,7 +73,11 @@ public class S3SelectTest extends BaseFeature {
         }
     }
 
-    @Test(groups = {"gpdb", "s3"})
+    // Its second query filters on l_quantity, a DECIMAL column, which the
+    // predicate builder pushes down as CAST(... AS decimal); MinIO's S3 Select
+    // has no DECIMAL/NUMERIC cast ("This cast not yet implemented"), so a run
+    // against MinIO excludes this group.
+    @Test(groups = {"gpdb", "s3", "s3SelectDecimalCast"})
     public void testPlainCsvWithHeaders() throws Exception {
         String[] userParameters = {"FILE_HEADER=IGNORE", "S3_SELECT=ON"};
         runTestScenario("csv", "s3", "csv", s3Path,

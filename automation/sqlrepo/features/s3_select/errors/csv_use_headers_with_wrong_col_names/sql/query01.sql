@@ -12,8 +12,10 @@
 -- m/file:.*;/
 -- s/file:.*; lineNumber: \d+; columnNumber: \d+;/SOME_ERROR_LOCATION/g
 --
--- m/Some headers in the query are missing from the file.*/
--- s/Some headers in the query are missing from the file.*/Some headers in the query are missing from the file. Please check the file and try again./
+-- # AWS: "Some headers in the query are missing from the file. Please check the file and try again."
+-- # MinIO: "S3 returned an error: column invalid_orderkey not found (InternalError)"; both normalize below
+-- m/PXF server error.*(Some headers in the query are missing from the file|column \S+ not found).*/
+-- s/PXF server error.*/PXF server error : Some headers in the query are missing from the file. Please check the file and try again./
 --
 -- m/DETAIL/
 -- s/DETAIL/CONTEXT/
