@@ -1,5 +1,5 @@
 output "ssh_config" {
-  value = templatefile("${path.module}/templates/${var.env_type}/ssh_config.tpl", {
+  value = templatefile("${path.module}/templates/ssh_config.tpl", {
     cluster_name = var.env_name
     ipa = google_compute_instance.ipa
     namenode = google_compute_instance.namenode
@@ -18,7 +18,7 @@ output "ansible_inventory" {
 }
 
 output "etc_hosts" {
-  value = templatefile("${path.module}/templates/${var.env_type}/etc_hosts.tpl", {
+  value = templatefile("${path.module}/templates/etc_hosts.tpl", {
     project_id = var.gcp_project
     ipa = google_compute_instance.ipa
     namenode = google_compute_instance.namenode
@@ -65,10 +65,10 @@ output "datanode_tls_cert" {
 
 output "project" {
   value = var.gcp_project
-  description = "the terraform state must include the GCP project as an output to allow for deleting VMs from failed CI tasks."
+  description = "GCP project the cluster lives in; dev/ipa-cluster.bash derives the Kerberos realm (C.<project>.INTERNAL) from it."
 }
 
 output "zone" {
   value = var.gcp_zone
-  description = "the terraform state must include the GCP zone as an output to allow for deleting VMs from failed CI tasks."
+  description = "GCE zone the VMs were created in."
 }
