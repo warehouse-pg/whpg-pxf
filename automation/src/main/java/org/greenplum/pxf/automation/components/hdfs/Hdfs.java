@@ -311,7 +311,14 @@ public class Hdfs extends BaseSystemObject implements IFSFunctionality {
     public void copyFromLocal(String srcPath, String destPath) throws Exception {
         ReportUtils.startLevel(report, getClass(), "Copy from " + srcPath
                 + " to " + destPath);
-        fs.copyFromLocalFile(new Path(srcPath), getDatapath(destPath));
+        // hadoop-aws 3.4's S3AFileSystem.copyFromLocalFile (CopyFromLocalOperation)
+        // resolves a relative local source against "/" instead of the working
+        // directory and fails with "No file: /src/test/resources/data/...";
+        // DistributedFileSystem resolves it against the working directory. The
+        // tests pass localDataResourcesFolder-relative paths, so qualify the
+        // local side here and both filesystems see the same file.
+        Path localSrc = new Path(new File(srcPath).getAbsolutePath());
+        fs.copyFromLocalFile(localSrc, getDatapath(destPath));
         ReportUtils.stopLevel(report);
     }
 
