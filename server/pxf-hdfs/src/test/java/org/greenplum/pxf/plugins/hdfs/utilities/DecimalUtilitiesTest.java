@@ -281,4 +281,24 @@ public class DecimalUtilitiesTest {
         decimalUtilities = new DecimalUtilities(DecimalOverflowOption.IGNORE, true);
         assertEquals(expected, decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
     }
+
+    @Test
+    public void testParseDecimalWithBigDecimalNaN() {
+        String decimalString = "NaN";
+        String expectedMessage = String.format("The value %s for the NUMERIC column %s is not a number and cannot be stored as a DECIMAL.",
+                decimalString, columnName);
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ERROR, true);
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+        assertEquals(expectedMessage, e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ROUND, true);
+        e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+        assertEquals(expectedMessage, e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.IGNORE, true);
+        assertNull(decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+    }
 }

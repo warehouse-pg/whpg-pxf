@@ -22,6 +22,7 @@ public class DecimalUtilities {
     private final boolean enforcePrecisionAndScaleOnIgnore;
     private boolean isPrecisionOverflowWarningLogged;
     private boolean isPrecisionAndScaleOverflowWarningLogged;
+    private boolean isNaNWarningLogged;
 
     /**
      * Construct a DecimalUtilities object carrying the decimal overflow option value,
@@ -37,6 +38,7 @@ public class DecimalUtilities {
         this.enforcePrecisionAndScaleOnIgnore = enforcePrecisionAndScaleOnIgnore;
         this.isPrecisionOverflowWarningLogged = false;
         this.isPrecisionAndScaleOverflowWarningLogged = false;
+        this.isNaNWarningLogged = false;
     }
 
     /**
@@ -74,6 +76,7 @@ public class DecimalUtilities {
      * This is used instead of {@link #parseDecimalStringWithHiveDecimal} when the precision exceeds what HiveDecimal can hold (38).
      * The overflow cases and the action for each option are the same as for {@link #parseDecimalStringWithHiveDecimal},
      * except that precision and scale are always enforced.
+     * NaN, which PG allows in a NUMERIC column but a DECIMAL cannot hold, is stored as NULL on 'ignore' and rejected otherwise.
      *
      * @param value      is the decimal string to be parsed
      * @param precision  is the decimal precision defined in the schema
@@ -82,6 +85,20 @@ public class DecimalUtilities {
      * @return NULL or a BigDecimal number whose scale is the given scale
      */
     public BigDecimal parseDecimalStringWithBigDecimal(String value, int precision, int scale, String columnName) {
+        if ("NaN".equalsIgnoreCase(value)) {
+            if (decimalOverflowOption == DecimalOverflowOption.IGNORE) {
+                LOG.trace("The value {} for the NUMERIC column {} is not a number and has been stored as NULL.", value, columnName);
+
+                if (!isNaNWarningLogged) {
+                    LOG.warn("There are rows where for the NUMERIC column {} the values are not a number and have been stored as NULL. " +
+                            "Enable TRACE log level for row-level details.", columnName);
+                    isNaNWarningLogged = true;
+                }
+                return null;
+            }
+            throw new UnsupportedTypeException(String.format("The value %s for the NUMERIC column %s is not a number and cannot be stored as a DECIMAL.",
+                    value, columnName));
+        }
         BigDecimal bigDecimal = new BigDecimal(value);
         switch (decimalOverflowOption) {
             case ERROR:

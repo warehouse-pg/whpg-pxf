@@ -2183,7 +2183,7 @@ public class ParquetWriteTest {
         validateWriteNumeric(expectedValues, new HashSet<>(), precision, scale, expectedValues.length);
     }
 
-    // Numeric precision above 38 (HiveDecimal's limit), test ignore flag. Values that overflow are stored as NULL
+    // Numeric precision above 38 (HiveDecimal's limit), test ignore flag. Values that overflow, and NaN, are stored as NULL
     @Test
     public void testWriteNumericWithPrecisionAbove38WithIgnoreFlag() throws Exception {
         String path = temp + "/out/numeric_with_precision_above_38_with_ignore_flag/";
@@ -2201,7 +2201,7 @@ public class ParquetWriteTest {
                 "99999999999999999999.9999999999999999999999999999999",
                 "1",
                 "2",
-                "3",
+                "NaN",
                 "4",
                 "5"
         };
@@ -2214,11 +2214,11 @@ public class ParquetWriteTest {
                 "",
                 "1.000000000000000000000000000000",
                 "2.000000000000000000000000000000",
-                "3.000000000000000000000000000000",
+                "",
                 "4.000000000000000000000000000000",
                 "5.000000000000000000000000000000"
         };
-        validateWriteNumeric(expectedValues, new HashSet<>(Arrays.asList(1, 2, 4)), precision, scale);
+        validateWriteNumeric(expectedValues, new HashSet<>(Arrays.asList(1, 2, 4, 7)), precision, scale);
     }
 
     // Numeric precision not defined, test ignore flag when data integer digits overflow. Data should be skipped
