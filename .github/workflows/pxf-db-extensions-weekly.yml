@@ -1,0 +1,56 @@
+# PXF DB Extensions weekly — the schedule/dispatch STUB for the
+# C-extension lane (.github/workflows/pxf-db-extensions-lane.yml on main,
+# called below @main). This is the stub that carries the lane's only
+# write permission: the pin watcher and the failure issue need
+# issues: write, a called workflow can only downgrade its caller's
+# grant, and the pull_request stub must stay read-only — so the
+# elevation lives here, on events a pull request can never raise.
+#
+# Both branches carry this stub for symmetry and so `Run workflow` works
+# from either, but the `schedule:` block is inert off the default
+# branch: GitHub evaluates cron triggers from main's real file only.
+# That is why the weekly run checks out BOTH branches (the `refs` input
+# below) — it is release-6.x's weekly coverage too.
+
+name: PXF DB Extensions weekly
+
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && inputs.reason
+      && format('[db-extensions weekly] {0}: dispatch — {1}', github.ref_name, inputs.reason)
+      || format('[db-extensions weekly] {0}: {1}', github.ref_name, github.event_name) }}
+
+on:
+  schedule:
+    - cron: '30 4 * * 1'   # Mondays 04:30 UTC — weekly rot-check + upstream canary (staggered after pxf-ci.yml)
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Start a tmate debug session if a checks leg fails'
+        type: boolean
+        default: false
+      reason:
+        description: 'Why this run was dispatched'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release-6.x' }}
+
+jobs:
+  db-extensions:
+    name: db-extensions
+    uses: warehouse-pg/whpg-pxf/.github/workflows/pxf-db-extensions-lane.yml@main
+    with:
+      # Weekly rot-check over both branches (schedules fire only from the
+      # default branch, so this is where release-6.x gets its weekly
+      # coverage; path filters do not apply to schedule events). A
+      # dispatch checks the DISPATCHED ref only — that is how a branch
+      # runs the full lane, canary and watcher dry-run included, on
+      # itself before merging.
+      refs: ${{ github.event_name == 'schedule' && '["main", "release-6.x"]' || '[""]' }}
+      debug-enabled: ${{ inputs.debug_enabled == true }}

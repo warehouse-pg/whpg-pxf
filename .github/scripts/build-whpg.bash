@@ -82,9 +82,8 @@ ccache --set-config=max_size=1G
 ccache --set-config=compression=true
 ccache --zero-stats
 
-echo "==> Configuring WarehousePG (major ${WHPG_MAJOR})"
 if [ "${WHPG_MAJOR}" = "6" ]; then
-  # WHPG 6 recipe, mirroring warehouse-pg's own 6.x CI with ONE
+  # WHPG 6 bring-up, mirroring warehouse-pg's own 6.x CI with ONE
   # deliberate, lane-scoped deviation: their CI re-runs configure with
   # PYTHON=python3 afterwards to rebuild ONLY plpython for its
   # regression tests — this lane runs no PL/Python suites, so that
@@ -164,26 +163,28 @@ if [ "${WHPG_MAJOR}" = "6" ]; then
   # The 3.2 headers must be GONE, or gcc could still resolve xercesc/
   # from /usr/include and reintroduce the char16_t failure.
   test ! -e /usr/include/xercesc
-
-  CC='ccache gcc -m64' \
-  CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
-  ./configure --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
-              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests \
-              --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
-              --with-libraries="" --disable-rpath \
-              --prefix="${PREFIX}" \
-              --mandir="${PREFIX}/man"
-else
-  # WHPG 7 recipe, as used by WarehousePG's own CI.
-  CC='ccache gcc -m64' \
-  CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
-  ./configure --with-quicklz --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy \
-              --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests --with-llvm \
-              --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes="" \
-              --with-libraries="" --disable-rpath \
-              --prefix="${PREFIX}" \
-              --mandir="${PREFIX}/man"
 fi
+
+echo "==> Configuring WarehousePG (major ${WHPG_MAJOR})"
+# ONE configure flag set for both majors — the recipe warehouse-pg's own
+# CI uses, which is identical across 6.x and 7.x except for two flags
+# WHPG 6 does not know: --with-quicklz and --with-llvm (appended below
+# for 7 only). Keeping a single list means a flag added for one major
+# cannot silently go missing from the other.
+configure_flags=(
+  --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy
+  --enable-orca --with-libxml --with-pythonsrc-ext --with-uuid=e2fs --with-pgport=5432 --enable-tap-tests
+  --enable-debug-extensions --with-perl --with-python --with-openssl --with-pam --with-ldap --with-includes=
+  --with-libraries= --disable-rpath
+  --prefix="${PREFIX}"
+  --mandir="${PREFIX}/man"
+)
+if [ "${WHPG_MAJOR}" = "7" ]; then
+  configure_flags+=(--with-quicklz --with-llvm)
+fi
+CC='ccache gcc -m64' \
+CFLAGS='-O2 -g3' LDFLAGS='-Wl,--enable-new-dtags -Wl,--export-dynamic' \
+./configure "${configure_flags[@]}"
 
 echo "==> Building"
 make -j"$(nproc)"
