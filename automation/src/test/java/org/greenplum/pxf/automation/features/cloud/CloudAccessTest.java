@@ -85,7 +85,12 @@ public class CloudAccessTest extends BaseFeature {
      * make sense in the environment with Kerberized Hadoop, where the tests in the "security" group would run
      */
 
-    @Test(groups = {"s3"})
+    // Needs servers/default WITHOUT a Hadoop configuration: the request goes to
+    // `default` and must reach S3 (or fail on credentials), whereas the
+    // *_with_hdfs twins in this class expect "profile 's3a' is not compatible
+    // with server's 'default' configuration ('hdfs')". One environment cannot run
+    // both; the extra group lets a run with Hadoop under default exclude these.
+    @Test(groups = {"s3", "s3NoHadoopDefault"})
     public void testCloudAccessFailsWhenNoServerNoCredsSpecified() throws Exception {
         runTestScenario("no_server_no_credentials", null, false);
     }
@@ -95,7 +100,12 @@ public class CloudAccessTest extends BaseFeature {
         runTestScenario("server_no_credentials_no_config", "s3-non-existent", false);
     }
 
-    @Test(groups = {"s3"})
+    // Needs servers/default WITHOUT a Hadoop configuration: the request goes to
+    // `default` and must reach S3 (or fail on credentials), whereas the
+    // *_with_hdfs twins in this class expect "profile 's3a' is not compatible
+    // with server's 'default' configuration ('hdfs')". One environment cannot run
+    // both; the extra group lets a run with Hadoop under default exclude these.
+    @Test(groups = {"s3", "s3NoHadoopDefault"})
     public void testCloudAccessOkWhenNoServerCredsNoConfigFileExists() throws Exception {
         runTestScenario("no_server_credentials_no_config", null, true);
     }
