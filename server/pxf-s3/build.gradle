@@ -91,7 +91,10 @@ dependencies {
     // does not use it); the first read of a CSE-KMS object failed with
     //   NoClassDefFoundError: com/sun/xml/messaging/saaj/packaging/mime/internet/MimeUtility
     // Found by the packaging smoke's CSE lane (PTT-1619, run 39257393110).
-    // Version tracks the encryption client's pom. Non-transitive: the
+    // Version tracks the encryption client's pom; server/build.gradle pins
+    // the Spring Boot BOM's saaj-impl.version to the same value, since
+    // otherwise the BOM's 1.5.3 wins inside pxf-service and the bootJar
+    // ships that instead of what is named here. Non-transitive: the
     // packaging.mime classes MimeUtility.decodeText reaches (and their
     // static initialisers, incl. SAAJUtil.getSystemProperty) reference only
     // the JDK and saaj-impl itself -- the SOAP/StAX/activation dependencies

@@ -4,7 +4,10 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,8 +26,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * type appearing in constructor/method signatures — which is where a
  * wrong coordinate, wrong scope, or missing signature-level transitive
  * shows up. References that only occur inside method bodies resolve
- * lazily at first execution and are NOT covered here; that residual is
- * the KMS-lane work tracked separately.
+ * lazily at first execution and are NOT covered by the signature tests;
+ * {@link #testEncryptionClientDecodesObjectMetadata()} executes the one
+ * such reference known to have bitten (saaj-impl's {@code MimeUtility}
+ * on the read path), and the remaining residual is the KMS-lane work
+ * tracked separately.
  */
 public class S3EncryptionClientLinkageTest {
 
@@ -41,6 +47,30 @@ public class S3EncryptionClientLinkageTest {
     public void testHadoopEncryptionFactoryLinksAgainstTheBundledClient() throws Exception {
         Class<?> clazz = Class.forName(HADOOP_ENCRYPTION_FACTORY, true, getClass().getClassLoader());
         assertTrue(forceSignatureResolution(clazz) >= 0);
+    }
+
+    /**
+     * The encryption client decodes every encrypted object's x-amz-*
+     * metadata through {@code ContentMetadataDecodingStrategy}, which
+     * calls saaj-impl's {@code MimeUtility.decodeText} from inside a
+     * method body. The signature tests above cannot see that reference,
+     * and without saaj-impl on the classpath the first CSE read fails
+     * with {@code NoClassDefFoundError: .../MimeUtility}. Running the
+     * decoder on an RFC 2047 encoded-word pins the jar. The payload stays
+     * ASCII: the method post-processes {@code decodeText}'s output with
+     * S3's own encoding, so a non-ASCII value would not come back as-is.
+     */
+    @Test
+    public void testEncryptionClientDecodesObjectMetadata() throws Exception {
+        Class<?> strategy = Class.forName(
+                "software.amazon.encryption.s3.internal.ContentMetadataDecodingStrategy",
+                true, getClass().getClassLoader());
+        Method decode = strategy.getDeclaredMethod("decodeS3CustomEncoding", String.class);
+        decode.setAccessible(true);
+        String encoded = "=?UTF-8?B?"
+                + Base64.getEncoder().encodeToString("hello-cse".getBytes(StandardCharsets.UTF_8))
+                + "?=";
+        assertEquals("hello-cse", decode.invoke(null, encoded));
     }
 
     /**
