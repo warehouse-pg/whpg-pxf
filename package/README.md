@@ -39,12 +39,16 @@ sudo chown -R gpadmin:gpadmin /usr/edb/whpg7-pxf
 A JDK (8 or 11) must be available to run the PXF server.
 
 ## Upgrade
-Use the same `rpm -U` command with the newer RPM:
+Run the same `rpm -U` command with the newer RPM on every host, then restart PXF once from the
+coordinator (as `gpadmin`):
 ```bash
-sudo rpm -Uvh edb-whpg7-pxf-<newer-version>-1.el8.x86_64.rpm
+sudo rpm -Uvh edb-whpg7-pxf-<newer-version>-1.el8.x86_64.rpm   # on every host
+pxf cluster restart                                              # once, from the coordinator
 ```
 The previous version's files and runtime directories are replaced, the extension control files are
-re-registered into `$GPHOME`, and your PXF configuration directory (`$PXF_BASE`) is left intact.
+re-registered into `$GPHOME`, and your PXF configuration directory (`$PXF_BASE`) is left intact. The
+running PXF servers keep serving the previous version until the restart; after it, every host runs the
+new one with its configuration and keytabs unchanged.
 
 ### Upgrading from 6.10.3 or earlier (install path change)
 
