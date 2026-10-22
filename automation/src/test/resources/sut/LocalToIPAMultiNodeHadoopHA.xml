@@ -51,7 +51,7 @@ make TEST=HdfsHAFailoverTest
         <workingDirectory>tmp/pxf_automation_data/__UUID__</workingDirectory>
         <haNameservice></haNameservice>
         <hadoopRoot>${HOME}/workspace/pxf/dev/ipa-multinode-hadoop/terraform/ipa_env_files</hadoopRoot>
-        <testKerberosPrincipal>stout@C.DATA-GPDB-UD-IPA.INTERNAL</testKerberosPrincipal>
+        <testKerberosPrincipal>stout@${ipa.realm}</testKerberosPrincipal>
         <testKerberosKeytab>${pxf.base}/servers/hdfs-ipa/hadoop.user.keytab</testKerberosKeytab>
         <sshUserName>hdfs</sshUserName>
         <sshPrivateKey>${HOME}/workspace/pxf/dev/ipa-multinode-hadoop/terraform/ipa_env_files/google_compute_engine</sshPrivateKey>
@@ -65,9 +65,9 @@ make TEST=HdfsHAFailoverTest
     </hive>
     <hiveIpa>
         <class>org.greenplum.pxf.automation.components.hive.Hive</class>
-        <host>ccp-${user}-nn02.c.data-gpdb-ud-ipa.internal</host>
+        <host>ccp-${user}-nn02.${ipa.domain}</host>
         <port>10000</port>
-        <kerberosPrincipal>hive/HOSTNAME@C.DATA-GPDB-UD-IPA.INTERNAL</kerberosPrincipal>
+        <kerberosPrincipal>hive/HOSTNAME@${ipa.realm}</kerberosPrincipal>
         <saslQop>auth-conf</saslQop>
     </hiveIpa>
 

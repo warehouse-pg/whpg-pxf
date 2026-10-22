@@ -1,4 +1,4 @@
-> **NOTE.** This module used to live under `concourse/terraform/` and was invoked by the retired Concourse CI pipeline. It is still in use: it provisions fresh GCE VMs in your own GCP project (`TF_VAR_gcp_project`) and is driven by the local kerberized-dev flow [`dev/ipa-cluster.bash`](../../ipa-cluster.bash) (see [`dev/IPA.md`](../../IPA.md)). It does **not** depend on the retired Pivotal infrastructure.
+> **NOTE.** This module used to live under `concourse/terraform/` and was invoked by the retired Concourse CI pipeline. It is still in use: it provisions fresh GCE VMs in your own GCP project (`TF_VAR_gcp_project`) and is driven by the local kerberized-dev flow [`dev/ipa-cluster.bash`](../../ipa-cluster.bash) (see [`dev/IPA.md`](../../IPA.md)). Nothing in it depends on the retired CI infrastructure: the VPC network and subnet default to the `default` ones a fresh project has, no network tags are applied unless you set `network_tags`, and the Kerberos realm follows the project (`C.<project>.INTERNAL`).
 
 # IPA multinode Hadoop — Terraform module
 
@@ -17,7 +17,6 @@ The following are some tips that can be useful when debugging or iterating on Te
 
 ### Running locally
 
-This module was originally written for Concourse CI; it runs fine from a local workstation.
 The first step is to run
 
 ```bash

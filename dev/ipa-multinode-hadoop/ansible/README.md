@@ -1,4 +1,4 @@
-> **NOTE.** This play used to live under `concourse/ansible/` and was invoked by the retired Concourse CI pipeline. It is still in use: it configures the kerberized multi-node Hadoop cluster and is driven by the local dev flow [`dev/ipa-cluster.bash`](../../ipa-cluster.bash) (see [`dev/IPA.md`](../../IPA.md)). It does **not** depend on the retired Pivotal infrastructure.
+> **NOTE.** This play used to live under `concourse/ansible/` and was invoked by the retired Concourse CI pipeline. It is still in use: it configures the kerberized multi-node Hadoop cluster and is driven by the local dev flow [`dev/ipa-cluster.bash`](../../ipa-cluster.bash) (see [`dev/IPA.md`](../../IPA.md)). Nothing in it depends on the retired CI infrastructure; the IPA domain, realm and LDAP base DN all follow the VMs' DNS domain (`c.<gcp-project>.internal`).
 
 # IPA multinode Hadoop — Ansible play
 

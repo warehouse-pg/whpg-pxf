@@ -730,7 +730,7 @@ public class Hdfs extends BaseSystemObject implements IFSFunctionality {
     }
 
     public void setTestKerberosPrincipal(String testKerberosPrincipal) {
-        this.testKerberosPrincipal = testKerberosPrincipal;
+        this.testKerberosPrincipal = replaceIpa(testKerberosPrincipal);
     }
 
     public String getTestKerberosKeytab() {
