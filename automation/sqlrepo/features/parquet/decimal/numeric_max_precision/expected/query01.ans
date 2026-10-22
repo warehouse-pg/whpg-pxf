@@ -1,0 +1,25 @@
+-- start_ignore
+-- end_ignore
+-- @description query01 for writing numeric with precision above 38 to Parquet. NUMERIC(76,61) and NUMERIC(76,61)[] keep every digit, and precision above 76 is rejected.
+SELECT e.id, r.d, e.d = r.d AS same_d, e.a = r.a AS same_a
+FROM numeric_max_precision e JOIN pxf_parquet_read_numeric_max_precision r USING (id) ORDER BY id;
+ id |                                       d                                        | same_d | same_a
+----+--------------------------------------------------------------------------------+--------+--------
+  1 |                0.0000000000000000000000000000000000000000000000000000000000001 | t      | t
+  2 | -123456789012345.9999999999999999999999999999999999999999999999999999999999999 | t      | t
+  3 |                                                                                |        | t
+(3 rows)
+
+SELECT id, unnest(a) AS a FROM pxf_parquet_read_numeric_max_precision ORDER BY id, a;
+ id |                                       a
+----+-------------------------------------------------------------------------------
+  1 |               0.0000000000000000000000000000000000000000000000000000000000001
+  1 |               0.1234567890123456789000000000000000000000000000000000000000000
+  2 |              -1.0000000000000000000000000000000000000000000000000000000000000
+  2 | 999999999999999.9999999999999999999999999999999999999999999999999999999999999
+  3 |               0.0000000000000000000000000000000000000000000000000000000000000
+  3 |
+(6 rows)
+
+INSERT INTO pxf_parquet_write_numeric_precision_77 SELECT id, d FROM numeric_max_precision;
+ERROR:  PXF server error : Column d is defined as NUMERIC with precision 77 which exceeds the maximum supported precision 76.

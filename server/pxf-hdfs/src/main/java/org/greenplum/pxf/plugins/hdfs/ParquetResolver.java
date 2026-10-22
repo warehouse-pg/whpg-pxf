@@ -45,6 +45,7 @@ import org.greenplum.pxf.plugins.hdfs.utilities.DecimalUtilities;
 import org.greenplum.pxf.plugins.hdfs.utilities.PgUtilities;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
@@ -149,8 +150,9 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         }
 
         Type type = schema.getType(columnIndex);
+        String columnName = columnDescriptors.get(columnIndex).columnName();
         if (type.isPrimitive()) {
-            fillGroupWithPrimitive(group, columnIndex, field.val, type.asPrimitiveType());
+            fillGroupWithPrimitive(group, columnIndex, field.val, type.asPrimitiveType(), columnName);
             return;
         }
 
@@ -192,7 +194,9 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         for (Object value : values) {
             Group repeatedGroup = listGroup.addGroup(0);
             if (value != null) {
-                fillGroupWithPrimitive(repeatedGroup, 0, value, elementType);
+                // the element is always at index 0 of the repeated group, so the
+                // column name must come from the enclosing list column
+                fillGroupWithPrimitive(repeatedGroup, 0, value, elementType, columnName);
             }
         }
     }
@@ -204,8 +208,9 @@ public class ParquetResolver extends BasePlugin implements Resolver {
      * @param columnIndex   the index of the column in a row that needs to be filled with data
      * @param fieldValue    OneField object holding the value we need to fill into the Parquet Group object
      * @param primitiveType the Primitive Parquet schema we need to fill into the Parquet Group object
+     * @param columnName    the name of the Greenplum column the value belongs to, used in error messages
      */
-    private void fillGroupWithPrimitive(Group group, int columnIndex, Object fieldValue, PrimitiveType primitiveType) {
+    private void fillGroupWithPrimitive(Group group, int columnIndex, Object fieldValue, PrimitiveType primitiveType, String columnName) {
         LogicalTypeAnnotation logicalTypeAnnotation = primitiveType.getLogicalTypeAnnotation();
         PrimitiveType.PrimitiveTypeName primitiveTypeName = primitiveType.getPrimitiveTypeName();
 
@@ -241,7 +246,7 @@ public class ParquetResolver extends BasePlugin implements Resolver {
                 group.add(columnIndex, (Float) fieldValue);
                 break;
             case FIXED_LEN_BYTE_ARRAY:
-                byte[] fixedLenByteArray = getFixedLenByteArray((String) fieldValue, primitiveType, columnDescriptors.get(columnIndex).columnName());
+                byte[] fixedLenByteArray = getFixedLenByteArray((String) fieldValue, primitiveType, columnName);
                 if (fixedLenByteArray == null) {
                     return;
                 }
@@ -268,15 +273,27 @@ public class ParquetResolver extends BasePlugin implements Resolver {
     private byte[] getFixedLenByteArray(String value, Type type, String columnName) {
         // From org.apache.hadoop.hive.ql.io.parquet.write.DataWritableWriter.DecimalDataWriter#decimalToBinary
         DecimalLogicalTypeAnnotation typeAnnotation = (DecimalLogicalTypeAnnotation) type.getLogicalTypeAnnotation();
-        int precision = Math.min(HiveDecimal.MAX_PRECISION, typeAnnotation.getPrecision());
-        int scale = Math.min(HiveDecimal.MAX_SCALE, typeAnnotation.getScale());
+        int precision = typeAnnotation.getPrecision();
+        int scale = typeAnnotation.getScale();
 
-        HiveDecimal hiveDecimal = decimalUtilities.parseDecimalStringWithHiveDecimal(value, precision, scale, columnName);
-        if (hiveDecimal == null) {
-           return null;
+        byte[] decimalBytes;
+        int signum;
+        if (precision <= HiveDecimal.MAX_PRECISION) {
+            HiveDecimal hiveDecimal = decimalUtilities.parseDecimalStringWithHiveDecimal(value, precision, scale, columnName);
+            if (hiveDecimal == null) {
+                return null;
+            }
+            decimalBytes = hiveDecimal.bigIntegerBytesScaled(scale);
+            signum = hiveDecimal.signum();
+        } else {
+            // HiveDecimal cannot hold more than 38 digits, so wider decimals are parsed with BigDecimal
+            BigDecimal bigDecimal = decimalUtilities.parseDecimalStringWithBigDecimal(value, precision, scale, columnName);
+            if (bigDecimal == null) {
+                return null;
+            }
+            decimalBytes = bigDecimal.unscaledValue().toByteArray();
+            signum = bigDecimal.signum();
         }
-
-        byte[] decimalBytes = hiveDecimal.bigIntegerBytesScaled(scale);
 
         // Estimated number of bytes needed.
         int precToBytes = ParquetFileAccessor.PRECISION_TO_BYTE_COUNT[precision - 1];
@@ -286,7 +303,7 @@ public class ParquetResolver extends BasePlugin implements Resolver {
         }
 
         byte[] tgt = new byte[precToBytes];
-        if (hiveDecimal.signum() == -1) {
+        if (signum == -1) {
             // For negative number, initializing bits to 1
             for (int i = 0; i < precToBytes; i++) {
                 tgt[i] |= 0xFF;

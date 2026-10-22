@@ -5,6 +5,8 @@ import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.greenplum.pxf.api.error.UnsupportedTypeException;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -190,5 +192,113 @@ public class DecimalUtilitiesTest {
         // integer part when decimal part overflows. Then the behavior would be the same as parsing the value with precision and scale enforced.
         HiveDecimal expectedHiveDecimal = HiveDecimalWritable.enforcePrecisionScale(new HiveDecimalWritable(decimalString), precision, scale).getHiveDecimal();
         assertEquals(expectedHiveDecimal, hiveDecimal);
+    }
+
+    @Test
+    public void testParseDecimalWithBigDecimalNoOverflow() {
+        String decimalString = "-123456789012345.1234567890123456789012345678901234567890123456789012345678901";
+        // results should be the same for all the overflow options
+        for (DecimalOverflowOption option : DecimalOverflowOption.values()) {
+            decimalUtilities = new DecimalUtilities(option, true);
+            BigDecimal bigDecimal = decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName);
+            assertEquals(new BigDecimal(decimalString), bigDecimal);
+        }
+
+        // the value is padded to the designated scale
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ERROR, true);
+        assertEquals(new BigDecimal("1.0000000000"), decimalUtilities.parseDecimalStringWithBigDecimal("1", 50, 10, columnName));
+    }
+
+    @Test
+    public void testParseDecimalWithBigDecimalIntegerDigitCountOverflowsPrecision() {
+        String decimalString = "123456789012345678901234567890123456789012345678901.1";
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ERROR, true);
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 10, columnName));
+        assertEquals(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision %d.",
+                decimalString, columnName, 50), e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ROUND, true);
+        e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 10, columnName));
+        assertEquals(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision %d.",
+                decimalString, columnName, 50), e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.IGNORE, true);
+        assertNull(decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 10, columnName));
+    }
+
+    @Test
+    public void testParseDecimalWithBigDecimalIntegerDigitCountOverflowsPrecisionMinusScale() {
+        String decimalString = "1234567890123456789012345678901234567890.1";
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ERROR, true);
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 20, columnName));
+        assertEquals(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision and scale (%d,%d).",
+                decimalString, columnName, 50, 20), e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ROUND, true);
+        e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 20, columnName));
+        assertEquals(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision and scale (%d,%d).",
+                decimalString, columnName, 50, 20), e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.IGNORE, true);
+        assertNull(decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 20, columnName));
+    }
+
+    @Test
+    public void testParseDecimalWithBigDecimalRoundingCarriesIntoPrecisionMinusScale() {
+        // 30 integer digits fit in (50,20), but rounding to scale 20 carries into a 31st integer digit
+        String decimalString = "999999999999999999999999999999.999999999999999999999";
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ROUND, true);
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 20, columnName));
+        assertEquals(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision and scale (%d,%d).",
+                decimalString, columnName, 50, 20), e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.IGNORE, true);
+        assertNull(decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 50, 20, columnName));
+    }
+
+    @Test
+    public void testParseDecimalWithBigDecimalOverflowsScale() {
+        String decimalString = "0.12345678901234567890123456789012345678901234567890123456789012";
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ERROR, true);
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+        assertEquals(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported scale %d, and cannot be stored without precision loss.",
+                decimalString, columnName, 61), e.getMessage());
+
+        // round and ignore both round half up to the designated scale
+        BigDecimal expected = new BigDecimal("0.1234567890123456789012345678901234567890123456789012345678901");
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ROUND, true);
+        assertEquals(expected, decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.IGNORE, true);
+        assertEquals(expected, decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+    }
+
+    @Test
+    public void testParseDecimalWithBigDecimalNaN() {
+        String decimalString = "NaN";
+        String expectedMessage = String.format("The value %s for the NUMERIC column %s is not a number and cannot be stored as a DECIMAL.",
+                decimalString, columnName);
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ERROR, true);
+        Exception e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+        assertEquals(expectedMessage, e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.ROUND, true);
+        e = assertThrows(UnsupportedTypeException.class,
+                () -> decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
+        assertEquals(expectedMessage, e.getMessage());
+
+        decimalUtilities = new DecimalUtilities(DecimalOverflowOption.IGNORE, true);
+        assertNull(decimalUtilities.parseDecimalStringWithBigDecimal(decimalString, 76, 61, columnName));
     }
 }
