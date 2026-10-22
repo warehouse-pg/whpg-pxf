@@ -107,6 +107,14 @@ configure(javaProjects) {
     // patch releases are drop-in for the SDK's usage.
     ext['netty.version'] = '4.1.137.Final'
 
+    // pxf-s3 declares saaj-impl 2.0.1 (the S3 encryption client's runtime
+    // dependency on the CSE read path, see pxf-s3/build.gradle). The
+    // Spring Boot 2.7 BOM manages saaj-impl at 1.5.3, and inside
+    // pxf-service, whose bootJar is what ships, the BOM wins over the
+    // version pxf-s3 names. Pin the BOM property so the fat jar carries
+    // the version the encryption client's pom was built against.
+    ext['saaj-impl.version'] = '2.0.1'
+
     dependencyManagement {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:${springBootVersion}")
