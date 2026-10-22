@@ -178,6 +178,11 @@ request can never raise. No job needs a privileged container.
 The lane is a **reusable workflow that exists on `main` only**; every
 branch reaches it through short stubs that pin it `@main`. A fix to the
 lane lands once and takes effect on both branches at their next run.
+The flip side: the scripts the lane calls come from the branch under
+test (table below), so a lane change that needs a new script, or a
+changed script interface, breaks `release-6.x` runs until that script
+change is cherry-picked there. Land the script change on both branches
+before, or together with, the lane change that depends on it.
 
 | File | Where | Role |
 |---|---|---|
@@ -185,7 +190,7 @@ lane lands once and takes effect on both branches at their next run.
 | `pxf-db-extensions-ci.yml` | `main` and `release-6.x` | Stub: `pull_request` (path-filtered) and `push` to `ci/**`. Token `contents: read` |
 | `pxf-db-extensions-weekly.yml` | `main` and `release-6.x` | Stub: Monday `schedule` and `workflow_dispatch`. Token `contents: read` + `issues: write`. The `schedule:` block is inert off the default branch, so the weekly run checks out both branches itself |
 | `.github/actions/whpg-tree-provenance/` | `main` only | Composite action: unpack a built tree and assert its `whpg-build.{ref,sha,gp-major}` before use. The lane references it `warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@main` (a relative `./.github/actions/...` would resolve from the triggering branch's checkout) |
-| `.github/scripts/*.bash` | both branches | The build, check and watcher scripts. **Deliberately per-branch**: the lane runs them from the checkout of the branch under test, so a PR that edits a script still tests its own edit (the one self-testing property a PR keeps, below), and a branch can carry a script fix the other branch does not need yet. The scripts have been byte-identical across branches since the WHPG 6 axis landed; keep it so unless a branch has a reason — a script change lands on `main` first and reaches `release-6.x` as a cherry-pick of the squash, as before |
+| `.github/scripts/*.bash` | both branches | The build, check and watcher scripts. **Deliberately per-branch**: the lane runs them from the checkout of the branch under test, so a PR that edits a script still tests its own edit (the one self-testing property a PR keeps, below), and a branch can carry a script fix the other branch does not need yet. The scripts have been byte-identical across branches since the WHPG 6 axis landed; keep it so unless a branch has a reason — a script change lands on `main` first and reaches `release-6.x` as a cherry-pick of the squash, as before, and a lane change that depends on it waits for that cherry-pick (above) |
 
 ```
 EVENT                                 STUB FROM            LANE + ACTION FROM   SCRIPTS + SOURCES FROM

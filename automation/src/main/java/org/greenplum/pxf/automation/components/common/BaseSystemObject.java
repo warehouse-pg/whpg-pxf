@@ -2,6 +2,8 @@ package org.greenplum.pxf.automation.components.common;
 
 import jsystem.framework.system.SystemObjectImpl;
 
+import java.util.Locale;
+
 /**
  * Common System Objects layer. Every system Object needs to extend it.
  */
@@ -55,6 +57,6 @@ public abstract class BaseSystemObject extends SystemObjectImpl {
 			throw new IllegalStateException("TF_VAR_gcp_project (or -Dipa.gcp.project) is required to resolve " + value);
 		}
 		String domain = "c." + project + ".internal";
-		return value.replace("${ipa.domain}", domain).replace("${ipa.realm}", domain.toUpperCase());
+		return value.replace("${ipa.domain}", domain).replace("${ipa.realm}", domain.toUpperCase(Locale.ROOT));
 	}
 }

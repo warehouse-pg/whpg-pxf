@@ -21,7 +21,9 @@ and remove it.
 * **Name:** `edb-whpg<N>-pxf`, where `<N>` is the WarehousePG major version (e.g. `edb-whpg6-pxf`, `edb-whpg7-pxf`).
 * **Version / release:** the PXF release version (e.g. `7.0.0`), release number `1`, plus the platform dist tag.
   Example: `edb-whpg7-pxf-7.0.0-1.el8.x86_64.rpm` (and `...el9...`).
-* **Install location:** `/usr/local/edb-whpg<N>-pxf`. The package is **relocatable** — pass `--prefix` to `rpm` to install elsewhere.
+* **Install location:** `/usr/edb/whpg<N>-pxf`. The package is **relocatable** — pass `--prefix` to `rpm` to install elsewhere.
+  Releases up to and including 6.10.3 installed under `/usr/local/edb-whpg<N>-pxf`; see [Upgrade](#upgrade) for
+  what happens when an upgrade crosses that change.
 * **Requires:** `warehouse-pg-<N>` — the matching WarehousePG server package.
 * **Extension registration is automatic:** the PXF extension control files are installed into the
   WarehousePG installation (`$GPHOME/share/postgresql/extension/`) at RPM install **and** upgrade time, so
@@ -32,17 +34,39 @@ and remove it.
 ## Install
 ```bash
 sudo rpm -Uvh edb-whpg7-pxf-7.0.0-1.el8.x86_64.rpm
-sudo chown -R gpadmin:gpadmin /usr/local/edb-whpg7-pxf
+sudo chown -R gpadmin:gpadmin /usr/edb/whpg7-pxf
 ```
 A JDK (8 or 11) must be available to run the PXF server.
 
 ## Upgrade
-Use the same `rpm -U` command with the newer RPM:
+Run the same `rpm -U` command with the newer RPM on every host, then restart PXF once from the
+coordinator (as `gpadmin`):
 ```bash
-sudo rpm -Uvh edb-whpg7-pxf-<newer-version>-1.el8.x86_64.rpm
+sudo rpm -Uvh edb-whpg7-pxf-<newer-version>-1.el8.x86_64.rpm   # on every host
+pxf cluster restart                                              # once, from the coordinator
 ```
 The previous version's files and runtime directories are replaced, the extension control files are
-re-registered into `$GPHOME`, and your PXF configuration directory (`$PXF_BASE`) is left intact.
+re-registered into `$GPHOME`, and your PXF configuration directory (`$PXF_BASE`) is left intact. The
+running PXF servers keep serving the previous version until the restart; after it, every host runs the
+new one with its configuration and keytabs unchanged.
+
+### Upgrading from 6.10.3 or earlier (install path change)
+
+Releases up to 6.10.3 installed under `/usr/local/edb-whpg<N>-pxf`; newer RPMs install under
+`/usr/edb/whpg<N>-pxf`. The same `rpm -U` handles the move. The RPM's scriptlets detect the previous
+prefix (from the `pxf.control` the old release registered in `$GPHOME`, falling back to probing
+`/usr/local/edb-whpg<N>-pxf`) and, after the old files are removed, copy into the new prefix what rpm
+does not own: the default `$PXF_BASE` content (`servers/`, `lib/`, `keytabs/`, `run/`) and the `conf/`
+files. An edited config file keeps your version, with the packaged one placed beside it as `.rpmnew`.
+Ownership of the new directory follows the old one.
+
+The old directory is left in place with compatibility symlinks to the PXF libraries, because existing
+`pxf` (and `pxf_fdw`) function definitions still hold the old absolute library path. The scriptlet
+prints the remaining steps: point `PATH` at the new `bin/`, restart PXF (`pxf cluster stop` then
+`pxf cluster start`), repoint the function definitions to the new prefix, then remove the old
+directory by hand. If `$PXF_BASE` was set to a directory outside the install prefix, nothing moves
+and it keeps working unchanged. If the old release was installed with a custom `--prefix` that the
+scriptlets cannot find, the upgrade warns and the copy has to be done by hand.
 
 ## Remove
 ```bash
