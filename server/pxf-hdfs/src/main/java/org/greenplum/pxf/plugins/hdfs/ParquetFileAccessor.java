@@ -98,11 +98,15 @@ public class ParquetFileAccessor extends BasePlugin implements Accessor {
     private static final int DEFAULT_ROWGROUP_SIZE = 8 * 1024 * 1024;
     private static final CompressionCodecName DEFAULT_COMPRESSION = CompressionCodecName.SNAPPY;
 
+    // The largest NUMERIC precision PXF writes to Parquet. Parquet itself has no limit,
+    // but 76 is the largest precision that Arrow (Decimal256) readers such as pyarrow accept.
+    public static final int MAX_DECIMAL_PRECISION = 76;
+
     // From org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
-    public static final int[] PRECISION_TO_BYTE_COUNT = new int[38];
+    public static final int[] PRECISION_TO_BYTE_COUNT = new int[MAX_DECIMAL_PRECISION];
 
     static {
-        for (int prec = 1; prec <= 38; prec++) {
+        for (int prec = 1; prec <= MAX_DECIMAL_PRECISION; prec++) {
             // Estimated number of bytes needed.
             PRECISION_TO_BYTE_COUNT[prec - 1] = (int)
                     Math.ceil((Math.log(Math.pow(10, prec) - 1) / Math.log(2) + 1) / 8);
@@ -553,16 +557,14 @@ public class ParquetFileAccessor extends BasePlugin implements Accessor {
                     scale = columnTypeModifiers[1];
                 }
 
-                // precision is defined but precision >  HiveDecimal.MAX_PRECISION i.e., 38
+                // precision is defined but precision > MAX_DECIMAL_PRECISION i.e., 76
                 // this error will be thrown no matter what decimal overflow option is
-                // TODO: replace HiveDecimal.MAX_PRECISION with some other precision
                 //  For Parquet, there is no precision limitation for decimal
                 //  https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#decimal
-                //  For postgres, although there is a precision limitation, the precision is very large
-                //  https://www.postgresql.org/docs/15/datatype-numeric.html
-                if (precision > HiveDecimal.MAX_PRECISION) {
+                //  but readers like Spark and Hive only accept precision up to 38, and Arrow up to 76
+                if (precision > MAX_DECIMAL_PRECISION) {
                     throw new UnsupportedTypeException(String.format("Column %s is defined as NUMERIC with precision %d " +
-                            "which exceeds the maximum supported precision %d.", columnName, precision, HiveDecimal.MAX_PRECISION));
+                            "which exceeds the maximum supported precision %d.", columnName, precision, MAX_DECIMAL_PRECISION));
                 }
 
                 primitiveTypeName = PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY;

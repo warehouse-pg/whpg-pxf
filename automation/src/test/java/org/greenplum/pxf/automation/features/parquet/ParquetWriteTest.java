@@ -28,6 +28,8 @@ import static org.junit.Assert.assertEquals;
 public class ParquetWriteTest extends BaseWritableFeature {
     private static final String NUMERIC_TABLE = "numeric_precision";
     private static final String NUMERIC_UNDEFINED_PRECISION_TABLE = "numeric_undefined_precision";
+    private static final String NUMERIC_MAX_PRECISION_TABLE = "numeric_max_precision";
+    private static final String NUMERIC_ARRAY_SCALE_TABLE = "numeric_array_scale";
     private static final String PXF_PARQUET_PRIMITIVE_TABLE = "pxf_parquet_primitive_types";
     private static final String PXF_PARQUET_LIST_TYPES = "pxf_parquet_list_types";
     private static final String PXF_PARQUET_TIMESTAMP_LIST_TYPES = "pxf_parquet_timestamp_list_types";
@@ -70,9 +72,18 @@ public class ParquetWriteTest extends BaseWritableFeature {
             "a             DECIMAL(90, 38)",
             "b             DECIMAL(100, 50)"
     };
+    private static final String[] NUMERIC_MAX_PRECISION_COLUMNS = new String[]{
+            "id   INTEGER",
+            "d    NUMERIC(76,61)",
+            "a    NUMERIC(76,61)[]"
+    };
     private static final String[] UNDEFINED_PRECISION_NUMERIC = new String[]{
             "description   text",
             "value         numeric"
+    };
+    private static final String[] NUMERIC_ARRAY_SCALE_COLUMNS = new String[]{
+            "id   INTEGER",
+            "v    NUMERIC[]"
     };
 
     // HIVE Parquet array vectorization read currently doesn't support TIMESTAMP and INTERVAL_DAY_TIME
@@ -270,6 +281,55 @@ public class ParquetWriteTest extends BaseWritableFeature {
                 UNDEFINED_PRECISION_NUMERIC, hdfsPath + fileName);
 
         runSqlTest("features/parquet/decimal/numeric_undefined_precision_large_scale");
+    }
+
+    // Numeric precision above 38 up to 76 is written as a wider Parquet DECIMAL without losing digits,
+    // and precision above 76 is rejected
+    @Test(groups = {"features", "gpdb", "security", "hcfs"})
+    public void parquetWriteNumericWithMaxPrecision() throws Exception {
+        Table numericTable = new Table(NUMERIC_MAX_PRECISION_TABLE, NUMERIC_MAX_PRECISION_COLUMNS);
+        numericTable.setDistributionFields(new String[]{"id"});
+        gpdb.createTableAndVerify(numericTable);
+        gpdb.runQuery("INSERT INTO " + NUMERIC_MAX_PRECISION_TABLE + " VALUES " +
+                "(1, ('0.' || repeat('0', 60) || '1')::numeric, ARRAY[0.1234567890123456789, ('0.' || repeat('0', 60) || '1')::numeric]), " +
+                "(2, ('-123456789012345.' || repeat('9', 61))::numeric, ARRAY[('999999999999999.' || repeat('9', 61))::numeric, -1]), " +
+                "(3, NULL, ARRAY[NULL::numeric, 0])");
+
+        String fileName = "parquet_write_numeric_max_precision";
+        prepareWritableExternalTable("pxf_parquet_write_numeric_max_precision",
+                NUMERIC_MAX_PRECISION_COLUMNS, hdfsPath + fileName, null);
+        gpdb.copyData(NUMERIC_MAX_PRECISION_TABLE, writableExTable);
+
+        waitForAsyncWriteToSucceedOnHCFS(fileName);
+
+        prepareReadableExternalTable("pxf_parquet_read_numeric_max_precision",
+                NUMERIC_MAX_PRECISION_COLUMNS, hdfsPath + fileName);
+        prepareWritableExternalTable("pxf_parquet_write_numeric_precision_77",
+                new String[]{"id INTEGER", "d NUMERIC(77,61)"}, hdfsPath + "parquet_write_numeric_precision_77", null);
+
+        runSqlTest("features/parquet/decimal/numeric_max_precision");
+    }
+
+    // Numeric array scale comes from the writable table column: undefined precision falls back to DECIMAL(38,18)
+    // and rounds values with more than 18 decimal places, a defined scale is kept, and values that do not fit in
+    // 38 digits survive the round trip when written as NUMERIC(76,61)[] or as text[].
+    @Test(groups = {"features", "gpdb", "security", "hcfs"})
+    public void parquetWriteNumericArrayScale() throws Exception {
+        Table numericArrayTable = new Table(NUMERIC_ARRAY_SCALE_TABLE, NUMERIC_ARRAY_SCALE_COLUMNS);
+        numericArrayTable.setDistributionFields(new String[]{"id"});
+        gpdb.createTableAndVerify(numericArrayTable);
+        // 18, 19 and 61 decimal places
+        gpdb.runQuery("INSERT INTO " + NUMERIC_ARRAY_SCALE_TABLE + " VALUES " +
+                "(1, ARRAY[0.123456789012345678]), " +
+                "(2, ARRAY[0.1234567890123456789]), " +
+                "(3, ARRAY[('0.' || repeat('0', 60) || '1')::numeric])");
+
+        writeAndReadNumericArray("undefined_precision", "NUMERIC[]", "NUMERIC[]", null);
+        writeAndReadNumericArray("38_20", "NUMERIC(38,20)[]", "NUMERIC[]", null);
+        writeAndReadNumericArray("76_61", "NUMERIC(76,61)[]", "NUMERIC[]", null);
+        writeAndReadNumericArray("text", "TEXT[]", "TEXT[]", new String[]{"id", "v::text[]"});
+
+        runSqlTest("features/parquet/decimal/numeric_array_scale");
     }
 
     @Test(groups = {"features", "gpdb", "security", "hcfs"})
@@ -568,6 +628,18 @@ public class ParquetWriteTest extends BaseWritableFeature {
                 throw e;
             }
         }
+    }
+
+    private void writeAndReadNumericArray(String suffix, String writeType, String readType, String[] sourceColumns) throws Exception {
+        String fileName = "parquet_write_numeric_array_" + suffix;
+        prepareWritableExternalTable("pxf_parquet_write_numeric_array_" + suffix,
+                new String[]{"id INTEGER", "v " + writeType}, hdfsPath + fileName, null);
+        gpdb.copyData(NUMERIC_ARRAY_SCALE_TABLE, writableExTable, sourceColumns);
+
+        waitForAsyncWriteToSucceedOnHCFS(fileName);
+
+        prepareReadableExternalTable("pxf_parquet_read_numeric_array_" + suffix,
+                new String[]{"id INTEGER", "v " + readType}, hdfsPath + fileName);
     }
 
     private void prepareNumericWritableExtTable(String filePathName, String fileName, String writableExternalTableName, boolean isPrecisionDefined, boolean isLargePrecision) throws Exception {

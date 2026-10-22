@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * DecimalUtilities is used for parsing decimal values according to the precision and scale
@@ -21,6 +22,7 @@ public class DecimalUtilities {
     private final boolean enforcePrecisionAndScaleOnIgnore;
     private boolean isPrecisionOverflowWarningLogged;
     private boolean isPrecisionAndScaleOverflowWarningLogged;
+    private boolean isNaNWarningLogged;
 
     /**
      * Construct a DecimalUtilities object carrying the decimal overflow option value,
@@ -36,6 +38,7 @@ public class DecimalUtilities {
         this.enforcePrecisionAndScaleOnIgnore = enforcePrecisionAndScaleOnIgnore;
         this.isPrecisionOverflowWarningLogged = false;
         this.isPrecisionAndScaleOverflowWarningLogged = false;
+        this.isNaNWarningLogged = false;
     }
 
     /**
@@ -63,6 +66,98 @@ public class DecimalUtilities {
                 return parseDecimalStringWithHiveDecimalOnRound(value, precision, scale, columnName);
             case IGNORE:
                 return parseDecimalStringWithHiveDecimalOnIgnore(value, precision, scale, columnName);
+            default:
+                throw new UnsupportedTypeException(String.format("Unsupported decimal overflow option %s", decimalOverflowOption));
+        }
+    }
+
+    /**
+     * Parse the incoming decimal string into a BigDecimal according to the precision and scale and the decimal overflow options.
+     * This is used instead of {@link #parseDecimalStringWithHiveDecimal} when the precision exceeds what HiveDecimal can hold (38).
+     * The overflow cases and the action for each option are the same as for {@link #parseDecimalStringWithHiveDecimal},
+     * except that precision and scale are always enforced.
+     * NaN, which PG allows in a NUMERIC column but a DECIMAL cannot hold, is stored as NULL on 'ignore' and rejected otherwise.
+     *
+     * @param value      is the decimal string to be parsed
+     * @param precision  is the decimal precision defined in the schema
+     * @param scale      is the decimal scale defined in the schema
+     * @param columnName is the name of the current column
+     * @return NULL or a BigDecimal number whose scale is the given scale
+     */
+    public BigDecimal parseDecimalStringWithBigDecimal(String value, int precision, int scale, String columnName) {
+        if ("NaN".equalsIgnoreCase(value)) {
+            if (decimalOverflowOption == DecimalOverflowOption.IGNORE) {
+                LOG.trace("The value {} for the NUMERIC column {} is not a number and has been stored as NULL.", value, columnName);
+
+                if (!isNaNWarningLogged) {
+                    LOG.warn("There are rows where for the NUMERIC column {} the values are not a number and have been stored as NULL. " +
+                            "Enable TRACE log level for row-level details.", columnName);
+                    isNaNWarningLogged = true;
+                }
+                return null;
+            }
+            throw new UnsupportedTypeException(String.format("The value %s for the NUMERIC column %s is not a number and cannot be stored as a DECIMAL.",
+                    value, columnName));
+        }
+        BigDecimal bigDecimal = new BigDecimal(value);
+        switch (decimalOverflowOption) {
+            case ERROR:
+                // precision of the bigDecimal cannot be above designated precision
+                if (bigDecimal.precision() > precision) {
+                    throw new UnsupportedTypeException(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision %d.",
+                            value, columnName, precision));
+                }
+                // integer digit count of the bigDecimal cannot be above designated precision and scale
+                if (bigDecimal.precision() - bigDecimal.scale() > precision - scale) {
+                    throw new UnsupportedTypeException(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision and scale (%d,%d).",
+                            value, columnName, precision, scale));
+                }
+                // scale of the bigDecimal cannot be above designated scale
+                if (bigDecimal.scale() > scale) {
+                    throw new UnsupportedTypeException(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported scale %s, and cannot be stored without precision loss.",
+                            value, columnName, scale));
+                }
+                // the value fits, so padding it to the designated scale does not round it
+                return bigDecimal.setScale(scale, RoundingMode.UNNECESSARY);
+            case ROUND:
+            case IGNORE:
+                boolean isIgnore = decimalOverflowOption == DecimalOverflowOption.IGNORE;
+                // integer digit count of the bigDecimal cannot be above designated precision (Overflow case 1)
+                if (bigDecimal.precision() - bigDecimal.scale() > precision) {
+                    if (isIgnore) {
+                        LOG.trace("The value {} for the NUMERIC column {} exceeds the maximum supported precision {} and has been stored as NULL.",
+                                value, columnName, precision);
+
+                        if (!isPrecisionOverflowWarningLogged) {
+                            LOG.warn("There are rows where for the NUMERIC column {} the values exceed the maximum supported precision {} " +
+                                            "and have been stored as NULL. Enable TRACE log level for row-level details.",
+                                    columnName, precision);
+                            isPrecisionOverflowWarningLogged = true;
+                        }
+                        return null;
+                    }
+                    throw new UnsupportedTypeException(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision %d.",
+                            value, columnName, precision));
+                }
+                // round to the designated scale, the same way as HiveDecimal does
+                BigDecimal rounded = bigDecimal.setScale(scale, RoundingMode.HALF_UP);
+                // integer digit count of the rounded value cannot be above designated precision and scale (Overflow case 2)
+                if (rounded.precision() - rounded.scale() > precision - scale) {
+                    if (isIgnore) {
+                        LOG.trace("The value {} for the NUMERIC column {} exceeds the maximum supported precision and scale ({},{}) and has been stored as NULL.",
+                                value, columnName, precision, scale);
+
+                        if (!isPrecisionAndScaleOverflowWarningLogged) {
+                            LOG.warn("There are rows where for the NUMERIC column {} the values exceed the maximum supported precision and scale ({},{}) " +
+                                    "and have been stored as NULL. Enable TRACE log level for row-level details.", columnName, precision, scale);
+                            isPrecisionAndScaleOverflowWarningLogged = true;
+                        }
+                        return null;
+                    }
+                    throw new UnsupportedTypeException(String.format("The value %s for the NUMERIC column %s exceeds the maximum supported precision and scale (%d,%d).",
+                            value, columnName, precision, scale));
+                }
+                return rounded;
             default:
                 throw new UnsupportedTypeException(String.format("Unsupported decimal overflow option %s", decimalOverflowOption));
         }
