@@ -74,6 +74,19 @@
     </build>
     <dependencyManagement>
         <dependencies>
+            <!-- Keeps the whole io.netty family on one patch release. Without
+                 this, hadoop-mapreduce-client-core's netty-all (4.1.127) and
+                 the AWS SDK v2's netty-nio-client (4.1.126) each win nearest-wins
+                 for different modules and the classpath ends up mixed:
+                 netty-codec-http and netty-codec-http2 at 4.1.126, the other
+                 34 at 4.1.127. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.127.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <!-- Converges the whole jackson family on one release train.
                  Note: since 2.20, jackson-annotations is released per MINOR
                  only (2.22 exists, 2.22.2 does not) - the bom pins the
