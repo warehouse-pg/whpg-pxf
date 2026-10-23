@@ -13,6 +13,8 @@ import org.springframework.util.Assert;
 import java.io.File;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,7 +24,10 @@ import java.util.List;
 public class Gpdb extends DbSystemObject {
 
 	private static final String DEFAULT_PORT = "5432";
-	private static final String GREENPLUM_DATABASE_PREFIX = "Greenplum Database ";
+	// version() reports "(Greenplum Database 7.x ...)" on WHPG 6/7 and
+	// "(WarehousePG 19.x ...)" on WHPG 19; the major is what the harness keys on.
+	private static final Pattern SERVER_VERSION_PATTERN =
+			Pattern.compile("\\((?:Greenplum Database|WarehousePG) (\\d+)");
 	private static final String IF_NOT_EXISTS_OPTION = "IF NOT EXISTS";
 
 	private String sshUserName;
@@ -567,10 +572,11 @@ public class Gpdb extends DbSystemObject {
 		res.next();
 		String fullVersion = res.getString(1);
 		ReportUtils.report(report, getClass(), "Retrieved from Greenplum: [" + fullVersion + "]");
-		int gpIndex = fullVersion.indexOf(GREENPLUM_DATABASE_PREFIX); // where the version prefix starts
-		int dotIndex = fullVersion.indexOf(".", gpIndex);             // where the first dot of GP version starts
-		String versionStr = fullVersion.substring(gpIndex + GREENPLUM_DATABASE_PREFIX.length(), dotIndex);
-		int versionInt = Integer.valueOf(versionStr);
+		Matcher matcher = SERVER_VERSION_PATTERN.matcher(fullVersion);
+		if (!matcher.find()) {
+			throw new IllegalStateException("Cannot determine the server major version from version(): [" + fullVersion + "]");
+		}
+		int versionInt = Integer.parseInt(matcher.group(1));
 		ReportUtils.report(report, getClass(), "Determined Greenplum version: " + versionInt);
 		return versionInt;
 	}
