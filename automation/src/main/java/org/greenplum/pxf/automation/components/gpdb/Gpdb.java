@@ -572,13 +572,25 @@ public class Gpdb extends DbSystemObject {
 		res.next();
 		String fullVersion = res.getString(1);
 		ReportUtils.report(report, getClass(), "Retrieved from Greenplum: [" + fullVersion + "]");
+		int versionInt = parseServerMajorVersion(fullVersion);
+		ReportUtils.report(report, getClass(), "Determined Greenplum version: " + versionInt);
+		return versionInt;
+	}
+
+	/**
+	 * Extracts the server major version from the output of {@code SELECT version()}.
+	 * Accepts the Greenplum Database banner (WHPG 6 and 7) and the WarehousePG banner (WHPG 19).
+	 *
+	 * @param fullVersion the version() string
+	 * @return the major version, e.g. 6, 7 or 19
+	 * @throws IllegalStateException if neither banner is present
+	 */
+	static int parseServerMajorVersion(String fullVersion) {
 		Matcher matcher = SERVER_VERSION_PATTERN.matcher(fullVersion);
 		if (!matcher.find()) {
 			throw new IllegalStateException("Cannot determine the server major version from version(): [" + fullVersion + "]");
 		}
-		int versionInt = Integer.parseInt(matcher.group(1));
-		ReportUtils.report(report, getClass(), "Determined Greenplum version: " + versionInt);
-		return versionInt;
+		return Integer.parseInt(matcher.group(1));
 	}
 
 	private boolean serverExists(String name) throws SQLException {
