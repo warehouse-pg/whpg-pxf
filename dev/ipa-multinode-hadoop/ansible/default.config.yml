@@ -6,6 +6,11 @@ gcp_storage_bucket: ""
 ipa_password: ""
 ssl_store_password: ""
 
+# LDAP base DN of the IPA server, derived from the VMs' DNS domain
+# (c.<gcp-project>.internal on GCE) so it follows whatever project the
+# cluster is provisioned in.
+ipa_base_dn: "dc={{ ansible_domain.split('.') | join(',dc=') }}"
+
 # if you change the default Hadoop username here, you will need to change the
 # the value of HADOOP_3_USER in text_pxf_multinode.bash
 hadoop_user: stout

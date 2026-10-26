@@ -41,68 +41,23 @@ variable "gce_vm_os_family" {
 
 variable "network" {
   type        = string
-  description = "name of VPC network to provision VMs in"
-  default     = "bosh-network"
+  description = "name of the VPC network to provision VMs in (a fresh GCP project has one called 'default')"
+  default     = "default"
 }
 
 variable "subnet" {
   type        = string
-  description = "name of subnet to provision VMs in"
-  default     = "dynamic"
+  description = "name of the subnet to provision VMs in (the auto-mode subnets of the 'default' network are also called 'default')"
+  default     = "default"
 }
 
-variable "env_type" {
-  type        = string
-  description = "type of execution environment, can be ci or local only, used in the path for the output templates"
-  default     = "ci"
+variable "network_tags" {
+  type        = list(string)
+  description = "network tags to put on every VM, for firewall or Cloud NAT rules in your project that match on tags; dev/ipa-cluster.bash opens the VMs to your IP by source range instead, so none are needed by default"
+  default     = []
 }
 
-# Populated with var_files specified in the put of the terraform resource
 variable "env_name" {
   type        = string
-  description = "environment name passed from Concourse resource"
-}
-
-# Concourse build metadata
-variable "build_id" {
-  type        = string
-  description = "internal identifier for the build"
-}
-
-variable "build_name" {
-  type        = string
-  description = "build number within the build's job"
-}
-
-variable "build_job_name" {
-  type        = string
-  description = "name of the build's job"
-}
-
-variable "build_pipeline_name" {
-  type        = string
-  description = "name of the pipeline that the build's job lives in"
-}
-
-variable "build_team_name" {
-  type        = string
-  description = "team that the build belongs to"
-}
-
-variable "atc_external_url" {
-  type        = string
-  description = "public URL for your ATC"
-}
-
-variable "ccp_reap_mins" {
-  type        = number
-  description = "number of minutes to wait before cleaning up VMs from failed CI jobs"
-  default     = 480
-}
-
-variable "ccp_fail_status_behavior" {
-  type        = string
-  description = "default CCP cluster behavior on failure"
-  default     = "run"
-
+  description = "environment name used in resource names and the ansible inventory; dev/ipa-cluster.bash sets it from TF_VAR_env_name (default $USER)"
 }
