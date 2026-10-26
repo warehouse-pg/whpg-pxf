@@ -21,8 +21,10 @@ INSERT INTO writable_smoke_test_foreign_table
 		CASE WHEN (i%2) = 0 THEN 'true'::boolean ELSE 'false'::boolean END
 		from generate_series(1, 100) s(i);
 
--- Verify data entered HCFS correctly, no distributed by in FDW yet
-\! { for i in $({{ HCFS_CMD }} dfs -ls {{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/bzip_fdw 2>/dev/null | tail -n +2 | awk '{print $NF}'); do {{ HCFS_CMD }} dfs -cat $i 2>/dev/null | head -1; done } | sort | head -1
+-- Verify data entered HCFS correctly, no distributed by in FDW yet.
+-- Print the row with the smallest num over every segment's file: numeric sort on the num column,
+-- so the result does not depend on which rows start each file or on the shell's collation.
+\! {{ HCFS_CMD }} dfs -cat '{{ HCFS_SCHEME }}{{ HCFS_BUCKET }}{{ TEST_LOCATION }}/bzip_fdw/*' 2>/dev/null | sort -t '|' -k2,2n | head -1
 
 SELECT * FROM writable_smoke_test_foreign_table ORDER BY name;
 SELECT name, num FROM writable_smoke_test_foreign_table WHERE num > 50 ORDER BY name;
