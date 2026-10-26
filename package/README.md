@@ -39,16 +39,22 @@ sudo chown -R gpadmin:gpadmin /usr/edb/whpg7-pxf
 A JDK (8 or 11) must be available to run the PXF server.
 
 ## Upgrade
-Run the same `rpm -U` command with the newer RPM on every host, then restart PXF once from the
-coordinator (as `gpadmin`):
+Run the same `rpm -U` command with the newer RPM on every host, give the install directory back to
+`gpadmin` on every host, then restart PXF once from the coordinator (as `gpadmin`):
 ```bash
 sudo rpm -Uvh edb-whpg7-pxf-<newer-version>-1.el8.x86_64.rpm   # on every host
+sudo chown -R gpadmin:gpadmin /usr/edb/whpg7-pxf                 # on every host
 pxf cluster restart                                              # once, from the coordinator
 ```
 The previous version's files and runtime directories are replaced, the extension control files are
 re-registered into `$GPHOME`, and your PXF configuration directory (`$PXF_BASE`) is left intact. The
-running PXF servers keep serving the previous version until the restart; after it, every host runs the
-new one with its configuration and keytabs unchanged.
+`chown` is not optional: the package owns the install directory and its subdirectories as `root`, so
+`rpm -U` resets the ownership that the [Install](#install) step set, including `run/`, `logs/`,
+`keytabs/` and `servers/` when `$PXF_BASE` is left at its default. Without it, `pxf cluster restart`
+fails (`Operation not permitted` on `run/pxf-app.pid`), the hosts keep serving the previous version,
+and `gpadmin` can no longer read its keytabs and server configurations. The running PXF servers keep
+serving the previous version until the restart; after it, every host runs the new one with its
+configuration and keytabs unchanged.
 
 ### Upgrading from 6.10.3 or earlier (install path change)
 
