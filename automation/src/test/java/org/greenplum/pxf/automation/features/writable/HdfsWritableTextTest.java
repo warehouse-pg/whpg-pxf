@@ -19,7 +19,6 @@ import org.junit.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.Random;
 import java.util.TimeZone;
@@ -411,7 +410,10 @@ public class HdfsWritableTextTest extends BaseWritableFeature {
                     String.valueOf(j + 1000),
                     String.valueOf(j + 10),
                     ("b#!?bbb_" + (j + 1)),
-                    new Timestamp((System.currentTimeMillis()) - timeZoneOffset).toString(),
+                    // Whole seconds only: java.sql.Timestamp#toString prints a zero
+                    // fraction as ".0" while GPDB writes none, so a row generated on an
+                    // exact second (1 in 1000) failed the read-back comparison.
+                    String.format("%1$tF %1$tT", (System.currentTimeMillis()) - timeZoneOffset),
                     ("<(" + (j + 1) + "\\," + (j + 1) + ")\\," + (j + 1)) + ">"});
         }
 
