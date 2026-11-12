@@ -79,4 +79,13 @@ s/invalid input syntax for type/invalid input syntax for/
 m/NOTICE: resource queue required – using default resource queue.*/
 s/.*//g
 
+# WarehousePG 19 prints the external-table error context without "file" and,
+# for errors that carry no data line, with an empty raw-data suffix:
+#   CONTEXT:  External table <t>, pxf://<uri>: ""
+# WarehousePG 6/7 print:
+#   CONTEXT:  External table <t>, file pxf://<uri>
+# Rewrite the 19 form into the 6/7 form; the "line N of <file>" form is the same on both.
+m/^CONTEXT:\s+External table \S+, pxf:\/\//
+s/^(CONTEXT:\s+External table \S+), (pxf:\/\/.*?)(: "")?\s*$/$1, file $2/
+
 -- end_matchsubs
