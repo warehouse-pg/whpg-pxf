@@ -79,4 +79,14 @@ s/invalid input syntax for type/invalid input syntax for/
 m/NOTICE: resource queue required – using default resource queue.*/
 s/.*//g
 
+# An external-table error that carries no data row (a PXF server error, for
+# example) has a different CONTEXT line on WarehousePG 19:
+#   WarehousePG 6/7:  CONTEXT:  External table <t>, line <n> of file pxf://<uri>
+#   WarehousePG 19:   CONTEXT:  External table <t>, line <n> of pxf://<uri>: ""
+# Rewrite the 19 line into the 6/7 line, so that the rules each test adds see
+# the same text on every version. Lines that carry data are the same on all
+# versions and do not end in an empty quoted string, so they do not match.
+m/^CONTEXT:\s+External table \S+, line \d+ of pxf:\/\/.*: ""[ \t]*$/
+s/^(CONTEXT:\s+External table \S+, line \d+ of )(pxf:\/\/.*): ""[ \t]*$/$1file $2/
+
 -- end_matchsubs
