@@ -69,7 +69,8 @@ features (external cluster mode, CLI changes) are tracked separately and are
   single-string / 1000-level nesting limits on customer JSON).
 - Hive client **2.3.8 → 4.0.1**, and with it the hand-maintained Hive
   transitive tree re-derived from Hive 4.0.1's POMs: Thrift
-  (libthrift) **0.9.3 → 0.16.0**, Kryo **3.0.3 → 5.5.0**, ORC
+  (libthrift) **0.9.3 → 0.24.0** (above Hive 4.0.1's own 0.16.0 pin, see
+  Security remediation below), Kryo **3.0.3 → 5.5.0**, ORC
   **1.6.13 → 1.8.10** (with aircompressor **0.8 → 2.0.3** and
   threeten-extra 1.7.1), hive-storage-api **2.7.2 → 4.0.1**,
   protobuf-java **2.5.0 → 3.25.8** (orc-core 1.8.x needs a protobuf 3.x
@@ -159,6 +160,21 @@ bundle.
     1.11 line on purpose — avro 1.12.x is compiled for Java 11 while
     this build targets Java 8, and 1.11.5 declares the same
     dependencies as 1.11.4.
+  - Apache Thrift (`libthrift`) **0.24.0** instead of Hive 4.0.1's 0.16.0: CVE-2026-43869
+    (the TLS client socket from `TSSLTransportFactory` did not verify the
+    server's hostname, fixed in 0.23.0) and CVE-2026-43871 (infinite loop
+    on a crafted varint in `TCompactProtocol`, fixed in 0.24.0), plus the
+    decoder bounds added in 0.24.0. Deliberately above Hive 4.0.1's own
+    0.16.0 pin; no Hive release has moved past 0.16.0. Every thrift API
+    the bundled Hive 4.0.1 jars use in binary transport resolves
+    unchanged in 0.24.0, the default message size, frame size and
+    recursion limits are the same as in 0.16.0, and the SASL transport
+    behaves as in 0.16.0. Not 0.25.0: it starts rejecting SASL frames
+    above 16 MB, a limit Hive gives no way to raise, so large metastore
+    or HiveServer2 responses over Kerberos or other SASL connections
+    would fail. What this means for Hive connections (binary transport
+    only, metastore TLS hostname check) is under Hive 4.x client
+    migration.
   - `org.wildfly.openssl:wildfly-openssl` **1.0.7.Final → 2.2.5.Final**
     (BDSA-2020-3250, memory leak on HTTP session creation). Fixed
     upstream in 1.0.11.Final, but 2.2.5.Final is what
@@ -232,11 +248,6 @@ Two things deliberately did **not** move:
 
 #### Known remaining exposure
 
-- Apache Thrift **0.16.0** still carries advisories published after the
-  0.9.3 → 0.16.0 migration. The upstream fix line is 0.24.0, which is
-  not released; the two criticals and several highs affect the C++,
-  c_glib, Rust and Node bindings, which this bundle does not ship (only
-  the Java `libthrift`).
 - Spring Framework 5.3.x and Spring Boot 2.7.x have no further OSS
   releases; their remaining advisories need the Boot 3.x / Java 17 move.
 - OpenTelemetry **1.49.0** carries BDSA-2026-13566 (1 low). The fix is
@@ -323,6 +334,20 @@ Two things deliberately did **not** move:
   positional partition RPCs when an older (2.x) metastore rejects the
   request-object calls the 4.x client issues — verified live against
   Hive 2.3.8 and 4.0.1 metastores.
+- **Hive connections use Thrift binary transport only.** HTTP transport
+  mode is not supported: a `jdbc:hive2` URL with `transportMode=http`, or a
+  Hive connector whose metastore client is set to HTTP transport, fails
+  when connecting. The bundled libthrift 0.24.0 (see Security remediation)
+  moved `THttpClient` to Apache HttpClient 5, while Hive 4.0.1 calls its
+  HttpClient 4 constructor. Binary transport, the default, works with
+  SASL, Kerberos and ZooKeeper service discovery.
+- **TLS connections to the Hive metastore verify the server's hostname**
+  (CVE-2026-43869). With `hive.metastore.use.SSL` enabled, the metastore's
+  certificate must match the host name in `hive.metastore.uris`;
+  connecting by IP address or through an alias the certificate does not
+  list fails the TLS handshake. JDBC connections to HiveServer2 (`ssl=true`
+  in a `jdbc:hive2` URL) build their TLS socket without
+  `TSSLTransportFactory` and are not affected.
 
 ### Breaking changes
 
