@@ -348,7 +348,7 @@ configure(javaProjects) {
             }
             // hive-jdbc/hive-service move with the Hive line: they share the
             // libthrift pin, and hive-jdbc 2.x-3.x still needs the thrift 0.9
-            // API, so there is no halfway version once libthrift is 0.16
+            // API, so there is no halfway version once libthrift is past 0.9
             dependencySet(group:"org.apache.hive", version:"${hiveVersion}") {
                 entry("hive-jdbc")
                 entry("hive-service")
@@ -380,9 +380,23 @@ configure(javaProjects) {
                 entry("parquet-pig")
             }
 
-            // Thrift dependencies: libthrift per Hive 4.0.1's POM; libfb303's
-            // line ended at 0.9.3 and Hive 4.0.1 itself still pins it there
-            dependency("org.apache.thrift:libthrift:0.16.0")
+            // Thrift dependencies. Hive 4.0.1's POM pins libthrift 0.16.0, which
+            // carries CVE-2026-43869 (no TLS hostname verification in
+            // TSSLTransportFactory, fixed 0.23.0) and CVE-2026-43871 (infinite
+            // loop in the TCompactProtocol varint reader, fixed 0.24.0); no
+            // Hive release has moved past 0.16.0. Every thrift class, method
+            // and field the bundled Hive 4.0.1 jars reference still resolves
+            // in 0.25.0 except the THttpClient(String, httpclient-4 HttpClient)
+            // constructor (0.19.0 moved THttpClient to httpclient5) and
+            // TServlet's javax.servlet doPost, which only HiveServer2's server
+            // side uses. So HTTP transport mode (hive-jdbc transportMode=http,
+            // the metastore client's http mode) does not work with this pin;
+            // binary transport, SASL and Kerberos are unaffected. httpclient5
+            // is deliberately not bundled: it would only turn the failure
+            // into a NoSuchMethodError. Revisit when Hive moves its pin.
+            // libfb303's line ended at 0.9.3 and Hive 4.0.1 itself still pins
+            // it there.
+            dependency("org.apache.thrift:libthrift:0.25.0")
             dependency("org.apache.thrift:libfb303:0.9.3")
 
             // ORC dependencies

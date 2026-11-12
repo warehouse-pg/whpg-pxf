@@ -22,6 +22,8 @@ To access Hive via JDBC, you must specify the following properties and values in
 | jdbc.driver | org.apache.hive.jdbc.HiveDriver |
 | jdbc.url | jdbc:hive2://\<hiveserver2_host>:\<hiveserver2_port>/\<database> |
 
+<div class="note">PXF connects to HiveServer2 in binary transport mode, the HiveServer2 default. HTTP transport mode (<code>transportMode=http</code> in the URL, or <code>hive.server2.transport.mode=http</code> on the server) is not supported: the Thrift library bundled with PXF no longer provides the HTTP client API that the Hive JDBC driver uses.</div>
+
 The value of the HiveServer2 authentication (`hive.server2.authentication`) and impersonation (`hive.server2.enable.doAs`) properties, and whether or not the Hive service is utilizing Kerberos authentication, will inform the setting of other JDBC server configuration properties. These properties are defined in the `hive-site.xml` configuration file in the Hadoop cluster. You will need to obtain the values of these properties.
 
 The following table enumerates the Hive2 authentication and impersonation combinations supported by the PXF JDBC Connector. It identifies the possible Hive user identities and the JDBC server configuration required for each.
