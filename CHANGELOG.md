@@ -64,9 +64,12 @@ features (external cluster mode, CLI changes) are tracked separately and are
   2.5** (overriding the Spring Boot 2.7 BOM's managed version).
 - Boot-BOM-managed overrides raised for security: embedded Tomcat
   **9.0.87 → 9.0.121** and the jackson family **2.13.5 → 2.22.2**
-  (via the jackson-bom property). The `json` profile explicitly keeps
-  the pre-jackson-2.15 unconstrained read behavior (no 20MB
-  single-string / 1000-level nesting limits on customer JSON).
+  (via the jackson-bom property). The `json` profile lifts the string
+  (20MB), number (1000 digits) and field-name (50,000 characters) length
+  limits that jackson 2.15+ added, so customer JSON that read before
+  still reads. It keeps jackson's 1000-level nesting limit
+  (CVE-2025-52999 hardening): a record nested more than 1000 levels
+  deep, in any field, now fails as a bad record when it is parsed.
 - Hive client **2.3.8 → 4.0.1**, and with it the hand-maintained Hive
   transitive tree re-derived from Hive 4.0.1's POMs: Thrift
   (libthrift) **0.9.3 → 0.16.0**, Kryo **3.0.3 → 5.5.0**, ORC

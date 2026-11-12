@@ -19,7 +19,9 @@ package org.greenplum.pxf.plugins.json;
  * under the License.
  */
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,9 +54,7 @@ import java.util.StringJoiner;
  */
 public class JsonResolver extends BasePlugin implements Resolver {
 
-    // built on the same unconstrained factory configuration the accessor
-    // uses (see JsonAccessor.newUnconstrainedFactory)
-    private static final ObjectMapper MAPPER = new ObjectMapper(JsonAccessor.newUnconstrainedFactory());
+    private static final ObjectMapper MAPPER = new ObjectMapper(newReadFactory());
 
     static {
         // JSON has only floating point numbers of arbitrary precision and scale, when parsing them into Java we want
@@ -63,6 +63,26 @@ public class JsonResolver extends BasePlugin implements Resolver {
     }
 
     private PgUtilities pgUtilities;
+
+    /**
+     * Returns the JsonFactory every record is parsed with. jackson 2.15+
+     * caps a single string at 20,000,000 characters, a number at 1000 digits
+     * and (2.16+) a field name at 50,000 characters. Those limits did not
+     * exist when this connector's behavior was established, and a JSON file
+     * on the customer's own storage may exceed them, so they are lifted. The
+     * nesting-depth limit (1000) stays, as the CVE-2025-52999 hardening: a
+     * record nested deeper fails as a bad record when it is parsed, rather
+     * than depending on later serialization limits.
+     */
+    static JsonFactory newReadFactory() {
+        return JsonFactory.builder()
+                .streamReadConstraints(StreamReadConstraints.builder()
+                        .maxStringLength(Integer.MAX_VALUE)
+                        .maxNumberLength(Integer.MAX_VALUE)
+                        .maxNameLength(Integer.MAX_VALUE)
+                        .build())
+                .build();
+    }
 
     private ArrayList<OneField> oneFieldList;
     private ColumnDescriptorCache[] columnDescriptorCache;

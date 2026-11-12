@@ -3,32 +3,48 @@ package org.greenplum.pxf.plugins.json;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.exc.StreamConstraintsException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * jackson 2.15+ enforces StreamReadConstraints by default (max single
- * string ~20MB, max nesting depth 1000). PXF parses arbitrary customer
- * JSON, so the connector restores the unconstrained pre-2.15 behavior —
- * these tests pin that: inputs that exceed the jackson defaults must
- * still parse.
+ * jackson 2.15+ enforces StreamReadConstraints by default. The JSON resolver
+ * lifts the string, number and field-name length limits, so customer files
+ * that parsed before still parse, and keeps the 1000-level nesting limit
+ * (CVE-2025-52999 hardening).
  */
 public class JsonStreamConstraintsTest {
 
-    @Test
-    public void stringLargerThanJacksonDefaultLimitParses() throws Exception {
-        // jackson's default max string is 20_000_000 chars; exceed it
-        int size = 20_000_001;
-        StringBuilder sb = new StringBuilder(size + 20);
-        sb.append("{\"big\":\"");
-        for (int i = 0; i < size; i++) {
-            sb.append('x');
+    static String repeat(char c, int n) {
+        StringBuilder sb = new StringBuilder(n);
+        for (int i = 0; i < n; i++) {
+            sb.append(c);
         }
-        sb.append("\"}");
+        return sb.toString();
+    }
 
-        JsonFactory factory = JsonAccessor.newUnconstrainedFactory();
-        try (JsonParser parser = factory.createParser(sb.toString())) {
+    /** {"a":{"a":...1...}} with {@code depth} objects */
+    static String nested(int depth) {
+        StringBuilder sb = new StringBuilder(depth * 6 + 1);
+        for (int i = 0; i < depth; i++) {
+            sb.append("{\"a\":");
+        }
+        sb.append('1');
+        for (int i = 0; i < depth; i++) {
+            sb.append('}');
+        }
+        return sb.toString();
+    }
+
+    @Test
+    public void stringLongerThanJacksonDefaultParses() throws Exception {
+        // jackson's default maximum string length is 20,000,000 characters
+        int size = 20_000_001;
+        String json = "{\"big\":\"" + repeat('x', size) + "\"}";
+        try (JsonParser parser = JsonResolver.newReadFactory().createParser(json)) {
             assertEquals(JsonToken.START_OBJECT, parser.nextToken());
             assertEquals(JsonToken.FIELD_NAME, parser.nextToken());
             assertEquals(JsonToken.VALUE_STRING, parser.nextToken());
@@ -38,17 +54,11 @@ public class JsonStreamConstraintsTest {
     }
 
     @Test
-    public void fieldNameLongerThanJacksonDefaultLimitParses() throws Exception {
-        // jackson's default max field name is 50_000 chars; exceed it
+    public void fieldNameLongerThanJacksonDefaultParses() throws Exception {
+        // jackson's default maximum field name length is 50,000 characters
         int size = 50_001;
-        StringBuilder name = new StringBuilder(size);
-        for (int i = 0; i < size; i++) {
-            name.append('n');
-        }
-        String json = "{\"" + name + "\":1}";
-
-        JsonFactory factory = JsonAccessor.newUnconstrainedFactory();
-        try (JsonParser parser = factory.createParser(json)) {
+        String json = "{\"" + repeat('n', size) + "\":1}";
+        try (JsonParser parser = JsonResolver.newReadFactory().createParser(json)) {
             assertEquals(JsonToken.START_OBJECT, parser.nextToken());
             assertEquals(JsonToken.FIELD_NAME, parser.nextToken());
             assertEquals(size, parser.currentName().length());
@@ -58,28 +68,28 @@ public class JsonStreamConstraintsTest {
     }
 
     @Test
-    public void nestingDeeperThanJacksonDefaultLimitParses() throws Exception {
-        // jackson's default max nesting depth is 1000; exceed it
-        int depth = 1200;
-        StringBuilder sb = new StringBuilder(depth * 8 + 16);
-        for (int i = 0; i < depth; i++) {
-            sb.append("{\"a\":");
-        }
-        sb.append("1");
-        for (int i = 0; i < depth; i++) {
-            sb.append("}");
-        }
+    public void numberLongerThanJacksonDefaultParses() throws Exception {
+        // jackson's default maximum number length is 1000 digits
+        String digits = "1" + repeat('0', 1500);
+        ObjectMapper mapper = new ObjectMapper(JsonResolver.newReadFactory());
+        assertEquals(digits, mapper.readTree("{\"n\":" + digits + "}").get("n").bigIntegerValue().toString());
+    }
 
-        JsonFactory factory = JsonAccessor.newUnconstrainedFactory();
-        try (JsonParser parser = factory.createParser(sb.toString())) {
-            int opened = 0;
-            JsonToken token;
-            while ((token = parser.nextToken()) != null) {
-                if (token == JsonToken.START_OBJECT) {
-                    opened++;
-                }
-            }
-            assertEquals(depth, opened);
-        }
+    @Test
+    public void nestingUpToJacksonDefaultParses() throws Exception {
+        ObjectMapper mapper = new ObjectMapper(JsonResolver.newReadFactory());
+        mapper.readTree(nested(1000));
+    }
+
+    @Test
+    public void nestingDeeperThanJacksonDefaultIsRejected() {
+        ObjectMapper mapper = new ObjectMapper(JsonResolver.newReadFactory());
+        assertThrows(StreamConstraintsException.class, () -> mapper.readTree(nested(1001)));
+    }
+
+    @Test
+    public void readFactoryKeepsNestingLimit() {
+        JsonFactory factory = JsonResolver.newReadFactory();
+        assertEquals(1000, factory.streamReadConstraints().getMaxNestingDepth());
     }
 }

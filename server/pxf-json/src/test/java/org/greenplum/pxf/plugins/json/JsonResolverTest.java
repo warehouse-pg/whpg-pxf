@@ -1,5 +1,6 @@
 package org.greenplum.pxf.plugins.json;
 
+import com.fasterxml.jackson.core.exc.StreamConstraintsException;
 import org.greenplum.pxf.api.error.BadRecordException;
 import org.greenplum.pxf.api.OneField;
 import org.greenplum.pxf.api.OneRow;
@@ -417,6 +418,44 @@ public class JsonResolverTest {
     }
 
     // helper functions for testing
+    @Test
+    public void testGetFieldsReadsNestedTextColumnWithinNestingLimit() throws Exception {
+        // the record object plus 999 nested objects is 1000 levels
+        String value = JsonStreamConstraintsTest.nested(999);
+        OneRow row = new OneRow(123, "{\"type_string1\":" + value + "}");
+
+        List<OneField> fields = resolver.getFields(row);
+        assertEquals(value, fields.get(5).val);
+    }
+
+    @Test
+    public void testGetFieldsRejectsRecordNestedBeyondLimitAsBadRecord() {
+        // nested in a column the table does not select, so only the read limit can catch it
+        OneRow row = new OneRow(123, "{\"type_int\":1,\"unused\":" + JsonStreamConstraintsTest.nested(1000) + "}");
+
+        BadRecordException e = assertThrows(BadRecordException.class, () -> resolver.getFields(row));
+        assertTrue(e.getCause() instanceof StreamConstraintsException, () -> "cause: " + e.getCause());
+    }
+
+    @Test
+    public void testGetFieldsRejectsVeryDeeplyNestedTextColumnAsBadRecord() {
+        // CVE-2025-52999 shape: a TEXT column whose value is nested 200,000 levels deep
+        OneRow row = new OneRow(123, "{\"type_string1\":" + JsonStreamConstraintsTest.nested(200_000) + "}");
+
+        BadRecordException e = assertThrows(BadRecordException.class, () -> resolver.getFields(row));
+        assertTrue(e.getCause() instanceof StreamConstraintsException, () -> "cause: " + e.getCause());
+    }
+
+    @Test
+    public void testGetFieldsReadsStringLongerThanJacksonDefault() throws Exception {
+        // jackson's default maximum string length is 20,000,000 characters
+        String big = JsonStreamConstraintsTest.repeat('x', 20_000_001);
+        OneRow row = new OneRow(123, "{\"type_string1\":\"" + big + "\"}");
+
+        List<OneField> fields = resolver.getFields(row);
+        assertEquals(big.length(), ((String) fields.get(5).val).length());
+    }
+
     private List<OneField> assertRow(OneRow row, int numFields) throws Exception {
         List<OneField> fields = resolver.getFields(row);
         assertEquals(numFields, fields.size());
