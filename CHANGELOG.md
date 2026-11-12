@@ -177,6 +177,17 @@ bundle.
     Against 2.16.1 this compiles and passes every unit test, then throws
     `NoSuchMethodError` the first time Hadoop resolves a configuration
     file — caught only by the L2 parquet smoke test.
+  - `org.xerial.snappy:snappy-java` **1.1.10.4 → 1.1.10.12**
+    (BDSA-2026-33684 and BDSA-2026-33873, fixed in 1.1.10.8: decompressing
+    crafted Snappy data with a declared size larger than the destination
+    buffer could corrupt native memory and crash the JVM; plus the
+    buffer-overflow and unbounded-allocation fixes in 1.1.10.9, including
+    CVE-2026-90559). 1.1.10.12 rather than 1.1.10.9: the output-buffer
+    check added in 1.1.10.9 rejects buffers that Hadoop's
+    `SnappyCompressor` legitimately passes, so Snappy-compressed writes
+    through Hadoop's `SnappyCodec` could fail with "not enough space for
+    output". 1.1.10.11 and 1.1.10.12 fix that while keeping the check.
+    Still Java 8 class files, with the same bundled native libraries.
 
 #### Behavior note
 
