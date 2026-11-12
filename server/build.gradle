@@ -386,17 +386,22 @@ configure(javaProjects) {
             // loop in the TCompactProtocol varint reader, fixed 0.24.0); no
             // Hive release has moved past 0.16.0. Every thrift class, method
             // and field the bundled Hive 4.0.1 jars reference still resolves
-            // in 0.25.0 except the THttpClient(String, httpclient-4 HttpClient)
+            // in 0.24.0 except the THttpClient(String, httpclient-4 HttpClient)
             // constructor (0.19.0 moved THttpClient to httpclient5) and
             // TServlet's javax.servlet doPost, which only HiveServer2's server
             // side uses. So HTTP transport mode (hive-jdbc transportMode=http,
             // the metastore client's http mode) does not work with this pin;
             // binary transport, SASL and Kerberos are unaffected. httpclient5
             // is deliberately not bundled: it would only turn the failure
-            // into a NoSuchMethodError. Revisit when Hive moves its pin.
+            // into a NoSuchMethodError. Stay on 0.24.0, not 0.25.0: 0.25.0's
+            // TSaslTransport rejects any frame above maxFrameSize (16 MB by
+            // default), and Hive only ever sets maxMessageSize, so a single
+            // response over 16 MB on a SASL connection (Kerberos metastore
+            // listing many partitions, HiveServer2 fetches) would fail.
+            // Revisit when Hive moves its pin.
             // libfb303's line ended at 0.9.3 and Hive 4.0.1 itself still pins
             // it there.
-            dependency("org.apache.thrift:libthrift:0.25.0")
+            dependency("org.apache.thrift:libthrift:0.24.0")
             dependency("org.apache.thrift:libfb303:0.9.3")
 
             // ORC dependencies
