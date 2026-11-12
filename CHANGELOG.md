@@ -44,6 +44,16 @@ features (external cluster mode, CLI changes) are tracked separately and are
   `management.endpoints.web.exposure.include=health,info,shutdown,metrics,prometheus`
   and `management.endpoint.shutdown.enabled=true` in
   `$PXF_BASE/conf/pxf-application.properties` and restarting PXF.
+- Avro files are read with Avro's `GenericData` model instead of
+  `SpecificData`. `SpecificData` looks up the classes a schema names and
+  instantiates them, and when no `SCHEMA` option is set the schema comes
+  from the data file. Avro 1.11.5 checks `java-class` properties against
+  a trusted-package list, but a record whose full name matched a class on
+  PXF's classpath still had that class constructed, so a crafted file on
+  the table's path could do so. A file with a `java-class` property
+  outside Avro's trusted packages used to fail with a `SecurityException`;
+  that property is now ignored and the value is read as a string. Values
+  read from ordinary Avro files are unchanged.
 
 ### Library bundle
 
