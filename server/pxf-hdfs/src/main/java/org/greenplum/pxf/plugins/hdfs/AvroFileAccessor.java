@@ -23,6 +23,7 @@ package org.greenplum.pxf.plugins.hdfs;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroInputFormat;
@@ -99,6 +100,15 @@ public class AvroFileAccessor extends HdfsSplittableDataAccessor {
     public boolean openForRead() throws Exception {
         // Pass the schema to the AvroInputFormat
         AvroJob.setInputSchema(jobConf, schema);
+
+        // Read with GenericData. Without a data model set, AvroRecordReader
+        // uses SpecificData, which looks up the classes the schema names and
+        // instantiates them. The schema can come from the data file itself.
+        // Avro 1.11.4+ only checks java-class / java-key-class properties
+        // against a trusted-package list; a record whose full name matches a
+        // class on the classpath still gets that class constructed with its
+        // no-arg constructor. PXF only consumes GenericRecords.
+        AvroJob.setDataModelClass(jobConf, GenericData.class);
 
         // The avroWrapper required for the iteration
         avroWrapper = new AvroWrapper<>();
