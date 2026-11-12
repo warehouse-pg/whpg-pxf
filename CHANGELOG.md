@@ -49,8 +49,10 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
     check that SASL negotiation with the Hive metastore or HiveServer2 had
     completed).
 
-  Behavior change: a JSON record nested more than 1000 levels deep now fails
-  as a bad record instead of with a `StackOverflowError`. The string, number
+  Behavior change: a JSON record nested more than 1000 levels deep, in any
+  field, now fails as a bad record when it is parsed. Before, such a record
+  read normally unless a selected column held the deeply nested value, and a
+  deep enough value overflowed the stack (CVE-2025-52999). The string, number
   and field-name length limits that Jackson 2.15+ added are lifted for the
   JSON connector, so records that read before still read.
 

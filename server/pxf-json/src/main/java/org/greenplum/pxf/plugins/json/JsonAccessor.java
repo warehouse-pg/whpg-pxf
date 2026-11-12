@@ -21,7 +21,6 @@ package org.greenplum.pxf.plugins.json;
 
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.mapred.FileSplit;
@@ -87,7 +86,7 @@ public class JsonAccessor extends LineBreakAccessor {
     private static final String JSONL_FILE_EXTENSION = ".jsonl";
     private static final String ROOT_PARAM = "ROOT";
 
-    private static final JsonFactory COMMON_JSON_FACTORY = newReadFactory();
+    private static final JsonFactory COMMON_JSON_FACTORY = new JsonFactory();
     private static final String NEWLINE = "\n"; //TODO: this can be made configurable
 
     /**
@@ -112,28 +111,6 @@ public class JsonAccessor extends LineBreakAccessor {
     private boolean isFirstRecord;
 
     private final JsonUtilities jsonUtilities;
-
-    /**
-     * Returns a JsonFactory with jackson's read limits set for customer data.
-     * jackson 2.15+ caps a single string at 20,000,000 characters, a number at
-     * 1000 digits and (2.16+) a field name at 50,000 characters. Those limits
-     * did not exist when this connector's behavior was established, and a JSON
-     * file on the customer's own storage may exceed them, so they are lifted.
-     * The nesting-depth limit (1000) stays: it is what turns a deeply nested
-     * record into a parse error instead of a StackOverflowError
-     * (CVE-2025-52999). Shared as configuration, not as an instance, so the
-     * resolver's ObjectMapper does not attach its codec to the accessor's
-     * parsers.
-     */
-    static JsonFactory newReadFactory() {
-        return JsonFactory.builder()
-                .streamReadConstraints(StreamReadConstraints.builder()
-                        .maxStringLength(Integer.MAX_VALUE)
-                        .maxNumberLength(Integer.MAX_VALUE)
-                        .maxNameLength(Integer.MAX_VALUE)
-                        .build())
-                .build();
-    }
 
     /**
      * Constructs a new instance of the JsonAccessor
