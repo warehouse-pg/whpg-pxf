@@ -19,6 +19,7 @@ package org.greenplum.pxf.service;
  * under the License.
  */
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,7 +62,11 @@ public class MetadataResponse implements StreamingResponseBody {
         DataOutputStream dos = new DataOutputStream(output);
         ObjectMapper mapper = JsonMapper.builder()
                 .configure(MapperFeature.USE_ANNOTATIONS, true) // enable annotations for serialization
-                .serializationInclusion(Include.NON_EMPTY) // ignore empty fields
+                // ignore empty fields. serializationInclusion(Include) is deprecated in
+                // jackson 2.2x; NON_EMPTY for both value and content inclusion is what
+                // it set, so empty or null entries inside Map/Collection properties are
+                // still dropped
+                .defaultPropertyInclusion(JsonInclude.Value.construct(Include.NON_EMPTY, Include.NON_EMPTY))
                 .build();
 
         if (metadataList == null || metadataList.isEmpty()) {

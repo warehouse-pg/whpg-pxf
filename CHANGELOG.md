@@ -31,6 +31,36 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
   `java-class` or `java-key-class` property, a class that PXF does not ship
   used to fail the read with a `ClassNotFoundException`; that property is
   now ignored and the value is read as a string.
+- Security: bundled libraries upgraded to fix published vulnerabilities, with
+  no change to the Hadoop 2.10 / Hive 2.3 / HBase 1.3 client runtimes:
+  - snappy-java **1.1.10.4 → 1.1.10.12**: BDSA-2026-33684, BDSA-2026-33873 and
+    the 1.1.10.9 buffer-overflow and allocation fixes (crafted Snappy data in
+    Parquet or Avro files could corrupt native memory or crash the JVM).
+  - aircompressor **0.8 → 2.0.3**: CVE-2024-36114 and CVE-2025-67721 (the
+    Java Snappy and LZ4 decompressors that ORC reads use could crash the JVM
+    or read out of bounds on crafted data).
+  - Avro **1.10.2 → 1.11.5**: CVE-2023-39410 (unbounded allocation on crafted
+    Avro data), and CVE-2024-47561 in the library itself on top of the
+    `GenericData` change above.
+  - Jackson **2.13.5 → 2.22.4**: CVE-2025-52999 (a deeply nested JSON record
+    overflowed the stack) and later jackson-core and jackson-databind
+    advisories.
+  - libthrift **0.9.3 → 0.9.3-1**: CVE-2018-1320 (the Thrift client did not
+    check that SASL negotiation with the Hive metastore or HiveServer2 had
+    completed).
+
+  Behavior change: a JSON record nested more than 1000 levels deep, in any
+  field, now fails as a bad record when it is parsed. Before, such a record
+  read normally unless a selected column held the deeply nested value, and a
+  deep enough value overflowed the stack (CVE-2025-52999). The string, number
+  and field-name length limits that Jackson 2.15+ added are lifted for the
+  JSON connector, so records that read before still read.
+
+  Not fixed on 6.x: protobuf-java 2.5.0 (CVE-2022-3171), because Hadoop 2.10's
+  RPC and ORC 1.6's generated code need the 2.5 runtime; and libthrift
+  CVE-2026-43869 and CVE-2026-43871, which need libthrift 0.24.0; 15 of the
+  Thrift classes and methods that Hive 2.3's client code calls no longer
+  exist there.
 
 ### Breaking changes
 
