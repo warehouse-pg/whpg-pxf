@@ -22,7 +22,10 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
   no `SCHEMA` option is set), so a crafted file on the table's path could run
   code in the PXF JVM (CVE-2024-47561). PXF now reads Avro files with
   `GenericData`, which never loads classes named by the schema. Values read
-  from ordinary Avro files are unchanged.
+  from ordinary Avro files are unchanged. A file whose schema names, in a
+  `java-class` or `java-key-class` property, a class that PXF does not ship
+  used to fail the read with a `ClassNotFoundException`; that property is
+  now ignored and the value is read as a string.
 
 ### Breaking changes
 
