@@ -18,11 +18,11 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
 - Security: reading an Avro file through the `hdfs:avro` (and other `*:avro`)
   profiles used Avro's `SpecificData` model, which loads and instantiates the
   Java classes that the file's schema names in `java-class` properties and
-  record names. That schema can come from the data file itself (it does when no
-  `SCHEMA` option is set), so a crafted file on the table's path could run code in the PXF JVM
-  (CVE-2024-47561). PXF now reads Avro files with `GenericData`, which never
-  loads classes named by the schema. Values read from ordinary Avro files are
-  unchanged.
+  record names. That schema can come from the data file itself (it does when
+  no `SCHEMA` option is set), so a crafted file on the table's path could run
+  code in the PXF JVM (CVE-2024-47561). PXF now reads Avro files with
+  `GenericData`, which never loads classes named by the schema. Values read
+  from ordinary Avro files are unchanged.
 
 ### Breaking changes
 
