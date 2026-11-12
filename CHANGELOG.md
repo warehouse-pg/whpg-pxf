@@ -35,6 +35,14 @@ features (external cluster mode, CLI changes) are tracked separately and are
     server error would have surfaced as `invalid input syntax for type json`
     instead of the message the server actually sent.
 
+- On WarehousePG 19, a `pxf_fdw` foreign table with `reject_limit` (and
+  optionally `log_errors`) failed on the first malformed row instead of
+  rejecting it. WarehousePG 19 hands such errors to the foreign-data
+  wrapper's `HandleForeignScanError` callback, which `pxf_fdw` did not
+  register. Malformed rows are now rejected and logged as on WarehousePG 7;
+  errors that do not come from reading a row, such as a failing cast in the
+  `WHERE` clause, still fail the query.
+
 ### Security hardening
 
 - The Spring Boot actuator `shutdown` endpoint is no longer exposed or
