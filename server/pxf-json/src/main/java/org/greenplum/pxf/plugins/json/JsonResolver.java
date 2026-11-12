@@ -52,7 +52,8 @@ import java.util.StringJoiner;
  */
 public class JsonResolver extends BasePlugin implements Resolver {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // same read limits as the accessor (see JsonAccessor.newReadFactory)
+    private static final ObjectMapper MAPPER = new ObjectMapper(JsonAccessor.newReadFactory());
 
     static {
         // JSON has only floating point numbers of arbitrary precision and scale, when parsing them into Java we want
