@@ -247,14 +247,16 @@ In this example, you create a Parquet-format writable external table that uses t
 
 ## <a id="overflow"></a>Understanding Overflow Conditions When Writing Numeric Data
 
-PXF uses the `HiveDecimal` class to write numeric Parquet data. `HiveDecimal` limits both the precision and the scale of a numeric type to a maximum of 38.
+PXF writes numeric Parquet data as a `DECIMAL` with a precision of up to 76 digits. Both the precision and the scale of a numeric type are limited to a maximum of 76.
 
-When you define a `NUMERIC` column in an external table without specifying a precision or scale, PXF internally maps the column to a `DECIMAL(38, 18)`.
+When you define a `NUMERIC` column in an external table without specifying a precision or scale, PXF internally maps the column to a `DECIMAL(38, 18)`. To keep more digits, define the column with a precision and scale, for example `NUMERIC(76, 61)`.
+
+<div class="note">Many Parquet readers, including Apache Spark and Apache Hive, support a `DECIMAL` precision of at most 38 and cannot read a column that PXF writes with a greater precision. Arrow-based readers such as PyArrow read such a column as <code>decimal256</code>.</div>
 
 PXF handles the following precision overflow conditions:
 
-- You define a `NUMERIC` column in the external table, and the integer digit count of a value exceeds the maximum supported precision of 38. For example, `1234567890123456789012345678901234567890.12345`, which has an integer digit count of 45.
-- You define a `NUMERIC(<precision>)` column with a `<precision>` greater than 38. For example, `NUMERIC(55)`.
+- You define a `NUMERIC` column in the external table, and the integer digit count of a value exceeds the maximum supported precision of 38. For example, `1234567890123456789012345678901234567890.12345`, which has an integer digit count of 40.
+- You define a `NUMERIC(<precision>)` column with a `<precision>` greater than 76. For example, `NUMERIC(90)`.
 - You define a `NUMERIC` column in the external table, and the integer digit count of a value is greater than 20 (38-18). For example, `123456789012345678901234567890.12345`, which has an integer digit count of 30.
 
 If you define a `NUMERIC(<precision>, <scale>)` column and the integer digit count of a value is greater than `<precision> - <scale>`, PXF returns an error. For example, you define a `NUMERIC(20,4)` column and the value is `12345678901234567.12`, which has an integer digit count of 19, which is greater than 20-4=16.

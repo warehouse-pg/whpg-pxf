@@ -15,6 +15,11 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
   it again, so the line it produced did not read back as the row that was
   written. CSV values are now quoted; TEXT tables are written as-is (TEXT has no
   CSV quoting). Example code only; real connectors were not affected.
+- When a `NUMERIC[]` element did not fit the Parquet decimal type on write, the
+  overflow error (or, with `pxf.parquet.write.decimal.overflow=ignore`, the
+  warning) named the table's first column instead of the array column. The
+  value handling itself was correct; only the column name in the message is
+  fixed.
 
 ### Breaking changes
 
@@ -27,6 +32,16 @@ may not resolve. Releases from 6.10.2 onward are cut from this repository.
 
 ### Enhancements:
 
+- PXF can now write a `NUMERIC(<precision>, <scale>)` column with a precision
+  of up to 76 to Parquet; previously any precision above 38 was rejected. The
+  column is written as a Parquet `DECIMAL` on a `FIXED_LEN_BYTE_ARRAY` wide
+  enough for the precision (32 bytes at 76), which Arrow-based readers such as
+  PyArrow read as `decimal256`. Values are no longer limited by `HiveDecimal`
+  for these columns, and `pxf.parquet.write.decimal.overflow` applies to them
+  as before. Precision up to 38, and the `DECIMAL(38,18)` mapping of a
+  `NUMERIC` column without a precision, are unchanged. Spark, Hive and other
+  readers limited to precision 38 cannot read a column written with a greater
+  precision. ORC writes are unchanged.
 - The kerberized multi-node dev cluster (`dev/ipa-cluster.bash` with the
   terraform and ansible modules under `dev/ipa-multinode-hadoop/`) no longer
   assumes the retired CI's GCP project: the VPC network and subnet default to
