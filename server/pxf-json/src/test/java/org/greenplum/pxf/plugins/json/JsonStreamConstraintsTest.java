@@ -90,6 +90,7 @@ public class JsonStreamConstraintsTest {
     @Test
     public void readFactoryKeepsNestingLimit() {
         JsonFactory factory = JsonResolver.newReadFactory();
-        assertEquals(1000, factory.streamReadConstraints().getMaxNestingDepth());
+        assertEquals(1000, JsonResolver.MAX_NESTING_DEPTH);
+        assertEquals(JsonResolver.MAX_NESTING_DEPTH, factory.streamReadConstraints().getMaxNestingDepth());
     }
 }

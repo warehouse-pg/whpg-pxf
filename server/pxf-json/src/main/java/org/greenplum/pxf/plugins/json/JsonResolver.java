@@ -64,6 +64,9 @@ public class JsonResolver extends BasePlugin implements Resolver {
 
     private PgUtilities pgUtilities;
 
+    // maximum nesting depth of a JSON record (see newReadFactory)
+    static final int MAX_NESTING_DEPTH = 1000;
+
     /**
      * Returns the JsonFactory every record is parsed with. jackson 2.15+
      * caps a single string at 20,000,000 characters, a number at 1000 digits
@@ -80,6 +83,9 @@ public class JsonResolver extends BasePlugin implements Resolver {
                         .maxStringLength(Integer.MAX_VALUE)
                         .maxNumberLength(Integer.MAX_VALUE)
                         .maxNameLength(Integer.MAX_VALUE)
+                        // stated explicitly (it is jackson 2.x's default): the
+                        // CVE-2025-52999 limit must not move with a jackson upgrade
+                        .maxNestingDepth(MAX_NESTING_DEPTH)
                         .build())
                 .build();
     }

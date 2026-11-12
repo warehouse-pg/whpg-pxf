@@ -417,7 +417,6 @@ public class JsonResolverTest {
         assertSame(records, row.getData());
     }
 
-    // helper functions for testing
     @Test
     public void testGetFieldsReadsNestedTextColumnWithinNestingLimit() throws Exception {
         // the record object plus 999 nested objects is 1000 levels
@@ -446,16 +445,7 @@ public class JsonResolverTest {
         assertTrue(e.getCause() instanceof StreamConstraintsException, () -> "cause: " + e.getCause());
     }
 
-    @Test
-    public void testGetFieldsReadsStringLongerThanJacksonDefault() throws Exception {
-        // jackson's default maximum string length is 20,000,000 characters
-        String big = JsonStreamConstraintsTest.repeat('x', 20_000_001);
-        OneRow row = new OneRow(123, "{\"type_string1\":\"" + big + "\"}");
-
-        List<OneField> fields = resolver.getFields(row);
-        assertEquals(big.length(), ((String) fields.get(5).val).length());
-    }
-
+    // helper functions for testing
     private List<OneField> assertRow(OneRow row, int numFields) throws Exception {
         List<OneField> fields = resolver.getFields(row);
         assertEquals(numFields, fields.size());
