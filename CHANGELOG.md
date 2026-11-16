@@ -204,6 +204,19 @@ bundle.
   - Jackson **2.22.2 → 2.22.4** (CVE-2026-89425, CVE-2026-89407,
     CVE-2026-91776 and CVE-2026-91777 against jackson-core and
     jackson-databind, fixed in 2.22.3). release-6.x already ships 2.22.4.
+  - `org.apache.parquet:parquet-format` **2.7.0 → 2.10.0**. parquet-format
+    parses every Parquet footer with a Thrift runtime shaded inside it.
+    2.7.0 shades Thrift 0.12.0, which allocates whatever length a footer
+    declares (CVE-2020-13949, fixed in Thrift 0.14.0). A crafted 34-byte
+    Parquet file on a table's path made the read allocate about 2 GB and
+    fail with `OutOfMemoryError`; with `PXF_OOM_KILL=true` (the default)
+    that stops the PXF server on the host. 2.10.0 shades Thrift 0.19.0,
+    whose 100 MB `MaxMessageSize` rejects such a value before allocating,
+    and the read fails with an error instead. Every PXF release that reads
+    Parquet was affected. Black Duck did not report it because the Thrift
+    classes are shaded into the parquet-format jar. Behavior change: a
+    footer holding a single string or binary value larger than 100 MB no
+    longer reads; the size of the footer as a whole is not limited.
 
 #### Behavior note
 
