@@ -63,7 +63,7 @@ concurrency:
 jobs:
   db-extensions:
     name: db-extensions
-    uses: warehouse-pg/whpg-pxf/.github/workflows/pxf-db-extensions-lane.yml@main
+    uses: warehouse-pg/whpg-pxf/.github/workflows/pxf-db-extensions-lane.yml@ci/main-whpgall-db-extensions-pins
     # No `with:` — this branch runs the lane's default pins. To diverge
     # (e.g. release-6.x pinning an older WHPG 7), pass whpg7-tag /
     # whpg7-sha / whpg6-tag / whpg6-sha / build-image-digest here.

@@ -44,7 +44,7 @@ concurrency:
 jobs:
   db-extensions:
     name: db-extensions
-    uses: warehouse-pg/whpg-pxf/.github/workflows/pxf-db-extensions-lane.yml@main
+    uses: warehouse-pg/whpg-pxf/.github/workflows/pxf-db-extensions-lane.yml@ci/main-whpgall-db-extensions-pins
     with:
       # Weekly rot-check over both branches (schedules fire only from the
       # default branch, so this is where release-6.x gets its weekly
