@@ -6,7 +6,7 @@
 # the checks legs and the upstream canary.
 #
 # Lives on main only and is referenced
-# `warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@ci/main-whpgall-db-extensions-pins` from
+# `warehouse-pg/whpg-pxf/.github/actions/whpg-tree-provenance@main` from
 # the reusable lane (a relative `./.github/actions/...` would resolve
 # from the TRIGGERING branch's checkout and bring the per-branch copy
 # problem straight back).
