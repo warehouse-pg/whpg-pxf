@@ -6,6 +6,24 @@ which has been archived as
 [greenplum-db/pxf-archive](https://github.com/greenplum-db/pxf-archive), and
 may not resolve. Releases from 6.10.2 onward are cut from this repository.
 
+## 6.10.5 (unreleased)
+
+### Bug Fixes:
+
+- Security: `org.apache.parquet:parquet-format` **2.7.0 → 2.10.0**.
+  parquet-format parses every Parquet footer with a Thrift runtime shaded
+  inside it. 2.7.0 shades Thrift 0.12.0, which allocates whatever length a
+  footer declares (CVE-2020-13949, fixed in Thrift 0.14.0). A crafted 34-byte
+  Parquet file on a table's path made the read allocate about 2 GB and fail
+  with `OutOfMemoryError`; with `PXF_OOM_KILL=true` (the default) that stops
+  the PXF server on the host. 2.10.0 shades Thrift 0.19.0, whose 100 MB
+  `MaxMessageSize` rejects such a value before allocating, and the read fails
+  with an error instead. Every PXF release that reads Parquet was affected.
+  Black Duck did not report it because the Thrift classes are shaded into the
+  parquet-format jar. Behavior change: a footer holding a single string or
+  binary value larger than 100 MB no longer reads; the size of the footer as
+  a whole is not limited.
+
 ## 6.10.4 (unreleased)
 
 ### Bug Fixes:
