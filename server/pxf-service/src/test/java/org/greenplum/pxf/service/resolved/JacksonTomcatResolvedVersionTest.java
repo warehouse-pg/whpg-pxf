@@ -17,8 +17,8 @@ public class JacksonTomcatResolvedVersionTest {
 
     @Test
     public void resolvedJacksonMatchesTheSecurityOverride() {
-        assertEquals("2.22.2", PackageVersion.VERSION.toString(), "jackson-core drifted");
-        assertEquals("2.22.2", new ObjectMapper().version().toString(), "jackson-databind drifted");
+        assertEquals("2.22.4", PackageVersion.VERSION.toString(), "jackson-core drifted");
+        assertEquals("2.22.4", new ObjectMapper().version().toString(), "jackson-databind drifted");
     }
 
     @Test
