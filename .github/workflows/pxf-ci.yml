@@ -249,6 +249,12 @@ jobs:
           # branches resolve from public repositories.
           NO_GCE_CHECK: 'true'
         run: cd automation && mvn -B test-compile -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
+      # The automation tree's own unit tests need no cluster, so run them
+      # here; everything else in automation/ runs only in the packaging L2.
+      - name: Run the automation unit tests that need no cluster
+        env:
+          NO_GCE_CHECK: 'true'
+        run: cd automation && mvn -B test -Dtest=GpdbVersionParseTest -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
       - name: Job summary
         if: always()
         run: echo "### automation-compile (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
