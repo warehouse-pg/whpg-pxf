@@ -45,3 +45,13 @@ FROM (VALUES
   ('32 file as row coordinator', $q$SELECT * FROM tf_coord$q$, $q$SELECT * FROM tf_all$q$),
   ('33 file as row any', $q$SELECT * FROM tf_any$q$, $q$SELECT * FROM tf_all$q$)
 ) v(name, q, twin) ORDER BY name;
+-- CSV: quoted fields with the delimiter and doubled quotes, empty fields
+SELECT name, split_part(el_digest(q), ' ', 1) AS rows, el_digest(q) = el_digest(twin) AS same_as_default
+FROM (VALUES
+  ('40 csv coordinator', $q$SELECT * FROM csv_coord$q$, $q$SELECT * FROM csv_all$q$),
+  ('41 csv any', $q$SELECT * FROM csv_any$q$, $q$SELECT * FROM csv_all$q$),
+  ('42 csv any join distributed', $q$SELECT * FROM csv_any JOIN el_h ON csv_any.num - 400 = el_h.num$q$, $q$SELECT * FROM csv_all JOIN el_h ON csv_all.num - 400 = el_h.num$q$),
+  ('43 csv quoted values coordinator', $q$SELECT word FROM csv_coord WHERE word LIKE '%,%' OR word LIKE '%"%'$q$, $q$SELECT word FROM csv_all WHERE word LIKE '%,%' OR word LIKE '%"%'$q$)
+) v(name, q, twin) ORDER BY name;
+-- the CSV values as read on the coordinator
+SELECT num, word FROM csv_coord WHERE num % 10 IN (1, 2, 3) ORDER BY num;

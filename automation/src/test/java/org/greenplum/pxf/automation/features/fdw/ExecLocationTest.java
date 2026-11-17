@@ -120,6 +120,16 @@ public class ExecLocationTest extends BaseFeature {
             bad.addRow(new String[]{n, "b", "1", "2026-06-01", "t"});
         }
         hdfs.writeTableToFile(base + "/bad/data.txt", bad, ",");
+        // csv: 3 files, 12 rows, with quoted fields holding the delimiter and quotes
+        for (int f = 1; f <= 3; f++) {
+            Table t = new Table("csv" + f, null);
+            for (int i = 1; i <= 4; i++) {
+                int n = 400 + f * 10 + i;
+                String word = i == 1 ? "\"a,b " + n + "\"" : i == 2 ? "\"say \"\"hi\"\" " + n + "\"" : i == 3 ? "" : "c" + n;
+                t.addRow(new String[]{String.valueOf(n), word, n + ".75", "2026-10-0" + i, i % 2 == 0 ? "true" : "false"});
+            }
+            hdfs.writeTableToFile(String.format("%s/csv/part%d.csv", base, f), t, ",");
+        }
         // multi: 4 files, read one fragment per file (HdfsFileFragmenter)
         for (int f = 1; f <= 4; f++) {
             Table t = new Table("multi" + f, null);
@@ -198,6 +208,9 @@ public class ExecLocationTest extends BaseFeature {
             gpdb.runQuery(String.format("CREATE FOREIGN TABLE tf_%s (doc text) SERVER %s "
                     + "OPTIONS (resource '%s', format 'text:multi', file_as_row 'true')", p, srv, resource("multi")));
         }
+        table("csv_all", "el_all", "csv", "format 'csv'");
+        table("csv_coord", "el_coord", "csv", "format 'csv'");
+        table("csv_any", "el_any", "csv", "format 'csv'");
         table("g_all", "el_all", "big", text);
         table("g_coord", "el_coord", "big", text);
         table("g_any", "el_any", "big", text);
@@ -223,6 +236,17 @@ public class ExecLocationTest extends BaseFeature {
         table("pq_all", "el_all", "parquet", "format 'parquet'");
         table("pq_coord", "el_coord", "parquet", "format 'parquet'");
         table("pq_any", "el_any", "parquet", "format 'parquet'");
+        // ETL: rows read through 'coordinator' and 'any' written to HDFS and, over
+        // JDBC, to a table in this database; one set of targets per optimizer
+        for (String o : new String[]{"on", "off"}) {
+            table("etl_hdfs_" + o, "el_all", "etl_" + o, text);
+            table("etl_hdfs_" + o + "_back", "el_all", "etl_" + o, text);
+            gpdb.runQuery("DROP TABLE IF EXISTS el_etl_dst_" + o, true, false);
+            gpdb.runQuery("CREATE TABLE el_etl_dst_" + o + " " + COLUMNS + " DISTRIBUTED BY (num)");
+            gpdb.runQuery("DROP FOREIGN TABLE IF EXISTS etl_jdbc_" + o, true, false);
+            gpdb.runQuery(String.format("CREATE FOREIGN TABLE etl_jdbc_%s %s SERVER el_j_all "
+                    + "OPTIONS (resource 'public.el_etl_dst_%s')", o, COLUMNS, o));
+        }
         // writes through each placement, read back through the default path
         for (String w : new String[]{"all", "coord", "any"}) {
             String srv = w.equals("all") ? "el_all" : "el_" + w;
@@ -308,6 +332,13 @@ public class ExecLocationTest extends BaseFeature {
     public void parquetReads() throws Exception {
         requirePrepared();
         runSqlTest("features/fdw/exec_location/parquet");
+    }
+
+    /** INSERT into foreign tables (HDFS, and JDBC into this database) from coordinator and 'any' reads. */
+    @Test(groups = {"features", "gpdb", "jdbc"})
+    public void copyToForeignTables() throws Exception {
+        requirePrepared();
+        runSqlTest("features/fdw/exec_location/etl");
     }
 
     /** ALTER of the option, prepared statements and cached plans follow the new value. */
