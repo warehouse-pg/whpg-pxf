@@ -99,7 +99,13 @@ dependencies {
     testCompileOnly("org.apache.hadoop:hadoop-annotations")
 
     testImplementation("io.airlift:aircompressor")       // for HcfsTypeTest for testing write URI with LzopCodec
-    testImplementation("org.apache.parquet:parquet-pig") // for parquet tests
+    // for parquet tests. parquet-format-structures (pulled in through
+    // parquet-pig) duplicates org.apache.parquet.format with its own shaded
+    // Thrift and would shadow the parquet-format jar PXF ships; exclude it
+    // so tests read footers with the same classes as production.
+    testImplementation("org.apache.parquet:parquet-pig") {
+        exclude group: "org.apache.parquet", module: "parquet-format-structures"
+    }
     testImplementation('org.springframework.boot:spring-boot-starter-test')
 }
 

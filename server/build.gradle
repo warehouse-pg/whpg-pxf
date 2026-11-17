@@ -173,7 +173,17 @@ configure(javaProjects) {
             }
 
             // Parquet dependencies
-            dependency("org.apache.parquet:parquet-format:2.7.0")
+            // parquet-format shades its own Thrift runtime, which parses every
+            // Parquet footer. 2.7.0 shades Thrift 0.12.0, which allocates
+            // whatever length a footer declares (CVE-2020-13949): a 34-byte
+            // file made a read allocate ~2 GB and fail with OutOfMemoryError.
+            // 2.10.0 shades Thrift 0.19.0, which rejects any single value
+            // declared larger than its 100 MB MaxMessageSize before
+            // allocating; the footer as a whole is not capped. 2.8.0 and
+            // 2.9.0 still shade 0.12.0 and 0.13.0. Every parquet-format
+            // reference in parquet-mr 1.11.1, hive-exec and PXF resolves
+            // against 2.10.0.
+            dependency("org.apache.parquet:parquet-format:2.10.0")
             dependencySet(group:"org.apache.parquet", version:"${parquetVersion}") {
                 entry("parquet-column")
                 entry("parquet-common")
