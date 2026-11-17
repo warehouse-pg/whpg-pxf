@@ -75,6 +75,19 @@ PxfBridgeImportStart(PxfFdwScanState *pxfsstate)
 					 pxfsstate->retrieved_attrs,
 					 pxfsstate->projectionInfo);
 
+	/*
+	 * PXF gives each request the fragments that belong to its segment
+	 * (X-GP-SEGMENT-ID of X-GP-SEGMENT-COUNT).  A scan that does not run as
+	 * one of all the segments, mpp_execute 'coordinator' or 'any', must return
+	 * every row, so present it to PXF as the only reader.  Writes keep the
+	 * real segment id, which PXF uses in the names of the files it writes.
+	 */
+	if (pxfsstate->options->exec_location != FTEXECLOCATION_ALL_SEGMENTS)
+	{
+		churl_headers_override(pxfsstate->churl_headers, "X-GP-SEGMENT-ID", "0");
+		churl_headers_override(pxfsstate->churl_headers, "X-GP-SEGMENT-COUNT", "1");
+	}
+
 	pxfsstate->churl_handle = churl_init_download(pxfsstate->uri.data, pxfsstate->churl_headers);
 
 	/* read some bytes to make sure the connection is established */
