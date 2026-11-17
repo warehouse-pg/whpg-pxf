@@ -392,6 +392,18 @@ Two things deliberately did **not** move:
 
 ### Bug Fixes
 
+- `pxf_fdw` foreign tables read with `mpp_execute 'coordinator'` (or
+  `'master'`), or with `mpp_execute 'any'`, crashed the coordinator, or,
+  joined with a distributed table, returned no rows or only some of them.
+  This included tables on a foreign-data wrapper created without
+  `mpp_execute`, which defaults to the coordinator. PXF split every read
+  between the segments, while these settings run it as a single reader. Such
+  a read now gets every row: with `'coordinator'` the table is read once on
+  the coordinator; with `'any'` each copy of the scan the planner runs reads
+  the whole table, as for a replicated table. `log_errors` needs
+  `mpp_execute 'all segments'` and fails with an error otherwise, because
+  WarehousePG records rejected rows only on the segments. Reads with the
+  default, `'all segments'`, and all writes are unchanged.
 - PTT-1850: external tables that are partitions of a partitioned table (or that
   carry CHECK constraints) lost rows when the query projected only columns that
   the partition constraint does not reference. gp_exttable_fdw evaluates the
