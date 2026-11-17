@@ -161,11 +161,12 @@ bundle.
     this build targets Java 8, and 1.11.5 declares the same
     dependencies as 1.11.4.
   - Apache Thrift (`libthrift`) **0.24.0** instead of Hive 4.0.1's 0.16.0: CVE-2026-43869
-    (the TLS client socket from `TSSLTransportFactory` did not verify the
-    server's hostname, fixed in 0.23.0) and CVE-2026-43871 (infinite loop
-    on a crafted varint in `TCompactProtocol`, fixed in 0.24.0), plus the
-    decoder bounds added in 0.24.0. Deliberately above Hive 4.0.1's own
-    0.16.0 pin; no Hive release has moved past 0.16.0. Every thrift API
+    and CVE-2026-41603 (two IDs for the same fix: the TLS client socket
+    from `TSSLTransportFactory` did not verify the server's hostname, fixed
+    in 0.23.0) and CVE-2026-43871 (infinite loop on a crafted varint in
+    `TCompactProtocol`, fixed in 0.24.0), plus the decoder bounds added in
+    0.24.0. Deliberately above Hive 4.0.1's own 0.16.0 pin; no Hive
+    release has moved past 0.16.0. Every thrift API
     the bundled Hive 4.0.1 jars use in binary transport resolves
     unchanged in 0.24.0, the default message size, frame size and
     recursion limits are the same as in 0.16.0, and the SASL transport
@@ -342,12 +343,12 @@ Two things deliberately did **not** move:
   HttpClient 4 constructor. Binary transport, the default, works with
   SASL, Kerberos and ZooKeeper service discovery.
 - **TLS connections to the Hive metastore verify the server's hostname**
-  (CVE-2026-43869). With `hive.metastore.use.SSL` enabled, the metastore's
-  certificate must match the host name in `hive.metastore.uris`;
-  connecting by IP address or through an alias the certificate does not
-  list fails the TLS handshake. JDBC connections to HiveServer2 (`ssl=true`
-  in a `jdbc:hive2` URL) build their TLS socket without
-  `TSSLTransportFactory` and are not affected.
+  (CVE-2026-43869 / CVE-2026-41603). With `hive.metastore.use.SSL`
+  enabled, the metastore's certificate must match the host name in
+  `hive.metastore.uris`; connecting by IP address or through an alias
+  the certificate does not list fails the TLS handshake. JDBC
+  connections to HiveServer2 (`ssl=true` in a `jdbc:hive2` URL) build
+  their TLS socket without `TSSLTransportFactory` and are not affected.
 
 ### Breaking changes
 
