@@ -2,9 +2,16 @@ package org.greenplum.pxf.automation.features.fdw;
 
 import annotations.WorksWithFDW;
 import jsystem.framework.system.SystemManagerImpl;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.greenplum.pxf.automation.components.hbase.HBase;
+import org.greenplum.pxf.automation.components.hive.Hive;
 import org.greenplum.pxf.automation.components.pxf.Pxf;
 import org.greenplum.pxf.automation.features.BaseFeature;
 import org.greenplum.pxf.automation.structures.tables.basic.Table;
+import org.greenplum.pxf.automation.structures.tables.hbase.HBaseTable;
+import org.greenplum.pxf.automation.structures.tables.hive.HiveTable;
+import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.system.FDWUtils;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
@@ -113,6 +120,15 @@ public class ExecLocationTest extends BaseFeature {
             bad.addRow(new String[]{n, "b", "1", "2026-06-01", "t"});
         }
         hdfs.writeTableToFile(base + "/bad/data.txt", bad, ",");
+        // multi: 4 files, read one fragment per file (HdfsFileFragmenter)
+        for (int f = 1; f <= 4; f++) {
+            Table t = new Table("multi" + f, null);
+            for (int i = 1; i <= 3; i++) {
+                int n = 300 + f * 10 + i;
+                t.addRow(new String[]{String.valueOf(n), "f" + f + "line" + i, "1", "2026-09-01", "t"});
+            }
+            hdfs.writeTableToFile(String.format("%s/multi/file%d.txt", base, f), t, ",");
+        }
         // big: 100000 rows in one file
         Table big = new Table("big", null);
         for (int n = 1; n <= 100000; n++) {
@@ -132,7 +148,7 @@ public class ExecLocationTest extends BaseFeature {
     private void createObjects() throws Exception {
         // drop what an earlier run left behind
         for (String s : new String[]{"el_all", "el_coord", "el_master", "el_any",
-                "el_m_all", "el_m_coord", "el_m_any", "el_j_all", "el_j_coord", "el_j_any", "el_oc_srv", "el_own"}) {
+                "el_m_all", "el_m_coord", "el_m_any", "el_j_all", "el_j_coord", "el_j_any", "el_oc_srv", "el_own", "el_hv_all", "el_hv_coord", "el_hv_any", "el_hb_all", "el_hb_coord", "el_hb_any"}) {
             gpdb.runQuery("DROP SERVER IF EXISTS " + s + " CASCADE", true, false);
         }
         gpdb.runQuery("DROP FOREIGN DATA WRAPPER IF EXISTS el_own_pxf_fdw CASCADE", true, false);
@@ -172,6 +188,15 @@ public class ExecLocationTest extends BaseFeature {
             table(p + "_all", "el_all", d, text);
             table(p + "_coord", "el_coord", d, text);
             table(p + "_any", "el_any", d, text);
+        }
+        table("tm_all", "el_all", "multi", "format 'text:multi', delimiter ','");
+        table("tm_coord", "el_coord", "multi", "format 'text:multi', delimiter ','");
+        table("tm_any", "el_any", "multi", "format 'text:multi', delimiter ','");
+        for (String p : new String[]{"all", "coord", "any"}) {
+            String srv = p.equals("all") ? "el_all" : "el_" + p;
+            gpdb.runQuery("DROP FOREIGN TABLE IF EXISTS tf_" + p, true, false);
+            gpdb.runQuery(String.format("CREATE FOREIGN TABLE tf_%s (doc text) SERVER %s "
+                    + "OPTIONS (resource '%s', format 'text:multi', file_as_row 'true')", p, srv, resource("multi")));
         }
         table("g_all", "el_all", "big", text);
         table("g_coord", "el_coord", "big", text);
@@ -214,6 +239,7 @@ public class ExecLocationTest extends BaseFeature {
             jdbcTable("j_" + p, "el_j_" + p, "");
             jdbcTable("jp_" + p, "el_j_" + p, ", partition_by 'num:int', range '1:30', interval '10'");
             jdbcTable("jd_" + p, "el_j_" + p, ", partition_by 'day:date', range '2026-01-01:2026-04-30', interval '1:month'");
+            jdbcTable("je_" + p, "el_j_" + p, ", partition_by 'word:enum', range 'j1:j2:j3:j10'");
         }
 
         // local tables to join with
@@ -239,6 +265,11 @@ public class ExecLocationTest extends BaseFeature {
         gpdb.runQuery("DROP FOREIGN TABLE IF EXISTS " + name, true, false);
         gpdb.runQuery(String.format("CREATE FOREIGN TABLE %s %s SERVER %s OPTIONS (resource '%s', %s)",
                 name, COLUMNS, server, resource(dir), options));
+    }
+
+    private void foreignTable(String name, String columns, String server, String options) throws Exception {
+        gpdb.runQuery("DROP FOREIGN TABLE IF EXISTS " + name, true, false);
+        gpdb.runQuery(String.format("CREATE FOREIGN TABLE %s %s SERVER %s OPTIONS (%s)", name, columns, server, options));
     }
 
     private void jdbcTable(String name, String server, String options) throws Exception {
@@ -298,6 +329,91 @@ public class ExecLocationTest extends BaseFeature {
     public void badRows() throws Exception {
         requirePrepared();
         runSqlTest("features/fdw/exec_location/bad_rows");
+    }
+
+    /**
+     * Hive: the hive profile (HiveDataFragmenter), format 'text'
+     * (HiveInputFormatFragmenter) and a partitioned table, through each placement.
+     */
+    @Test(groups = {"features", "gpdb", "hive"})
+    public void hiveReads() throws Exception {
+        requirePrepared();
+        Hive hive = (Hive) SystemManagerImpl.getInstance().getSystemObject("hive");
+        try {
+            HiveTable text = TableFactory.getHiveByRowCommaTable("el_hive_text",
+                    new String[]{"num int", "word string", "amount double"});
+            HiveTable part = TableFactory.getHiveByRowCommaTable("el_hive_part",
+                    new String[]{"num int", "word string"});
+            part.setPartitionedBy(new String[]{"part string"});
+            for (HiveTable t : new HiveTable[]{text, part}) {
+                hive.runQuery("DROP TABLE IF EXISTS " + t.getName());
+                hive.createTableAndVerify(t);
+            }
+            Table rows = new Table("hive_rows", null);
+            for (int n = 1; n <= 30; n++) {
+                rows.addRow(new String[]{String.valueOf(n), "v" + n, n + ".5"});
+            }
+            hdfs.writeTableToFile(base + "/hive/text.txt", rows, ",");
+            hive.loadData(text, base + "/hive/text.txt", false);
+            for (String p : new String[]{"a", "b", "c"}) {
+                Table prow = new Table("hive_part_" + p, null);
+                for (int i = 1; i <= 10; i++) {
+                    prow.addRow(new String[]{String.valueOf(i), p + i});
+                }
+                hdfs.writeTableToFile(base + "/hive/part_" + p + ".txt", prow, ",");
+                hive.loadDataToPartition(part, base + "/hive/part_" + p + ".txt", false,
+                        new String[]{"part='" + p + "'"});
+            }
+        } finally {
+            hive.close();
+        }
+        server("el_hv_all", "hive_pxf_fdw", "config 'default'");
+        server("el_hv_coord", "hive_pxf_fdw", "config 'default', mpp_execute 'coordinator'");
+        server("el_hv_any", "hive_pxf_fdw", "config 'default', mpp_execute 'any'");
+        for (String p : new String[]{"all", "coord", "any"}) {
+            foreignTable("hv_" + p, "(num int, word text, amount float8)", "el_hv_" + p,
+                    "resource 'default.el_hive_text'");
+            foreignTable("hvt_" + p, "(num int, word text, amount float8)", "el_hv_" + p,
+                    "resource 'default.el_hive_text', format 'text', delimiter ','");
+            foreignTable("hvp_" + p, "(num int, word text, part text)", "el_hv_" + p,
+                    "resource 'default.el_hive_part'");
+        }
+        runSqlTest("features/fdw/exec_location/hive");
+    }
+
+    /** HBase: a table in three regions (three fragments), through each placement. */
+    @Test(groups = {"features", "gpdb", "hbase"})
+    public void hbaseReads() throws Exception {
+        requirePrepared();
+        HBase hbase = (HBase) SystemManagerImpl.getInstance().getSystemObject("hbase");
+        hbase.grantGlobalForUser("pxf");
+        HBaseTable table = new HBaseTable("el_hbase", new String[]{"cf1"});
+        table.setRowKeyPrefix("row");
+        table.setNumberOfSplits(2);
+        table.setRowsPerSplit(10);
+        try {
+            hbase.dropTable(table, false);
+        } catch (Exception e) {
+            // not there yet
+        }
+        hbase.createTableAndVerify(table);
+        List<Put> puts = new ArrayList<>();
+        for (int n = 1; n <= 30; n++) {
+            Put put = new Put(Bytes.toBytes(String.format("row%08d", n)));
+            put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("num"), Bytes.toBytes(String.valueOf(n)));
+            put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("word"), Bytes.toBytes("h" + n));
+            puts.add(put);
+        }
+        table.setRowsToGenerate(puts);
+        hbase.put(table);
+        server("el_hb_all", "hbase_pxf_fdw", "config 'default'");
+        server("el_hb_coord", "hbase_pxf_fdw", "config 'default', mpp_execute 'coordinator'");
+        server("el_hb_any", "hbase_pxf_fdw", "config 'default', mpp_execute 'any'");
+        for (String p : new String[]{"all", "coord", "any"}) {
+            foreignTable("hb_" + p, "(recordkey text, \"cf1:num\" int, \"cf1:word\" text)", "el_hb_" + p,
+                    "resource 'el_hbase'");
+        }
+        runSqlTest("features/fdw/exec_location/hbase");
     }
 
     // ===================================================================

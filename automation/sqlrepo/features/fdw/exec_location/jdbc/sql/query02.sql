@@ -14,3 +14,9 @@ FROM (VALUES
   ('10 pushdown any join', $q$SELECT * FROM jd_any JOIN el_h USING (num) WHERE day > date '2026-02-01'$q$, $q$SELECT * FROM jd_all JOIN el_h USING (num) WHERE day > date '2026-02-01'$q$)
 ) v(name, q, twin) ORDER BY name;
 SELECT el_digest('SELECT * FROM j_all') = el_digest('SELECT * FROM el_jdbc_src') AS default_jdbc_read_same_as_source;
+-- enum partitions
+SELECT name, split_part(el_digest(q), ' ', 1) AS rows, el_digest(q) = el_digest(twin) AS same_as_default
+FROM (VALUES
+  ('11 enum partitions coordinator', $q$SELECT * FROM je_coord$q$, $q$SELECT * FROM je_all$q$),
+  ('12 enum partitions any join distributed', $q$SELECT * FROM je_any JOIN el_h USING (num)$q$, $q$SELECT * FROM je_all JOIN el_h USING (num)$q$)
+) v(name, q, twin) ORDER BY name;

@@ -37,3 +37,11 @@ FROM (VALUES
   ('28 aggregates any', $q$SELECT count(*), count(word), sum(num), sum(amount), min(day), max(day), bool_or(flag) FROM s_any_s$q$, $q$SELECT count(*), count(word), sum(num), sum(amount), min(day), max(day), bool_or(flag) FROM s_all$q$),
   ('29 group by coordinator', $q$SELECT flag, count(*), sum(num) FROM s_coord_s GROUP BY flag$q$, $q$SELECT flag, count(*), sum(num) FROM s_all GROUP BY flag$q$)
 ) v(name, q, twin) ORDER BY name;
+-- text:multi: one fragment per file, also with file_as_row
+SELECT name, split_part(el_digest(q), ' ', 1) AS rows, el_digest(q) = el_digest(twin) AS same_as_default
+FROM (VALUES
+  ('30 text multi coordinator', $q$SELECT * FROM tm_coord$q$, $q$SELECT * FROM tm_all$q$),
+  ('31 text multi any join distributed', $q$SELECT * FROM tm_any JOIN el_h ON tm_any.num - 300 = el_h.num$q$, $q$SELECT * FROM tm_all JOIN el_h ON tm_all.num - 300 = el_h.num$q$),
+  ('32 file as row coordinator', $q$SELECT * FROM tf_coord$q$, $q$SELECT * FROM tf_all$q$),
+  ('33 file as row any', $q$SELECT * FROM tf_any$q$, $q$SELECT * FROM tf_all$q$)
+) v(name, q, twin) ORDER BY name;
