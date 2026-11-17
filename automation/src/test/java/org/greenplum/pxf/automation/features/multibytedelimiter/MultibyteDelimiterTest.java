@@ -310,6 +310,36 @@ public class MultibyteDelimiterTest extends BaseFeature {
     }
 
     @Test(groups = {"gpdb", "hcfs", "security"})
+    public void readTwoByteDelimiterWithQuoteDelimNotProvided() throws Exception {
+        CsvSpec fileSpec = new CsvSpec("¤", CSVWriter.DEFAULT_QUOTE_CHARACTER, CSVWriter.NO_ESCAPE_CHARACTER);
+        CsvSpec tableSpec = fileSpec.cloneForFormatting();
+        // keep the quote but remove the delimiter for the formatterOptions; the formatter
+        // must report the missing delimiter instead of dereferencing it while handling the quote
+        tableSpec.setDelimiter(null);
+
+        runScenario("pxf_multibyte_twobyte_withquote_nodelim_data", tableSpec, dataTable, fileSpec);
+
+        // verify results
+        runSqlTest("features/multibyte_delimiter/two_byte_with_quote_no_delim");
+    }
+
+    @Test(groups = {"gpdb", "hcfs", "security"})
+    public void readTwoByteDelimiterWithQuoteEmptyDelimiter() throws Exception {
+        CsvSpec fileSpec = new CsvSpec("¤", CSVWriter.DEFAULT_QUOTE_CHARACTER, CSVWriter.NO_ESCAPE_CHARACTER);
+        CsvSpec tableSpec = fileSpec.cloneForFormatting();
+        // keep the quote but set an empty delimiter for the formatterOptions; an empty
+        // delimiter must still be rejected when a quote is set. This is a regression check
+        // for the check's position, readTwoByteDelimiterWithQuoteDelimNotProvided covers
+        // the missing-delimiter crash
+        tableSpec.setDelimiter("");
+
+        runScenario("pxf_multibyte_twobyte_withquote_emptydelim_data", tableSpec, dataTable, fileSpec);
+
+        // verify results
+        runSqlTest("features/multibyte_delimiter/two_byte_with_quote_empty_delim");
+    }
+
+    @Test(groups = {"gpdb", "hcfs", "security"})
     public void readTwoByteDelimiterWithWrongDelimiter() throws Exception {
         CsvSpec fileSpec = new CsvSpec("¤");
         CsvSpec tableSpec = fileSpec.cloneForFormatting();

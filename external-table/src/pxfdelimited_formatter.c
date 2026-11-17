@@ -176,6 +176,14 @@ get_config(FunctionCallInfo fcinfo, pxfdelimited_state *fmt_state)
 		fmt_state->eol = "\n";
 	}
 
+	// quote_delimiter is built from the delimiter, so the delimiter must be validated before the quote is handled
+	if (fmt_state->delimiter == NULL || *fmt_state->delimiter == '\0')
+	{
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("missing delimiter option"),
+						errhint("Please specify a delimiter value in the table definition.")));
+	}
+
 	// with quote, we must also have escape set it to the default if it is not provided. This is similar behavior to COPY
 	if (fmt_state->quote != NULL)
 	{
@@ -195,13 +203,6 @@ get_config(FunctionCallInfo fcinfo, pxfdelimited_state *fmt_state)
 
 		fmt_state->quote_eol = palloc(strlen(fmt_state->eol) + 2);
 		sprintf(fmt_state->quote_eol, "%c%s", *fmt_state->quote, fmt_state->eol);
-	}
-
-	if (fmt_state->delimiter == NULL || *fmt_state->delimiter == '\0')
-	{
-		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-						errmsg("missing delimiter option"),
-						errhint("Please specify a delimiter value in the table definition.")));
 	}
 
 	if (fmt_state->escape != NULL && strlen(fmt_state->escape) != 1)
