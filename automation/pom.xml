@@ -89,13 +89,13 @@
             </dependency>
             <!-- Converges the whole jackson family on one release train.
                  Note: since 2.20, jackson-annotations is released per MINOR
-                 only (2.22 exists, 2.22.2 does not) - the bom pins the
+                 only (2.22 exists, 2.22.4 does not) - the bom pins the
                  correct per-artifact versions, so no jackson dependency
                  below declares its own. -->
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
-                <version>2.22.2</version>
+                <version>2.22.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

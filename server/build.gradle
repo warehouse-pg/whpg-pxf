@@ -41,10 +41,11 @@ ext['spring-framework.version'] = '5.3.39'
 // Tomcat 9 stays on the Java 8 / javax.servlet baseline.
 ext['tomcat.version'] = '9.0.121'
 // jackson: the Boot 2.7 BOM manages 2.13.5, which carries published
-// advisories; 2.22.2 is the current 2.x release with none, still Java 8
-// class files. Overridden via the jackson-bom property so core,
-// databind, annotations, datatypes and modules all move together.
-ext['jackson-bom.version'] = '2.22.2'
+// advisories. 2.22.4 is past CVE-2026-89425, CVE-2026-89407,
+// CVE-2026-91776 and CVE-2026-91777 (2.22.2 affected, fixed in 2.22.3)
+// and still Java 8 class files. Overridden via the jackson-bom property
+// so core, databind, annotations, datatypes and modules all move together.
+ext['jackson-bom.version'] = '2.22.4'
 // log4j2: the Boot 2.7 BOM manages 2.17.2, which carries five published
 // advisories (CVE-2025-68161, CVE-2026-34477, CVE-2026-34479,
 // CVE-2026-34480, CVE-2026-34481 -- TLS hostname verification on the

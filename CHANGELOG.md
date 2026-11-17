@@ -73,7 +73,7 @@ features (external cluster mode, CLI changes) are tracked separately and are
   → 6.7.0** (with stax2-api 3.1.4 → 4.2.2), and SnakeYAML **1.30 →
   2.5** (overriding the Spring Boot 2.7 BOM's managed version).
 - Boot-BOM-managed overrides raised for security: embedded Tomcat
-  **9.0.87 → 9.0.121** and the jackson family **2.13.5 → 2.22.2**
+  **9.0.87 → 9.0.121** and the jackson family **2.13.5 → 2.22.4**
   (via the jackson-bom property). The `json` profile lifts the string
   (20MB), number (1000 digits) and field-name (50,000 characters) length
   limits that jackson 2.15+ added, so customer JSON that read before
@@ -201,6 +201,9 @@ bundle.
     through Hadoop's `SnappyCodec` could fail with "not enough space for
     output". 1.1.10.11 and 1.1.10.12 fix that while keeping the check.
     Still Java 8 class files, with the same bundled native libraries.
+  - Jackson **2.22.2 → 2.22.4** (CVE-2026-89425, CVE-2026-89407,
+    CVE-2026-91776 and CVE-2026-91777 against jackson-core and
+    jackson-databind, fixed in 2.22.3). release-6.x already ships 2.22.4.
 
 #### Behavior note
 
