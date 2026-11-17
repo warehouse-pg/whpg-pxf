@@ -54,6 +54,9 @@ typedef struct PxfFdwScanState
 	PxfOptions *options;
 	CopyFromState cstate;
 	ProjectionInfo *projectionInfo;
+#if PXF_FDW_HANDLES_SCAN_ERRORS
+	bool		in_next_copy_from;	/* an error now came from reading a row */
+#endif
 } PxfFdwScanState;
 
 /*

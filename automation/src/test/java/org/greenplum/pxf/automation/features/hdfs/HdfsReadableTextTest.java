@@ -14,10 +14,12 @@ import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.greenplum.pxf.automation.utils.csv.CsvUtils;
 import org.greenplum.pxf.automation.utils.fileformats.FileFormatsUtils;
 import org.greenplum.pxf.automation.utils.jsystem.report.ReportUtils;
+import org.greenplum.pxf.automation.utils.system.FDWUtils;
 import org.greenplum.pxf.automation.utils.system.ProtocolEnum;
 import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.greenplum.pxf.automation.utils.tables.ComparisonUtils;
 import org.junit.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -627,6 +629,41 @@ public class HdfsReadableTextTest extends BaseFeature {
         runSqlTest("features/hdfs/readable/text/errors/error_table_breached");
 
         ReportUtils.stopLevel(null);
+    }
+
+    /**
+     * With a reject limit set, an error raised while evaluating the WHERE
+     * clause (here a failing cast) is not a malformed input row and must fail
+     * the query: rejecting it would hide rows and return a wrong result.
+     * Foreign tables only: for external tables the server itself counts such
+     * errors as rejected rows, so the query returns no rows there.
+     */
+    @Test(groups = {"features", "gpdb", "hcfs", "security"})
+    public void rejectLimitDoesNotHideWhereClauseErrors() throws Exception {
+        if (!FDWUtils.useFDW) {
+            throw new SkipException("foreign tables only: for external tables the server counts WHERE-clause errors as rejected rows");
+        }
+
+        String[] fields = new String[]{"num int", "words text"};
+
+        Table dataTable = new Table("dataTable", null);
+        dataTable.addRow(new String[]{"1", "one"});
+        dataTable.addRow(new String[]{"2", "two"});
+        dataTable.addRow(new String[]{"3", "three"});
+
+        hdfs.writeTableToFile(hdfsFilePath, dataTable, ",");
+        if (protocol != ProtocolEnum.HDFS) {
+            sleep(10000);
+        }
+
+        exTable.setName("reject_limit_where_cast");
+        exTable.setFields(fields);
+        exTable.setProfile(protocol.value() + ":text");
+        exTable.setDelimiter(",");
+        exTable.setSegmentRejectLimit(10);
+        gpdb.createTableAndVerify(exTable);
+
+        runSqlTest("features/hdfs/readable/text/errors/reject_limit_where_cast");
     }
 
     /**

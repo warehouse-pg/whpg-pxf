@@ -66,6 +66,15 @@
  */
 typedef String PxfStringValue;
 
+/*
+ * Single-row error handling (reject_limit / log_errors).  Upstream's
+ * NextCopyFrom() knows nothing about it, so here a data error raised while
+ * parsing a row leaves IterateForeignScan.  The executor catches it in
+ * ExecForeignScan() and hands it to the FDW's HandleForeignScanError
+ * callback, re-throwing when there is none.  The module must register one.
+ */
+#define PXF_FDW_HANDLES_SCAN_ERRORS 1
+
 #else							/* WarehousePG 6 / 7 */
 
 /*
@@ -84,6 +93,12 @@ typedef CopyState CopyToState;
 #define PXF_COPY_IS_BINARY(cstate)	(PXF_COPY_OPTS(cstate).binary)
 
 typedef Value PxfStringValue;
+
+/*
+ * NextCopyFrom() catches data errors itself and calls HandleCopyError(), so
+ * the module needs no HandleForeignScanError callback.
+ */
+#define PXF_FDW_HANDLES_SCAN_ERRORS 0
 
 #endif
 

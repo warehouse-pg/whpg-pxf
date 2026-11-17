@@ -106,6 +106,9 @@ static CopyToState PxfBeginCopyTo(Relation forrel, List *options);
 static void EndCopyToModify(CopyToState cstate);
 static void PxfBeginScanErrorCallback(void *arg);
 static void PxfCopyFromErrorCallback(void *arg);
+#if PXF_FDW_HANDLES_SCAN_ERRORS
+static void pxfHandleForeignScanError(ForeignScanState *node);
+#endif
 
 /*
  * Foreign-data wrapper handler functions:
@@ -132,6 +135,9 @@ pxf_fdw_handler(PG_FUNCTION_ARGS)
 	fdw_routine->IterateForeignScan = pxfIterateForeignScan;
 	fdw_routine->ReScanForeignScan = pxfReScanForeignScan;
 	fdw_routine->EndForeignScan = pxfEndForeignScan;
+#if PXF_FDW_HANDLES_SCAN_ERRORS
+	fdw_routine->HandleForeignScanError = pxfHandleForeignScanError;
+#endif
 
 	/*
 	 * foreign table insert support
@@ -444,6 +450,9 @@ pxfBeginForeignScan(ForeignScanState *node, int eflags)
 	pxfsstate->relation = relation;
 	pxfsstate->retrieved_attrs = retrieved_attrs;
 	pxfsstate->projectionInfo = node->ss.ps.ps_ProjInfo;
+#if PXF_FDW_HANDLES_SCAN_ERRORS
+	pxfsstate->in_next_copy_from = false;
+#endif
 
     /* Set up callback to identify error foreign relation. */
     ErrorContextCallback errcallback;
@@ -499,6 +508,10 @@ pxfIterateForeignScan(ForeignScanState *node)
 	 */
 	ExecClearTuple(slot);
 
+#if PXF_FDW_HANDLES_SCAN_ERRORS
+	/* see pxfHandleForeignScanError */
+	pxfsstate->in_next_copy_from = true;
+#endif
 	found = NextCopyFrom(pxfsstate->cstate,
 						 NULL,
 #if PG_VERSION_NUM >= 90600
@@ -510,6 +523,9 @@ pxfIterateForeignScan(ForeignScanState *node)
 						 NULL
 #endif
 						 );
+#if PXF_FDW_HANDLES_SCAN_ERRORS
+	pxfsstate->in_next_copy_from = false;
+#endif
 
 	if (found)
 	{
@@ -578,6 +594,49 @@ pxfEndForeignScan(ForeignScanState *node)
 
 	elog(DEBUG5, "pxf_fdw: pxfEndForeignScan ends on segment: %d", PXF_SEGMENT_ID);
 }
+
+#if PXF_FDW_HANDLES_SCAN_ERRORS
+/*
+ * HandleForeignScanError
+ *		Called by the executor, inside its PG_CATCH, when an error was raised
+ *		while it fetched a row from this scan.  With reject_limit set,
+ *		HandleCopyError() counts a data error as a rejected row (and logs it
+ *		with log_errors), and returns; the executor then reads the next row.
+ *		Any other error, or any error without reject_limit, is re-thrown by
+ *		HandleCopyError().
+ *
+ *		The executor also calls this for errors raised after IterateForeignScan
+ *		returned, for example a failing cast in the WHERE clause.  Those are
+ *		not bad input rows and are re-thrown, as on WarehousePG 7, where
+ *		NextCopyFrom() itself is the only place that rejects rows.
+ */
+static void
+pxfHandleForeignScanError(ForeignScanState *node)
+{
+	PxfFdwScanState *pxfsstate = (PxfFdwScanState *) node->fdw_state;
+	ErrorContextCallback errcallback;
+
+	if (pxfsstate == NULL || pxfsstate->cstate == NULL ||
+		!pxfsstate->in_next_copy_from)
+		PG_RE_THROW();
+
+	pxfsstate->in_next_copy_from = false;
+
+	/*
+	 * The error context pushed in pxfIterateForeignScan was popped when the
+	 * error left it.  Push it again so that an error raised here, such as
+	 * "segment reject limit reached", names the foreign table and line.
+	 */
+	errcallback.callback = PxfCopyFromErrorCallback;
+	errcallback.arg = (void *) pxfsstate;
+	errcallback.previous = error_context_stack;
+	error_context_stack = &errcallback;
+
+	HandleCopyError(pxfsstate->cstate);
+
+	error_context_stack = errcallback.previous;
+}
+#endif
 
 /*
  * pxfBeginForeignInsert
