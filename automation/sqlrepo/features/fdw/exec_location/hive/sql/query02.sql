@@ -1,6 +1,7 @@
 SET optimizer = off;
 -- Hive: the hive profile, format 'text', and a partitioned table
-SELECT el_digest('SELECT * FROM hv_all') AS default_read;
+-- the default read has every row (an exact digest of Hive's rows would depend on the Hive installation)
+SELECT count(*), sum(num), count(word), count(amount) FROM hv_all;
 SELECT name, split_part(el_digest(q), ' ', 1) AS rows, el_digest(q) = el_digest(twin) AS same_as_default
 FROM (VALUES
   ('01 hive coordinator', $q$SELECT * FROM hv_coord$q$, $q$SELECT * FROM hv_all$q$),
