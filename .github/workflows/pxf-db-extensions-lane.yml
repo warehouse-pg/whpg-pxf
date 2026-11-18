@@ -71,19 +71,19 @@ on:
       whpg7-tag:
         description: 'WarehousePG 7 tag to build and test against'
         type: string
-        default: 7.6.0-WHPG
+        default: 7.6.2-WHPG
       whpg7-sha:
         description: 'Commit the WHPG 7 tag must resolve to (asserted at build and before every use)'
         type: string
-        default: 0f73ef6e0729cbf71cf225b41d58e1bd1090f335
+        default: 056894da7d3e484fd1fbf6333c70d3e451dc27e8
       whpg6-tag:
         description: 'WarehousePG 6 tag to build and test against'
         type: string
-        default: 6.27.6-WHPG
+        default: 6.27.8-WHPG
       whpg6-sha:
         description: 'Commit the WHPG 6 tag must resolve to'
         type: string
-        default: 21ac220dadff9b5db4469a40a13247ee422e482a
+        default: 8fb5351ee34c0b02b4cd20df7ac6637eee0f591e
       build-image-digest:
         # Feeds every container.image line AND the cache keys, so a
         # digest bump invalidates trees built in the old image.
