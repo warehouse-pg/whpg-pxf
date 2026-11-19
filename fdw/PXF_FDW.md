@@ -226,6 +226,36 @@ needs to provide his oracle username/password in the user mapping options.
 **Note**: Alternatively, user-specific information can be stored in a plain text
 file, that is only accessible by the gpadmin user.
 
+# Where a Foreign Table Is Read: `mpp_execute`
+
+The `mpp_execute` option tells WarehousePG where to run a scan of a foreign
+table. It can be set on the foreign table, its server, or its foreign-data
+wrapper; the table's value wins, then the server's, then the wrapper's. The
+PXF foreign-data wrappers set `'all segments'`.
+
+| `mpp_execute` | Where the table is read | What each reader gets |
+|---|---|---|
+| `'all segments'` (the PXF wrappers' default) | on every segment, in parallel | its share of the fragments; each row is read once |
+| `'coordinator'` (also `'master'`) | once, by a single reader on the coordinator, so a large table reads more slowly than with `'all segments'` | every fragment |
+| `'any'` | where the planner chooses: on the coordinator, or once on every segment, as for a replicated table | every fragment, so in a join with a distributed table the source is read once per segment |
+
+- A foreign-data wrapper created on `pxf_fdw_handler` without `mpp_execute`
+  reads on the coordinator, the WarehousePG default.
+- A read with `'coordinator'`, or an `'any'` read that runs on the coordinator,
+  goes through the PXF Service on the coordinator host. `pxf cluster start`
+  starts it there; with the alternate deployment topology, `pxf_host` must
+  point the coordinator at a PXF Service.
+- `'any'` reads the whole source once for every copy of the scan. Use it for
+  small tables. To use a small external table in joins on every segment
+  without reading it each time, load it into a replicated table:
+  `CREATE TABLE <name> AS SELECT * FROM <foreign table> DISTRIBUTED REPLICATED`.
+- `log_errors` needs `'all segments'`. WarehousePG records rejected rows only on
+  the segments, so a read with `'coordinator'` or `'any'` and `log_errors`
+  fails with an error. `reject_limit` without `log_errors` works with every
+  setting; with `'any'` the limit applies to each copy of the scan.
+- Writes are not affected: an `INSERT` into a table with `'coordinator'` or
+  `'any'` writes from the coordinator.
+
 # Mapping Foreign Data Wrappers to PXF Profiles
 
 PXF uses the concept of Profiles in the [External Table Framework](https://www.enterprisedb.com/docs/warehousepg/latest/ref_guide/sql_commands/CREATE_EXTERNAL_TABLE/).

@@ -2,7 +2,7 @@ EXTENSION   = pxf_fdw
 DATA        = pxf_fdw--2.0.sql pxf_fdw--1.0--2.0.sql pxf_fdw--2.0--1.0.sql pxf_fdw--1.0.sql
 MODULE_big  = pxf_fdw
 OBJS        = pxf_fdw.o pxf_bridge.o pxf_deparse.o pxf_filter.o pxf_header.o pxf_option.o libchurl.o
-REGRESS     = pxf_fdw_wrapper pxf_fdw_server pxf_fdw_user_mapping pxf_fdw_foreign_table
+REGRESS     = pxf_fdw_wrapper pxf_fdw_server pxf_fdw_user_mapping pxf_fdw_foreign_table pxf_fdw_exec_location
 SHLIB_LINK += -lcurl
 
 PXF_API_VERSION := $(shell cat ../api_version)

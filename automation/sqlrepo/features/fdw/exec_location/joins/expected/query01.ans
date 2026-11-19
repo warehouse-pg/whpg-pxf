@@ -1,0 +1,107 @@
+SET optimizer = on;
+SET
+-- joins: with a distributed table (the coordinator scan runs in a coordinator
+-- reader; an 'any' scan runs once on every segment), a replicated table,
+-- itself and the other placements
+SELECT name, split_part(el_digest(q), ' ', 1) AS rows, el_digest(q) = el_digest(twin) AS same_as_default
+FROM (VALUES
+  ('01 coordinator join distributed', $q$SELECT * FROM s_coord_s JOIN el_h USING (num)$q$, $q$SELECT * FROM s_all JOIN el_h USING (num)$q$),
+  ('02 any join distributed', $q$SELECT * FROM s_any_s JOIN el_h USING (num)$q$, $q$SELECT * FROM s_all JOIN el_h USING (num)$q$),
+  ('03 coordinator join replicated', $q$SELECT * FROM s_coord_s JOIN el_r USING (num)$q$, $q$SELECT * FROM s_all JOIN el_r USING (num)$q$),
+  ('04 any join replicated', $q$SELECT * FROM s_any_s JOIN el_r USING (num)$q$, $q$SELECT * FROM s_all JOIN el_r USING (num)$q$),
+  ('05 coordinator self join', $q$SELECT a.num, b.word FROM s_coord_s a JOIN s_coord_s b USING (num)$q$, $q$SELECT a.num, b.word FROM s_all a JOIN s_all b USING (num)$q$),
+  ('06 any self join', $q$SELECT a.num, b.word FROM s_any_s a JOIN s_any_s b USING (num)$q$, $q$SELECT a.num, b.word FROM s_all a JOIN s_all b USING (num)$q$),
+  ('07 any join coordinator', $q$SELECT * FROM s_any_s JOIN s_coord_s USING (num)$q$, $q$SELECT * FROM s_all JOIN s_all x USING (num)$q$),
+  ('08 any join all segments', $q$SELECT * FROM s_any_s JOIN s_all USING (num)$q$, $q$SELECT * FROM s_all JOIN s_all x USING (num)$q$),
+  ('09 many any join distributed', $q$SELECT * FROM m_any JOIN el_h ON m_any.num - 100 = el_h.num$q$, $q$SELECT * FROM m_all JOIN el_h ON m_all.num - 100 = el_h.num$q$),
+  ('10 one coordinator join distributed', $q$SELECT * FROM o_coord JOIN el_h ON o_coord.num - 200 = el_h.num$q$, $q$SELECT * FROM o_all JOIN el_h ON o_all.num - 200 = el_h.num$q$),
+  ('11 empty any join distributed', $q$SELECT * FROM e_any JOIN el_h USING (num)$q$, $q$SELECT * FROM e_all JOIN el_h USING (num)$q$),
+  ('12 any join distributed, pushdown', $q$SELECT s_any_s.word FROM s_any_s JOIN el_h USING (num) WHERE num > 20$q$, $q$SELECT s_all.word FROM s_all JOIN el_h USING (num) WHERE num > 20$q$),
+  ('13 any group by join', $q$SELECT flag, count(*) FROM s_any_s JOIN el_h USING (num) GROUP BY flag$q$, $q$SELECT flag, count(*) FROM s_all JOIN el_h USING (num) GROUP BY flag$q$)
+) v(name, q, twin) ORDER BY name;
+                name                 | rows | same_as_default 
+-------------------------------------+------+-----------------
+ 01 coordinator join distributed     | 15   | t
+ 02 any join distributed             | 15   | t
+ 03 coordinator join replicated      | 15   | t
+ 04 any join replicated              | 15   | t
+ 05 coordinator self join            | 15   | t
+ 06 any self join                    | 15   | t
+ 07 any join coordinator             | 15   | t
+ 08 any join all segments            | 15   | t
+ 09 many any join distributed        | 20   | t
+ 10 one coordinator join distributed | 5    | t
+ 11 empty any join distributed       | 0    | t
+ 12 any join distributed, pushdown   | 10   | t
+ 13 any group by join                | 3    | t
+(13 rows)
+
+-- set operations, CTEs, subqueries, window functions
+SELECT name, split_part(el_digest(q), ' ', 1) AS rows, el_digest(q) = el_digest(twin) AS same_as_default
+FROM (VALUES
+  ('20 union all', $q$SELECT num FROM s_coord_s UNION ALL SELECT num FROM s_any_s$q$, $q$SELECT num FROM s_all UNION ALL SELECT num FROM s_all$q$),
+  ('21 cte twice', $q$WITH c AS (SELECT * FROM s_coord_s) SELECT a.num FROM c a JOIN c b USING (num)$q$, $q$WITH c AS (SELECT * FROM s_all) SELECT a.num FROM c a JOIN c b USING (num)$q$),
+  ('22 in subquery', $q$SELECT num FROM el_h WHERE num IN (SELECT num FROM s_coord_s)$q$, $q$SELECT num FROM el_h WHERE num IN (SELECT num FROM s_all)$q$),
+  ('23 not exists any', $q$SELECT num FROM el_h WHERE num < 40 AND NOT EXISTS (SELECT 1 FROM s_any_s WHERE s_any_s.num = el_h.num)$q$, $q$SELECT num FROM el_h WHERE num < 40 AND NOT EXISTS (SELECT 1 FROM s_all WHERE s_all.num = el_h.num)$q$),
+  ('24 window', $q$SELECT num, rank() OVER (PARTITION BY flag ORDER BY num) FROM s_coord_s$q$, $q$SELECT num, rank() OVER (PARTITION BY flag ORDER BY num) FROM s_all$q$)
+) v(name, q, twin) ORDER BY name;
+       name        | rows | same_as_default 
+-------------------+------+-----------------
+ 20 union all      | 30   | t
+ 21 cte twice      | 15   | t
+ 22 in subquery    | 15   | t
+ 23 not exists any | 24   | t
+ 24 window         | 15   | t
+(5 rows)
+
+-- statements that move the rows somewhere else
+DROP TABLE IF EXISTS el_etl_insert;
+psql:features/fdw/exec_location/joins/sql/query01.sql:31: NOTICE:  table "el_etl_insert" does not exist, skipping
+DROP TABLE
+CREATE TABLE el_etl_insert (num int, word text, amount numeric, day date, flag boolean) DISTRIBUTED BY (num);
+CREATE TABLE
+INSERT INTO el_etl_insert SELECT * FROM s_coord_s;
+INSERT 0 15
+INSERT INTO el_etl_insert SELECT * FROM s_any_s;
+INSERT 0 15
+SELECT el_digest('SELECT * FROM el_etl_insert') = el_digest('SELECT * FROM s_all UNION ALL SELECT * FROM s_all') AS insert_select_same;
+ insert_select_same 
+--------------------
+ t
+(1 row)
+
+DROP TABLE IF EXISTS el_etl_ctas;
+psql:features/fdw/exec_location/joins/sql/query01.sql:36: NOTICE:  table "el_etl_ctas" does not exist, skipping
+DROP TABLE
+CREATE TABLE el_etl_ctas AS SELECT * FROM s_coord_s DISTRIBUTED BY (num);
+SELECT 15
+SELECT el_digest('SELECT * FROM el_etl_ctas') = el_digest('SELECT * FROM s_all') AS ctas_same;
+ ctas_same 
+-----------
+ t
+(1 row)
+
+COPY (SELECT num, word FROM s_coord_s ORDER BY num) TO STDOUT;
+11	w11
+12	w12
+13	w13
+14	\N
+15	w15
+21	\N
+22	w22
+23	w23
+24	w24
+25	w25
+31	w31
+32	w32
+33	w33
+34	w34
+35	\N
+COPY (SELECT num, word FROM s_any_s ORDER BY num LIMIT 3) TO STDOUT;
+11	w11
+12	w12
+13	w13
+DROP TABLE el_etl_insert;
+DROP TABLE
+DROP TABLE el_etl_ctas;
+DROP TABLE
