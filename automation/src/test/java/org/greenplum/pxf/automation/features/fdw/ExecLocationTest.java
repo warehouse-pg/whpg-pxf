@@ -460,6 +460,15 @@ public class ExecLocationTest extends BaseFeature {
     @Test(groups = {"features", "gpdb", "hcfs"})
     public void readsPerPlacement() throws Exception {
         requirePrepared();
+        // Each host's PXF Service counts only the reads it serves, and by
+        // default listens on localhost, so the counters of other hosts cannot
+        // be read here. Count only where one PXF Service serves every reader.
+        long hosts = Long.parseLong(queryValue(
+                "SELECT count(DISTINCT hostname) FROM gp_segment_configuration WHERE role = 'p'"));
+        if (hosts > 1) {
+            throw new SkipException("reads PXF's metrics from one PXF Service; the primaries run on "
+                    + hosts + " hosts, each counting its own reads");
+        }
         long segments = Long.parseLong(queryValue(
                 "SELECT count(*) FROM gp_segment_configuration WHERE role = 'p' AND content >= 0"));
         long rows = Long.parseLong(SMALL_ROWS);
