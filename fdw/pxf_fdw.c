@@ -481,6 +481,9 @@ pxfBeginForeignScan(ForeignScanState *node, int eflags)
 #endif
 
 	pxfsstate->cstate = NULL;
+	pxfsstate->churl_handle = NULL;
+	pxfsstate->churl_headers = NULL;
+	pxfsstate->eof = false;
 	node->fdw_state = (void *) pxfsstate;
 
 	/*
@@ -513,7 +516,10 @@ pxfIterateForeignScan(ForeignScanState *node)
 	ErrorContextCallback errcallback;
 	bool		found;
 
-	/* a scan that reads every fragment is opened here, see pxfBeginForeignScan */
+	/*
+	 * A scan that reads every fragment is opened here, see
+	 * pxfBeginForeignScan, and so is every scan after a rescan.
+	 */
 	if (pxfsstate->cstate == NULL)
 		OpenForeignScan(node, pxfsstate);
 
@@ -596,8 +602,16 @@ pxfReScanForeignScan(ForeignScanState *node)
 	if (pxfsstate->cstate == NULL)
 		return;
 
+	/*
+	 * Close this read and release its connection.  The next fetch opens the
+	 * scan again from the start, through OpenForeignScan, like a first fetch:
+	 * a rescan that is never fetched from (the last one of a correlated
+	 * subplan, for one) sends no request, and an error opening it names the
+	 * foreign table.
+	 */
 	EndCopyFrom(pxfsstate->cstate);
-	InitCopyState(pxfsstate);
+	pxfsstate->cstate = NULL;
+	PxfBridgeImportCleanup(pxfsstate);
 
 	elog(DEBUG5, "pxf_fdw: pxfReScanForeignScan ends on segment: %d", PXF_SEGMENT_ID);
 }
@@ -623,11 +637,15 @@ pxfEndForeignScan(ForeignScanState *node)
 
 	/*
 	 * pxfsstate is NULL in EXPLAIN and on the coordinator of an 'all
-	 * segments' scan; cstate is NULL if a scan that reads every fragment
-	 * was never fetched from.  Nothing to do then.
+	 * segments' scan; cstate is NULL if a scan was never fetched from since
+	 * it began or was rescanned.  Nothing to do then.
 	 */
 	if (pxfsstate && pxfsstate->cstate)
+	{
 		EndCopyFrom(pxfsstate->cstate);
+		pxfsstate->cstate = NULL;
+		PxfBridgeImportCleanup(pxfsstate);
+	}
 
 	elog(DEBUG5, "pxf_fdw: pxfEndForeignScan ends on segment: %d", PXF_SEGMENT_ID);
 }

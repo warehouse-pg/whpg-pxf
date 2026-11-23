@@ -54,6 +54,7 @@ typedef struct PxfFdwScanState
 	PxfOptions *options;
 	CopyFromState cstate;
 	ProjectionInfo *projectionInfo;
+	bool		eof;			/* PXF's response has been read to its end */
 #if PXF_FDW_HANDLES_SCAN_ERRORS
 	bool		in_next_copy_from;	/* an error now came from reading a row */
 #endif
@@ -83,6 +84,9 @@ void		PxfBridgeCleanup(PxfFdwModifyState *context);
 
 /* Sets up data before starting import */
 void		PxfBridgeImportStart(PxfFdwScanState *pxfsstate);
+
+/* Releases what PxfBridgeImportStart set up */
+void		PxfBridgeImportCleanup(PxfFdwScanState *pxfsstate);
 
 /* Sets up data before starting export */
 void		PxfBridgeExportStart(PxfFdwModifyState *pxfmstate);

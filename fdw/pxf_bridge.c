@@ -60,11 +60,31 @@ PxfBridgeCleanup(PxfFdwModifyState *pxfmstate)
 }
 
 /*
+ * Release what PxfBridgeImportStart() set up: the libcurl handle, which holds
+ * the connection to the PXF Service, and the request headers.  A read that
+ * stopped before the end of PXF's response (LIMIT, a rescan, a subplan that
+ * needs only the first row) does not read the rest of it first.
+ */
+void
+PxfBridgeImportCleanup(PxfFdwScanState *pxfsstate)
+{
+	if (pxfsstate == NULL)
+		return;
+
+	churl_cleanup(pxfsstate->churl_handle, !pxfsstate->eof);
+	pxfsstate->churl_handle = NULL;
+
+	churl_headers_cleanup(pxfsstate->churl_headers);
+	pxfsstate->churl_headers = NULL;
+}
+
+/*
  * Sets up data before starting import
  */
 void
 PxfBridgeImportStart(PxfFdwScanState *pxfsstate)
 {
+	pxfsstate->eof = false;
 	pxfsstate->churl_headers = churl_headers_init();
 
 	BuildUriForRead(pxfsstate);
@@ -134,6 +154,7 @@ PxfBridgeRead(void *outbuf, int datasize, void *extra)
 	{
 		/* check if the connection terminated with an error */
 		churl_read_check_connectivity(pxfsstate->churl_handle);
+		pxfsstate->eof = true;
 	}
 
 	elog(DEBUG5, "pxf PxfBridgeRead: segment %d read %zu bytes from %s",

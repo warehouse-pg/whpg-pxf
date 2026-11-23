@@ -126,6 +126,40 @@ SELECT * FROM pxf_fdw_el_master_log;
 --
 SELECT 1 AS still_connected;
 
+-- ===================================================================
+-- A failed read releases its connection resources
+-- ===================================================================
+
+--
+-- A coordinator read runs in the session's own backend, so whatever a
+-- failed read leaves open stays open for the rest of the session.  The
+-- backend's open file descriptors are counted before and after 30 more
+-- failed reads, each in its own subtransaction (/proc on Linux, lsof
+-- elsewhere); every read above already failed the same way.
+--
+CREATE TEMP TABLE pxf_fdw_el_fds (at text, n int) DISTRIBUTED RANDOMLY;
+DO $$
+BEGIN
+    EXECUTE format($c$COPY pxf_fdw_el_fds (n) FROM PROGRAM
+        'n=$(ls /proc/%1$s/fd 2>/dev/null | wc -l); [ $n -gt 0 ] || n=$(lsof -p %1$s 2>/dev/null | wc -l); echo $n'$c$,
+        pg_backend_pid());
+    UPDATE pxf_fdw_el_fds SET at = 'before' WHERE at IS NULL;
+    FOR i IN 1..30 LOOP
+        BEGIN
+            PERFORM * FROM pxf_fdw_el_master;
+        EXCEPTION WHEN OTHERS THEN
+            NULL;
+        END;
+    END LOOP;
+    EXECUTE format($c$COPY pxf_fdw_el_fds (n) FROM PROGRAM
+        'n=$(ls /proc/%1$s/fd 2>/dev/null | wc -l); [ $n -gt 0 ] || n=$(lsof -p %1$s 2>/dev/null | wc -l); echo $n'$c$,
+        pg_backend_pid());
+    UPDATE pxf_fdw_el_fds SET at = 'after' WHERE at IS NULL;
+END $$;
+SELECT (SELECT n FROM pxf_fdw_el_fds WHERE at = 'after')
+     - (SELECT n FROM pxf_fdw_el_fds WHERE at = 'before') < 10
+       AS failed_reads_release_their_resources;
+
 SET client_min_messages = warning;
 DROP SERVER pxf_fdw_el_server CASCADE;
 DROP SERVER pxf_fdw_el_master_server CASCADE;
