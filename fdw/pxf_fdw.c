@@ -625,15 +625,13 @@ pxfEndForeignScan(ForeignScanState *node)
 {
 	elog(DEBUG5, "pxf_fdw: pxfEndForeignScan starts on segment: %d", PXF_SEGMENT_ID);
 
-	ForeignScan *foreignScan = (ForeignScan *) node->ss.ps.plan;
 	PxfFdwScanState *pxfsstate = (PxfFdwScanState *) node->fdw_state;
 
-	/* Release resources */
-	if (foreignScan->fdw_private)
-	{
-		elog(DEBUG5, "Freeing fdw_private");
-		pfree(foreignScan->fdw_private);
-	}
+	/*
+	 * The plan's fdw_private is not freed here: it belongs to the plan, which
+	 * can run again (a prepared statement, a cached plan in plpgsql), and is
+	 * freed with it.
+	 */
 
 	/*
 	 * pxfsstate is NULL in EXPLAIN and on the coordinator of an 'all
