@@ -355,6 +355,17 @@ public class ExecLocationTest extends BaseFeature {
         runSqlTest("features/fdw/exec_location/lifecycle");
     }
 
+    /**
+     * A scan in the session's own backend leaves nothing open however it ends:
+     * at the end of the data, by LIMIT, by a rescan, from a cached plan run again,
+     * or by an error.
+     */
+    @Test(groups = {"features", "gpdb", "hcfs"})
+    public void resourcesReleased() throws Exception {
+        requirePrepared();
+        runSqlTest("features/fdw/exec_location/resources");
+    }
+
     /** Reject limits per placement; log_errors needs 'all segments'. */
     @Test(groups = {"features", "gpdb", "hcfs"})
     public void badRows() throws Exception {
