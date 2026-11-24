@@ -31,6 +31,8 @@ The PXF Hive connector reads data stored in a Hive table. This section describes
 
 Before working with Hive table data using PXF, ensure that you have met the PXF Hadoop [Prerequisites](access_hdfs.html#hadoop_prereq).
 
+The Hive connector talks to the Hive metastore over Thrift binary transport, the metastore default; HTTP transport mode for the metastore is not supported. If the metastore uses TLS (`hive.metastore.use.SSL`), its certificate must match the host name in `hive.metastore.uris`: PXF verifies the host name, so connecting by IP address or through an alias that the certificate does not list fails.
+
 *If you plan to use PXF filter pushdown with Hive integral types*, ensure that the configuration parameter `hive.metastore.integral.jdo.pushdown` exists and is set to `true` in the `hive-site.xml` file in both your Hadoop cluster **and** `$PXF_BASE/servers/default/hive-site.xml`. Refer to [About Updating Hadoop Configuration](client_instcfg.html#client-cfg-update) for more information.
 
 
