@@ -5,7 +5,6 @@ import java.net.Inet4Address;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import jsystem.framework.report.Reporter;
 
@@ -109,24 +108,22 @@ public class MultiNodeCluster extends PhdCluster {
         }
         // run on relevant nodes
         ReportUtils.startLevel(report, getClass(), operation + " " + service.toString());
-        // get List of Nodes to run operation on according to service
-        List<Node> nodesListByService;
-        switch (service) {
-        case hive:
-            nodesListByService = getNode(CoordinatorNode.class, service);
-            break;
-        case pxf:
-            nodesListByService = getNode(service).stream()
-                    .filter(n -> n instanceof SegmentNode)
-                    .collect(Collectors.toList());
-            break;
-        default:
-            nodesListByService = getNode(service);
-            break;
-        }
-        // run operation on Node List
-        runCommandOnNodes(nodesListByService, command);
+        // run operation on the nodes of that service
+        runCommandOnNodes(nodesForOperation(service), command);
         ReportUtils.stopLevel(report);
+    }
+
+    /**
+     * The nodes a start, stop or restart of a service runs on: Hive on the coordinator only, every
+     * other service, PXF included, on every node that lists it. The coordinator's PXF serves
+     * pxf_fdw reads with mpp_execute 'coordinator' or 'any', so a test that changes PXF's
+     * configuration and restarts it must restart the coordinator's PXF too.
+     */
+    List<Node> nodesForOperation(EnumClusterServices service) {
+        if (service == EnumClusterServices.hive) {
+            return getNode(CoordinatorNode.class, service);
+        }
+        return getNode(service);
     }
 
     @Override
