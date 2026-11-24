@@ -28,6 +28,8 @@
 #include "utils/builtins.h"
 #include "utils/fmgroids.h"
 #include "utils/guc.h"
+#include "utils/memutils.h"
+#include "utils/resowner.h"
 #if PG_VERSION_NUM >= 130000
 /*
  * PostgreSQL 13 split the JSON lexer and parser out to common/jsonapi.h and
@@ -61,10 +63,38 @@ typedef struct churl_buffer
 } churl_buffer;
 
 /*
+ * The libcurl objects of a churl context, tracked by resource owner so that
+ * an error or a cancel between churl_init*() and churl_cleanup() does not
+ * leave them open: the easy and multi handles hold the connection to the PXF
+ * Service and the multi handle's wakeup socket pair or pipe.  A coordinator
+ * read runs in the session's own backend, so anything left open stays open
+ * for the rest of the session.  These live in TopMemoryContext: on abort, the
+ * executor's memory, where the churl context is, is freed before resource
+ * owners are released.  This is what url_curl.c in WarehousePG does for the
+ * curl handles of external tables.
+ */
+typedef struct churl_tracked
+{
+	CURL	   *curl_handle;
+	CURLM	   *multi_handle;
+	struct curl_slist *resolve;	/* CURLOPT_RESOLVE list, freed with the handle */
+	struct curl_slist *headers; /* request headers, freed here only on abort */
+	ResourceOwner owner;
+	struct churl_tracked *prev;
+	struct churl_tracked *next;
+} churl_tracked;
+
+static churl_tracked *open_churl_handles = NULL;
+static bool churl_release_callback_registered = false;
+
+/*
  * internal context of libchurl
  */
 typedef struct churl_handle
 {
+	/* the same libcurl objects, as tracked for release on abort */
+	churl_tracked *tracked;
+
 	/* curl easy API handle */
 	CURL	   *curl_handle;
 
@@ -120,6 +150,10 @@ static JsonSemAction nullSemAction =
 #endif
 
 churl_context *churl_new_context(void);
+static void		churl_track(churl_context *context);
+static void		churl_release_tracked(churl_tracked *tracked, bool free_headers);
+static void		churl_release_callback(ResourceReleasePhase phase, bool isCommit,
+									   bool isTopLevel, void *arg);
 static void		create_curl_handle(churl_context *context);
 static void		set_curl_option(churl_context *context, CURLoption option, const void *data);
 static size_t	read_callback(void *ptr, size_t size, size_t nmemb, void *userdata);
@@ -375,6 +409,7 @@ churl_init(const char *url, CHURL_HEADERS headers)
 	churl_context *context = churl_new_context();
 
 	create_curl_handle(context);
+	churl_track(context);
 	clear_error_buffer(context);
 
 /* Required for resolving localhost on some docker environments that
@@ -389,6 +424,7 @@ churl_init(const char *url, CHURL_HEADERS headers)
 		snprintf(pxf_host_entry, LOCAL_HOST_RESOLVE_STRING_MAX_LENGTH, LOCAL_HOST_RESOLVE_STRING_FORMAT, 5888);
 		elog(DEBUG3, "adding CURLOPT_RESOLVE with entry '%s'", pxf_host_entry);
 		resolve_hosts = curl_slist_append(NULL, pxf_host_entry);
+		context->tracked->resolve = resolve_hosts;
 		set_curl_option(context, CURLOPT_RESOLVE, resolve_hosts);
 		pfree(pxf_host_entry);
 	}
@@ -617,8 +653,12 @@ setup_multi_handle(churl_context *context)
 
 	/* Create multi handle on first use */
 	if (!context->multi_handle)
+	{
 		if (!(context->multi_handle = curl_multi_init()))
 			elog(ERROR, "internal error: curl_multi_init failed");
+		if (context->tracked)
+			context->tracked->multi_handle = context->multi_handle;
+	}
 
 	/* add the easy handle to the multi handle */
 	/* don't blame me, blame libcurl */
@@ -746,6 +786,111 @@ cleanup_curl_handle(churl_context *context)
 	context->curl_handle = NULL;
 	curl_multi_cleanup(context->multi_handle);
 	context->multi_handle = NULL;
+
+	/*
+	 * The handles are closed; free the resolve list, which had to outlive
+	 * the easy handle, and stop tracking.  The request headers belong to the
+	 * caller, who frees them with churl_headers_cleanup().
+	 */
+	if (context->tracked)
+	{
+		context->tracked->curl_handle = NULL;
+		context->tracked->multi_handle = NULL;
+		churl_release_tracked(context->tracked, false);
+		context->tracked = NULL;
+	}
+}
+
+/*
+ * Start tracking the libcurl objects of a context that has just got its easy
+ * handle; see churl_tracked.
+ */
+static void
+churl_track(churl_context *context)
+{
+	churl_tracked *tracked;
+
+	if (!churl_release_callback_registered)
+	{
+		RegisterResourceReleaseCallback(churl_release_callback, NULL);
+		churl_release_callback_registered = true;
+	}
+
+	tracked = (churl_tracked *) MemoryContextAllocZero(TopMemoryContext, sizeof(churl_tracked));
+	tracked->curl_handle = context->curl_handle;
+	tracked->owner = CurrentResourceOwner;
+	tracked->next = open_churl_handles;
+	if (open_churl_handles)
+		open_churl_handles->prev = tracked;
+	open_churl_handles = tracked;
+
+	context->tracked = tracked;
+}
+
+/*
+ * Close whatever libcurl objects are still set in a tracked entry, and drop
+ * the entry.  Only the abort path frees the request headers: on the normal
+ * path the caller frees them, after churl_cleanup().  Errors are logged, not
+ * raised: this also runs while a transaction is aborted.
+ */
+static void
+churl_release_tracked(churl_tracked *tracked, bool free_headers)
+{
+	if (tracked->multi_handle)
+	{
+		if (tracked->curl_handle)
+		{
+			CURLMcode	err = curl_multi_remove_handle(tracked->multi_handle, tracked->curl_handle);
+
+			if (err != CURLM_OK)
+				elog(LOG, "pxf_fdw: curl_multi_remove_handle failed (%d - %s)",
+					 err, curl_multi_strerror(err));
+		}
+	}
+	if (tracked->curl_handle)
+		curl_easy_cleanup(tracked->curl_handle);
+	if (tracked->multi_handle)
+		curl_multi_cleanup(tracked->multi_handle);
+	if (tracked->resolve)
+		curl_slist_free_all(tracked->resolve);
+	if (free_headers && tracked->headers)
+		curl_slist_free_all(tracked->headers);
+
+	if (tracked->prev)
+		tracked->prev->next = tracked->next;
+	else
+		open_churl_handles = tracked->next;
+	if (tracked->next)
+		tracked->next->prev = tracked->prev;
+
+	pfree(tracked);
+}
+
+/*
+ * Close the libcurl objects of every context the released resource owner
+ * still owns.  On abort that is every context whose scan or insert did not
+ * end (an error, a cancel); on commit it is a context churl_cleanup() was
+ * never called for, which is logged.
+ */
+static void
+churl_release_callback(ResourceReleasePhase phase, bool isCommit,
+					   bool isTopLevel, void *arg)
+{
+	churl_tracked *curr;
+	churl_tracked *next;
+
+	if (phase != RESOURCE_RELEASE_AFTER_LOCKS)
+		return;
+
+	for (curr = open_churl_handles; curr; curr = next)
+	{
+		next = curr->next;
+		if (curr->owner != CurrentResourceOwner)
+			continue;
+		if (isCommit)
+			elog(LOG, "pxf_fdw: libcurl handle %p was not released before commit", curr->curl_handle);
+		churl_release_tracked(curr, true);
+	}
 }
 
 static void
@@ -895,6 +1040,13 @@ churl_headers_set(churl_context *context, CHURL_HEADERS headers)
 {
 	churl_settings *settings = (churl_settings *) headers;
 
+	/*
+	 * The list now belongs to the request until the caller frees it; on abort
+	 * that never happens, so the tracked entry frees it then.  Headers added
+	 * later (churl_init_upload) are appended to this same list.
+	 */
+	if (context->tracked)
+		context->tracked->headers = settings->headers;
 	set_curl_option(context, CURLOPT_HTTPHEADER, settings->headers);
 }
 

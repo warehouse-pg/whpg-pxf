@@ -39,7 +39,7 @@ PXF bundles all of the Hadoop JAR files on which it depends, and supports the fo
 
 ## <a id="arch"></a> Architectural Overview
 
-Your WarehousePG deployment consists of a coordinator host, a standby coordinator host, and multiple segment hosts. A single PXF Service process runs on each WarehousePG host. The PXF Service process running on a segment host allocates a worker thread for each segment instance on the host that participates in a query against an external table. The PXF Services on multiple segment hosts communicate with the external data store in parallel. The PXF Service process running on the coordinator and standby coordinator hosts are not currently involved in data transfer; these processes may be used for other purposes in the future.
+Your WarehousePG deployment consists of a coordinator host, a standby coordinator host, and multiple segment hosts. A single PXF Service process runs on each WarehousePG host. The PXF Service process running on a segment host allocates a worker thread for each segment instance on the host that participates in a query against an external table. The PXF Services on multiple segment hosts communicate with the external data store in parallel. The PXF Service process running on the coordinator and standby coordinator hosts are not involved in data transfer, except when a foreign table whose `mpp_execute` option is `'coordinator'` or `'any'` is read on the coordinator.
 
 
 ## <a id="more"></a> About Connectors, Servers, and Profiles

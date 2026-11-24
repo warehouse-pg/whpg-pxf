@@ -60,11 +60,31 @@ PxfBridgeCleanup(PxfFdwModifyState *pxfmstate)
 }
 
 /*
+ * Release what PxfBridgeImportStart() set up: the libcurl handle, which holds
+ * the connection to the PXF Service, and the request headers.  A read that
+ * stopped before the end of PXF's response (LIMIT, a rescan, a subplan that
+ * needs only the first row) does not read the rest of it first.
+ */
+void
+PxfBridgeImportCleanup(PxfFdwScanState *pxfsstate)
+{
+	if (pxfsstate == NULL)
+		return;
+
+	churl_cleanup(pxfsstate->churl_handle, !pxfsstate->eof);
+	pxfsstate->churl_handle = NULL;
+
+	churl_headers_cleanup(pxfsstate->churl_headers);
+	pxfsstate->churl_headers = NULL;
+}
+
+/*
  * Sets up data before starting import
  */
 void
 PxfBridgeImportStart(PxfFdwScanState *pxfsstate)
 {
+	pxfsstate->eof = false;
 	pxfsstate->churl_headers = churl_headers_init();
 
 	BuildUriForRead(pxfsstate);
@@ -74,6 +94,19 @@ PxfBridgeImportStart(PxfFdwScanState *pxfsstate)
 					 pxfsstate->filter_str,
 					 pxfsstate->retrieved_attrs,
 					 pxfsstate->projectionInfo);
+
+	/*
+	 * PXF gives each request the fragments that belong to its segment
+	 * (X-GP-SEGMENT-ID of X-GP-SEGMENT-COUNT).  A scan that does not run as
+	 * one of all the segments, mpp_execute 'coordinator' or 'any', must return
+	 * every row, so present it to PXF as the only reader.  Writes keep the
+	 * real segment id, which PXF uses in the names of the files it writes.
+	 */
+	if (pxfsstate->options->exec_location != FTEXECLOCATION_ALL_SEGMENTS)
+	{
+		churl_headers_override(pxfsstate->churl_headers, "X-GP-SEGMENT-ID", "0");
+		churl_headers_override(pxfsstate->churl_headers, "X-GP-SEGMENT-COUNT", "1");
+	}
 
 	pxfsstate->churl_handle = churl_init_download(pxfsstate->uri.data, pxfsstate->churl_headers);
 
@@ -121,6 +154,7 @@ PxfBridgeRead(void *outbuf, int datasize, void *extra)
 	{
 		/* check if the connection terminated with an error */
 		churl_read_check_connectivity(pxfsstate->churl_handle);
+		pxfsstate->eof = true;
 	}
 
 	elog(DEBUG5, "pxf PxfBridgeRead: segment %d read %zu bytes from %s",

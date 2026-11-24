@@ -1,0 +1,149 @@
+-- start_matchsubs
+--
+-- m/\S*pxf_automation_data\/[0-9a-fA-F-]{36}\//
+-- s/\S*pxf_automation_data\/[0-9a-fA-F-]{36}\//WORKDIR\//
+--
+-- end_matchsubs
+SET optimizer = on;
+SET
+-- rescans: the subquery restarts the scan for each outer row
+SELECT g, (SELECT count(*) FROM s_coord_s WHERE num > g) FROM generate_series(10, 12) g ORDER BY g;
+ g  | count 
+----+-------
+ 10 |    15
+ 11 |    14
+ 12 |    13
+(3 rows)
+
+SELECT g, (SELECT count(*) FROM s_any_s WHERE num > g) FROM generate_series(10, 12) g ORDER BY g;
+ g  | count 
+----+-------
+ 10 |    15
+ 11 |    14
+ 12 |    13
+(3 rows)
+
+-- LIMIT stops the scan early; the session reads normally afterwards
+SELECT count(*) FROM (SELECT num FROM g_coord LIMIT 3) l;
+ count 
+-------
+     3
+(1 row)
+
+SELECT count(*) FROM (SELECT num FROM g_any LIMIT 3) l;
+ count 
+-------
+     3
+(1 row)
+
+SELECT count(*), sum(num) FROM g_coord;
+ count  |    sum     
+--------+------------
+ 100000 | 5000050000
+(1 row)
+
+SELECT count(*), sum(num) FROM g_any;
+ count  |    sum     
+--------+------------
+ 100000 | 5000050000
+(1 row)
+
+SELECT count(*) FROM g_any JOIN el_h USING (num);
+ count 
+-------
+   300
+(1 row)
+
+SELECT el_digest('SELECT * FROM g_coord') = el_digest('SELECT * FROM g_all') AS big_coordinator_same;
+ big_coordinator_same 
+----------------------
+ t
+(1 row)
+
+-- cursors: fetched in steps, closed without a fetch, and in a rolled back transaction
+BEGIN;
+BEGIN
+DECLARE el_c1 CURSOR FOR SELECT num FROM s_coord_s ORDER BY num;
+DECLARE CURSOR
+FETCH 3 FROM el_c1;
+ num 
+-----
+  11
+  12
+  13
+(3 rows)
+
+FETCH 3 FROM el_c1;
+ num 
+-----
+  14
+  15
+  21
+(3 rows)
+
+CLOSE el_c1;
+CLOSE CURSOR
+DECLARE el_c2 CURSOR FOR SELECT * FROM s_any_s;
+DECLARE CURSOR
+CLOSE el_c2;
+CLOSE CURSOR
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
+DECLARE el_c3 CURSOR FOR SELECT num FROM g_coord;
+DECLARE CURSOR
+FETCH 2 FROM el_c3;
+ num 
+-----
+   1
+   2
+(2 rows)
+
+ROLLBACK;
+ROLLBACK
+SELECT count(*) FROM g_coord;
+ count  
+--------
+ 100000
+(1 row)
+
+-- several reads in one transaction
+BEGIN;
+BEGIN
+SELECT count(*) FROM s_coord_s;
+ count 
+-------
+    15
+(1 row)
+
+SELECT count(*) FROM s_any_s JOIN el_h USING (num);
+ count 
+-------
+    15
+(1 row)
+
+SELECT count(*) FROM s_all;
+ count 
+-------
+    15
+(1 row)
+
+COMMIT;
+COMMIT
+-- EXPLAIN ANALYZE runs the scan
+DO $$ BEGIN EXECUTE 'EXPLAIN ANALYZE SELECT * FROM s_coord_s'; END $$;
+DO
+DO $$ BEGIN EXECUTE 'EXPLAIN ANALYZE SELECT * FROM s_any_s JOIN el_h USING (num)'; END $$;
+DO
+-- a resource that does not exist fails with the foreign table named; the session goes on
+SELECT * FROM x_coord;
+psql:features/fdw/exec_location/lifecycle/sql/query01.sql:42: ERROR:  PXF server error : Input path does not exist: hdfs://0.0.0.0:8020/tmp/pxf_automation_data/3920c3f4-81f1-4ca1-b908-fee7c386afc2/exec_location/does_not_exist
+HINT:  Check the PXF logs located in the 'logs-dir' directory on host 'mdw' or 'set client_min_messages=LOG' for additional details.
+CONTEXT:  Foreign table x_coord, resource tmp/pxf_automation_data/3920c3f4-81f1-4ca1-b908-fee7c386afc2/exec_location/does_not_exist
+SELECT 1 AS still_connected;
+ still_connected 
+-----------------
+               1
+(1 row)
+

@@ -106,6 +106,7 @@ static CopyToState PxfBeginCopyTo(Relation forrel, List *options);
 static void EndCopyToModify(CopyToState cstate);
 static void PxfBeginScanErrorCallback(void *arg);
 static void PxfCopyFromErrorCallback(void *arg);
+static void OpenForeignScan(ForeignScanState *node, PxfFdwScanState *pxfsstate);
 #if PXF_FDW_HANDLES_SCAN_ERRORS
 static void pxfHandleForeignScanError(ForeignScanState *node);
 #endif
@@ -130,7 +131,11 @@ pxf_fdw_handler(PG_FUNCTION_ARGS)
 	fdw_routine->GetForeignPlan = pxfGetForeignPlan;
 	fdw_routine->ExplainForeignScan = pxfExplainForeignScan;
 
-	/* segment - only when mpp_execute = segments */
+	/*
+	 * where the scan runs: every segment with mpp_execute 'all segments'
+	 * (the default); the coordinator, or wherever the planner puts it, with
+	 * 'coordinator' or 'any'
+	 */
 	fdw_routine->BeginForeignScan = pxfBeginForeignScan;
 	fdw_routine->IterateForeignScan = pxfIterateForeignScan;
 	fdw_routine->ReScanForeignScan = pxfReScanForeignScan;
@@ -432,7 +437,28 @@ pxfBeginForeignScan(ForeignScanState *node, int eflags)
 	char *filter_str              = strVal(list_nth(foreignScan->fdw_private, FdwScanPrivateWhereClauses));
 	List *retrieved_attrs = (List *) list_nth(foreignScan->fdw_private, FdwScanPrivateRetrievedAttrs);
 
-	if (Gp_role == GP_ROLE_DISPATCH)
+	/*
+	 * With mpp_execute 'all segments' (the default) each segment reads its
+	 * share of the fragments and the coordinator only dispatches the scan.
+	 * With 'coordinator' or 'any' the scan runs as a single reader that must
+	 * return every row (see PxfBridgeImportStart): on the coordinator, in a
+	 * coordinator reader process, or, for 'any', once on every segment.
+	 */
+	bool		reads_all_fragments = options->exec_location != FTEXECLOCATION_ALL_SEGMENTS;
+
+	/*
+	 * Bad rows can be logged only where a scan runs on the segments: the
+	 * coordinator has no error log that gp_read_error_log() reads, and an
+	 * 'any' scan on the segments would log every bad row once per copy.
+	 */
+	if (reads_all_fragments && options->log_errors)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("log_errors is supported only with mpp_execute 'all segments' for pxf_fdw foreign table \"%s\"",
+						RelationGetRelationName(relation)),
+				 errhint("Set mpp_execute 'all segments' on the foreign table or its server, or drop log_errors.")));
+
+	if (Gp_role == GP_ROLE_DISPATCH && !reads_all_fragments)
 	{
 		return;
 	}
@@ -454,18 +480,20 @@ pxfBeginForeignScan(ForeignScanState *node, int eflags)
 	pxfsstate->in_next_copy_from = false;
 #endif
 
-    /* Set up callback to identify error foreign relation. */
-    ErrorContextCallback errcallback;
-    errcallback.callback = PxfBeginScanErrorCallback;
-    errcallback.arg = (void *) pxfsstate;
-    errcallback.previous = error_context_stack;
-    error_context_stack = &errcallback;
-
-	InitCopyState(pxfsstate);
+	pxfsstate->cstate = NULL;
+	pxfsstate->churl_handle = NULL;
+	pxfsstate->churl_headers = NULL;
+	pxfsstate->eof = false;
 	node->fdw_state = (void *) pxfsstate;
 
-    /* Restore the previous error callback */
-    error_context_stack = errcallback.previous;
+	/*
+	 * A scan that reads every fragment sends its request to PXF on the first
+	 * fetch: the coordinator also starts scans that run in other processes
+	 * (an 'any' scan joined with a distributed table runs on the segments),
+	 * and must not open a request it never reads.
+	 */
+	if (!reads_all_fragments)
+		OpenForeignScan(node, pxfsstate);
 
     elog(DEBUG5, "pxf_fdw: pxfBeginForeignScan ends on segment: %d", PXF_SEGMENT_ID);
 }
@@ -487,6 +515,13 @@ pxfIterateForeignScan(ForeignScanState *node)
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	ErrorContextCallback errcallback;
 	bool		found;
+
+	/*
+	 * A scan that reads every fragment is opened here, see
+	 * pxfBeginForeignScan, and so is every scan after a rescan.
+	 */
+	if (pxfsstate->cstate == NULL)
+		OpenForeignScan(node, pxfsstate);
 
 	/* Set up callback to identify error line number. */
 	errcallback.callback = PxfCopyFromErrorCallback;
@@ -563,8 +598,20 @@ pxfReScanForeignScan(ForeignScanState *node)
 
 	PxfFdwScanState *pxfsstate = (PxfFdwScanState *) node->fdw_state;
 
+	/* not opened yet: the next fetch opens it from the start */
+	if (pxfsstate->cstate == NULL)
+		return;
+
+	/*
+	 * Close this read and release its connection.  The next fetch opens the
+	 * scan again from the start, through OpenForeignScan, like a first fetch:
+	 * a rescan that is never fetched from (the last one of a correlated
+	 * subplan, for one) sends no request, and an error opening it names the
+	 * foreign table.
+	 */
 	EndCopyFrom(pxfsstate->cstate);
-	InitCopyState(pxfsstate);
+	pxfsstate->cstate = NULL;
+	PxfBridgeImportCleanup(pxfsstate);
 
 	elog(DEBUG5, "pxf_fdw: pxfReScanForeignScan ends on segment: %d", PXF_SEGMENT_ID);
 }
@@ -578,19 +625,25 @@ pxfEndForeignScan(ForeignScanState *node)
 {
 	elog(DEBUG5, "pxf_fdw: pxfEndForeignScan starts on segment: %d", PXF_SEGMENT_ID);
 
-	ForeignScan *foreignScan = (ForeignScan *) node->ss.ps.plan;
 	PxfFdwScanState *pxfsstate = (PxfFdwScanState *) node->fdw_state;
 
-	/* Release resources */
-	if (foreignScan->fdw_private)
-	{
-		elog(DEBUG5, "Freeing fdw_private");
-		pfree(foreignScan->fdw_private);
-	}
+	/*
+	 * The plan's fdw_private is not freed here: it belongs to the plan, which
+	 * can run again (a prepared statement, a cached plan in plpgsql), and is
+	 * freed with it.
+	 */
 
-	/* if pxfsstate is NULL, we are in EXPLAIN; nothing to do */
-	if (pxfsstate)
+	/*
+	 * pxfsstate is NULL in EXPLAIN and on the coordinator of an 'all
+	 * segments' scan; cstate is NULL if a scan was never fetched from since
+	 * it began or was rescanned.  Nothing to do then.
+	 */
+	if (pxfsstate && pxfsstate->cstate)
+	{
 		EndCopyFrom(pxfsstate->cstate);
+		pxfsstate->cstate = NULL;
+		PxfBridgeImportCleanup(pxfsstate);
+	}
 
 	elog(DEBUG5, "pxf_fdw: pxfEndForeignScan ends on segment: %d", PXF_SEGMENT_ID);
 }
@@ -840,6 +893,33 @@ pxfIsForeignRelUpdatable(Relation rel)
 	elog(DEBUG5, "pxf_fdw: pxfIsForeignRelUpdatable ends on segment: %d", PXF_SEGMENT_ID);
 	/* Only INSERTs are allowed at the moment */
 	return 1u << (unsigned int) CMD_INSERT | 0u << (unsigned int) CMD_UPDATE | 0u << (unsigned int) CMD_DELETE;
+}
+
+/*
+ * Opens the scan: builds the copy state, which sends the request to PXF.
+ * Called from pxfBeginForeignScan(), or, for a scan that reads every
+ * fragment, on its first fetch.  IterateForeignScan runs in a per-tuple
+ * memory context, so the state is built in the query's context, where
+ * pxfBeginForeignScan() builds it.
+ */
+static void
+OpenForeignScan(ForeignScanState *node, PxfFdwScanState *pxfsstate)
+{
+	ErrorContextCallback errcallback;
+	MemoryContext oldcontext;
+
+	/* Set up callback to identify error foreign relation. */
+	errcallback.callback = PxfBeginScanErrorCallback;
+	errcallback.arg = (void *) pxfsstate;
+	errcallback.previous = error_context_stack;
+	error_context_stack = &errcallback;
+
+	oldcontext = MemoryContextSwitchTo(node->ss.ps.state->es_query_cxt);
+	InitCopyState(pxfsstate);
+	MemoryContextSwitchTo(oldcontext);
+
+	/* Restore the previous error callback */
+	error_context_stack = errcallback.previous;
 }
 
 /*

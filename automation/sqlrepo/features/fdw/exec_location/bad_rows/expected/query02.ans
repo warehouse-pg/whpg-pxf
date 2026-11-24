@@ -1,0 +1,75 @@
+-- start_matchsubs
+--
+-- m/\S*pxf_automation_data\/[0-9a-fA-F-]{36}\//
+-- s/\S*pxf_automation_data\/[0-9a-fA-F-]{36}\//WORKDIR\//
+--
+-- end_matchsubs
+SET optimizer = off;
+SET
+-- reject limits on reads that run on the coordinator or once per segment
+SELECT count(*) FROM b_coord_10;
+ count 
+-------
+     6
+(1 row)
+
+SELECT count(*) FROM b_coord_3;
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:10: ERROR:  segment reject limit reached, aborting operation
+DETAIL:  Last error was: invalid input syntax for type integer: "z8", column num
+CONTEXT:  Foreign table b_coord_3, record 8 of tmp/pxf_automation_data/3920c3f4-81f1-4ca1-b908-fee7c386afc2/exec_location/bad, column num: "z8"
+SELECT count(*) FROM b_coord_none;
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:11: ERROR:  invalid input syntax for type integer: "x3"
+CONTEXT:  Foreign table b_coord_none, record 3 of tmp/pxf_automation_data/3920c3f4-81f1-4ca1-b908-fee7c386afc2/exec_location/bad, column num: "x3"
+SELECT count(*) FROM b_any_10;
+ count 
+-------
+     6
+(1 row)
+
+SELECT count(*) FROM b_any_10 JOIN el_h USING (num);
+ count 
+-------
+     6
+(1 row)
+
+SELECT count(*) FROM b_any_3 JOIN el_h USING (num);
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:14: ERROR:  segment reject limit reached, aborting operation  (seg1 slice1 127.0.0.1:7505 pid=84929)
+DETAIL:  Last error was: invalid input syntax for type integer: "z8", column num
+CONTEXT:  Foreign table b_any_3, record 8 of tmp/pxf_automation_data/3920c3f4-81f1-4ca1-b908-fee7c386afc2/exec_location/bad, column num: "z8"
+-- a failing cast in the WHERE clause is not a rejected row
+SELECT count(*) FROM small_coord_10 WHERE word::int > 0;
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:16: ERROR:  invalid input syntax for type integer: "w11"
+-- log_errors needs mpp_execute 'all segments'; with it bad rows are logged
+SELECT gp_truncate_error_log('b_all_log');
+ gp_truncate_error_log 
+-----------------------
+ t
+(1 row)
+
+SELECT count(*) FROM b_all_log;
+ count 
+-------
+     6
+(1 row)
+
+SELECT count(*) AS logged FROM gp_read_error_log('b_all_log');
+ logged 
+--------
+      4
+(1 row)
+
+SELECT count(*) FROM b_coord_log;
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:21: ERROR:  log_errors is supported only with mpp_execute 'all segments' for pxf_fdw foreign table "b_coord_log"
+HINT:  Set mpp_execute 'all segments' on the foreign table or its server, or drop log_errors.
+SELECT count(*) FROM b_any_log;
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:22: ERROR:  log_errors is supported only with mpp_execute 'all segments' for pxf_fdw foreign table "b_any_log"
+HINT:  Set mpp_execute 'all segments' on the foreign table or its server, or drop log_errors.
+SELECT count(*) FROM b_any_log JOIN el_h USING (num);
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:23: ERROR:  log_errors is supported only with mpp_execute 'all segments' for pxf_fdw foreign table "b_any_log"
+HINT:  Set mpp_execute 'all segments' on the foreign table or its server, or drop log_errors.
+SELECT count(*) FROM b_srv_log;
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:24: ERROR:  log_errors is supported only with mpp_execute 'all segments' for pxf_fdw foreign table "b_srv_log"
+HINT:  Set mpp_execute 'all segments' on the foreign table or its server, or drop log_errors.
+SELECT count(*) FROM b_srv_log JOIN el_h USING (num);
+psql:features/fdw/exec_location/bad_rows/sql/query02.sql:25: ERROR:  log_errors is supported only with mpp_execute 'all segments' for pxf_fdw foreign table "b_srv_log"
+HINT:  Set mpp_execute 'all segments' on the foreign table or its server, or drop log_errors.
