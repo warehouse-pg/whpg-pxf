@@ -253,7 +253,8 @@ jobs:
       # here; everything else in automation/ runs only in the packaging L2.
       # The weekly schedule runs this job on release-6.x too, which does not
       # have these tests (surefire then fails with "No tests were executed"),
-      # so a branch without the test skips the step and says so. Not
+      # so only the listed tests the branch has run, and a branch with none
+      # skips the step and says so. Not
       # -DfailIfNoTests=false: that would also hide the test going missing
       # on main.
       - name: Run the automation unit tests that need no cluster
@@ -261,12 +262,17 @@ jobs:
           NO_GCE_CHECK: 'true'
         run: |
           cd automation
-          if [ -z "$(find src/test -name GpdbVersionParseTest.java)" ]; then
-            echo "GpdbVersionParseTest is not on this branch: skipped"
-            echo "automation unit tests: GpdbVersionParseTest is not on this branch, skipped" >> "$GITHUB_STEP_SUMMARY"
+          tests=""
+          for t in GpdbVersionParseTest MultiNodeClusterNodesTest; do
+            if [ -n "$(find src/test -name "${t}.java")" ]; then tests="${tests:+${tests},}${t}"; fi
+          done
+          if [ -z "$tests" ]; then
+            echo "none of the automation unit tests is on this branch: skipped"
+            echo "automation unit tests: none on this branch, skipped" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          mvn -B test -Dtest=GpdbVersionParseTest -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
+          echo "automation unit tests: ${tests}" >> "$GITHUB_STEP_SUMMARY"
+          mvn -B test -Dtest="${tests}" -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
       - name: Job summary
         if: always()
         run: echo "### automation-compile (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
