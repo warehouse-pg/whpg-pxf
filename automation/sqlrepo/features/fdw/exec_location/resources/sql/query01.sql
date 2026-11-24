@@ -35,6 +35,12 @@ SELECT count(*) FROM (SELECT g, (SELECT count(*) FROM s_coord_s WHERE num > g) c
                       FROM generate_series(1, 50) g) x WHERE c >= 0;
 SELECT count(*) FROM (SELECT g, (SELECT count(*) FROM s_any_s WHERE num > g) c
                       FROM generate_series(1, 50) g) x WHERE c >= 0;
+-- rescans that stop each read early: LIMIT 1 ends the subquery's scan in the
+-- middle of the stream, so the rescan closes a read that is still open
+SELECT count(*) FROM (SELECT g, (SELECT num FROM g_coord WHERE num > g LIMIT 1) c
+                      FROM generate_series(1, 50) g) x WHERE c >= 0;
+SELECT count(*) FROM (SELECT g, (SELECT num FROM g_any WHERE num > g LIMIT 1) c
+                      FROM generate_series(1, 50) g) x WHERE c >= 0;
 -- a prepared statement runs the same plan again
 PREPARE el_p AS SELECT count(*), sum(num) FROM s_coord_s;
 EXECUTE el_p;
