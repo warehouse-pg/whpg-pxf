@@ -251,10 +251,22 @@ jobs:
         run: cd automation && mvn -B test-compile -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
       # The automation tree's own unit tests need no cluster, so run them
       # here; everything else in automation/ runs only in the packaging L2.
+      # The weekly schedule runs this job on release-6.x too, which does not
+      # have these tests (surefire then fails with "No tests were executed"),
+      # so a branch without the test skips the step and says so. Not
+      # -DfailIfNoTests=false: that would also hide the test going missing
+      # on main.
       - name: Run the automation unit tests that need no cluster
         env:
           NO_GCE_CHECK: 'true'
-        run: cd automation && mvn -B test -Dtest=GpdbVersionParseTest -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
+        run: |
+          cd automation
+          if [ -z "$(find src/test -name GpdbVersionParseTest.java)" ]; then
+            echo "GpdbVersionParseTest is not on this branch: skipped"
+            echo "automation unit tests: GpdbVersionParseTest is not on this branch, skipped" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mvn -B test -Dtest=GpdbVersionParseTest -Dpxf.lib="$RUNNER_TEMP/pxf-lib"
       - name: Job summary
         if: always()
         run: echo "### automation-compile (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
